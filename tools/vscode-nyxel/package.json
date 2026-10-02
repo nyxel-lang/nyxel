@@ -1,0 +1,48 @@
+{
+  "name": "nyxel-lang",
+  "displayName": "Nyxel Language",
+  "description": "Nyxel scripting language support for game engines",
+  "version": "0.0.1",
+  "publisher": "nyxel-lang",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nyxel-lang/nyxel"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "nyxel",
+        "aliases": [
+          "Nyxel",
+          "nyxel"
+        ],
+        "extensions": [
+          ".nyxel"
+        ],
+        "mimetypes": [
+          "text/x-nyxel"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "nyxel",
+        "scopeName": "source.nyxel",
+        "path": "./syntaxes/nyxel.tmLanguage.json"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "nyxel"
+      }
+    ]
+  }
+}

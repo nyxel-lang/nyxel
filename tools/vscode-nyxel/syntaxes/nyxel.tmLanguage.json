@@ -1,0 +1,90 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Nyxel",
+  "scopeName": "source.nyxel",
+  "fileTypes": ["nyxel"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.documentation.nyxel", "match": "///.*$" },
+        { "name": "comment.line.double-slash.nyxel", "match": "//.*$" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.interpolated.nyxel",
+          "begin": "\\$\"",
+          "end": "\"",
+          "patterns": [
+            { "include": "#escapes" },
+            { "name": "constant.character.escape.brace.nyxel", "match": "\\{\\{|\\}\\}" },
+            {
+              "name": "meta.interpolation.nyxel",
+              "contentName": "meta.embedded.line.nyxel",
+              "begin": "\\{",
+              "end": "\\}",
+              "beginCaptures": { "0": { "name": "punctuation.definition.interpolation.begin.nyxel" } },
+              "endCaptures": { "0": { "name": "punctuation.definition.interpolation.end.nyxel" } },
+              "patterns": [{ "include": "$self" }]
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.double.nyxel",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "include": "#escapes" }]
+        }
+      ]
+    },
+    "escapes": {
+      "name": "constant.character.escape.nyxel",
+      "match": "\\\\(u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|x[0-9A-Fa-f]{1,4}|.)"
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.hex.nyxel", "match": "\\b0[xX][0-9A-Fa-f_]+\\b" },
+        { "name": "constant.numeric.binary.nyxel", "match": "\\b0[bB][01_]+\\b" },
+        { "name": "constant.numeric.decimal.nyxel", "match": "\\b[0-9][0-9_]*(\\.[0-9][0-9_]*)?([eE][+-]?[0-9][0-9_]*)?\\b" }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "match": "^\\s*(?:(public|private)\\s+)?(get|set)\\b",
+          "captures": {
+            "1": { "name": "storage.modifier.nyxel" },
+            "2": { "name": "storage.type.accessor.nyxel" }
+          }
+        },
+        { "name": "keyword.control.nyxel", "match": "\\b(if|else|match|return|throw|continue|break|for|in|while|when|try|catch|finally|await|launch|emit)\\b" },
+        { "name": "keyword.operator.word.nyxel", "match": "\\b(and|or|not|is|as)\\b" },
+        { "name": "keyword.operator.range.nyxel", "match": "\\.\\.<|\\.\\.\\." },
+        { "name": "constant.language.nyxel", "match": "\\b(true|false|null)\\b" },
+        { "name": "keyword.other.new.nyxel", "match": "\\bnew\\b" },
+        { "name": "keyword.other.namespace.nyxel", "match": "\\b(namespace|import)\\b" },
+        { "name": "variable.language.self.nyxel", "match": "\\bself\\b" },
+        { "name": "variable.language.super.nyxel", "match": "\\bsuper\\b" },
+        { "name": "storage.type.nyxel", "match": "\\b(let|var|func|init|property|class|struct|interface|enum|case|extension|event)\\b" },
+        { "name": "storage.modifier.nyxel", "match": "\\b(public|private|protected|static|virtual|override|abstract|sealed|out|ref|using|async)\\b" },
+        { "name": "keyword.operator.arrow.nyxel", "match": "->" }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.primitive.nyxel",
+          "match": "\\b(bool|byte|sbyte|short|ushort|int|uint|long|ulong|float|double|decimal|char|string|object)\\b"
+        }
+      ]
+    }
+  }
+}
