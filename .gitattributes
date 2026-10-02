@@ -1,0 +1,14 @@
+# Normalize to LF in the repo regardless of core.autocrlf; matches .editorconfig.
+* text=auto eol=lf
+
+# Windows batch files must stay CRLF or cmd misparses labels.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary files
+*.png binary
+*.ico binary
+*.dll binary
+*.exe binary
+*.nupkg binary
+*.vsix binary

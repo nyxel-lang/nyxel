@@ -1,0 +1,4 @@
+<Project>
+  <!-- Imported at the bottom of a .nyxelproj. The Nyxel compile target will be added here. -->
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+</Project>

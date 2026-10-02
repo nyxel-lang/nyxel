@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Nyxel.Cli/Nyxel.Cli.csproj" />
+    <Project Path="src/Nyxel.Compiler/Nyxel.Compiler.csproj" />
+    <Project Path="src/Nyxel.Host/Nyxel.Host.csproj" />
+    <Project Path="src/Nyxel.Runtime/Nyxel.Runtime.csproj" />
+    <Project Path="src/Nyxel.Sdk/Nyxel.Sdk.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Nyxel.Cli.Tests/Nyxel.Cli.Tests.csproj" />
+    <Project Path="tests/Nyxel.Compiler.Tests/Nyxel.Compiler.Tests.csproj" />
+  </Folder>
+  <Folder Name="/solution items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+  </Folder>
+</Solution>

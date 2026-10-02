@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The Nyxel compiler as a library: source text in, .NET assembly + diagnostics out.
+    Used by the CLI (nyxel / nyxelc), the MSBuild SDK, the language server and in-process hosts.
+  -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>The Nyxel compiler library.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Back end: lowered C# syntax trees are compiled in-process by Roslyn (ADR-0004). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+</Project>

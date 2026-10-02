@@ -1,0 +1,24 @@
+# Build outputs (everything goes under build/, see Directory.Build.props)
+build/
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+*.DotSettings.user
+
+# .NET
+*.nupkg
+TestResults/
+
+# VSCode extension
+node_modules/
+*.vsix
+
+# OS
+Thumbs.db
+.DS_Store
+
+# AgentDeck workspace state
+.deck/

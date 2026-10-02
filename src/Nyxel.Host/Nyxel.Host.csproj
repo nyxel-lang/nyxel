@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    What a game engine embeds to run Nyxel scripts: loading compiled scripts into a collectible
+    AssemblyLoadContext, hot reload, and (later) compiling in-process.
+  -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>Embedding API for game engines that host Nyxel scripts.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Nyxel.Runtime/Nyxel.Runtime.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,4 @@
+<Project>
+  <!-- Imported at the top of a .nyxelproj. Nyxel builds on the regular .NET SDK. -->
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+</Project>

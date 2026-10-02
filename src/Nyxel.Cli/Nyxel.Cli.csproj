@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The `nyxel` command line tool, shipped as a .NET tool (dotnet tool install -g Nyxel.Cli). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>nyxel</AssemblyName>
+    <RootNamespace>Nyxel.Cli</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>nyxel</ToolCommandName>
+    <PackageId>Nyxel.Cli</PackageId>
+    <Description>Command line tool for the Nyxel language.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Nyxel.Compiler/Nyxel.Compiler.csproj" />
+  </ItemGroup>
+</Project>

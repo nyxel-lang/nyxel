@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Support library referenced by every compiled Nyxel assembly (helpers the generated code calls).
+    Loaded into game processes, so: no third-party dependencies, trimming / NativeAOT compatible.
+  -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Description>Runtime support library for compiled Nyxel code.</Description>
+  </PropertyGroup>
+</Project>

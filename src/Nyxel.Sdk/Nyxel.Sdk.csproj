@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    MSBuild project SDK for .nyxelproj files: <Project Sdk="Nyxel.Sdk">.
+    The package carries only Sdk/Sdk.props and Sdk/Sdk.targets; there is no assembly in it.
+    For now they just chain to Microsoft.NET.Sdk. The target that runs the Nyxel compiler comes with
+    the first working compiler.
+  -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageType>MSBuildSdk</PackageType>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <!-- NU5128: no lib/ folder, expected for an MSBuild SDK package. -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <Description>MSBuild SDK for Nyxel projects (.nyxelproj).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="Sdk/*" Pack="true" PackagePath="Sdk/" />
+  </ItemGroup>
+</Project>
