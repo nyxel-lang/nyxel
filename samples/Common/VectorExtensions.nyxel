@@ -1,0 +1,19 @@
+namespace Samples.Common
+
+import System
+import System.Numerics
+
+/// 给 System.Numerics.Vector3 加的游戏常用方法。
+extension Vector3 {
+    /// 去掉高度分量。
+    public func Flat(self) -> Vector3 = new Vector3(self.X, 0, self.Z)
+
+    /// 水平面上的距离，忽略高度差。
+    public func HorizontalDistance(self, other: Vector3) -> float =
+        (self - other).Flat().Length()
+
+    /// 水平面上指向某个角度的单位向量。没有 self：通过 Vector3.FromAngle(...) 调用。
+    public func FromAngle(radians: float) -> Vector3 {
+        return new Vector3(MathF.Cos(radians), 0, MathF.Sin(radians))
+    }
+}

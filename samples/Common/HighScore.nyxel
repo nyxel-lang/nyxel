@@ -1,0 +1,32 @@
+namespace Samples.Common
+
+import System.IO
+import Engine
+
+/// 把最高分存在一个文本文件里。
+public class HighScore {
+    let path: string
+
+    public init(path: string) {
+        self.path = path
+    }
+
+    /// 读不到或文件损坏时当作 0 分。
+    public func Load(self) -> int {
+        let text = try { File.ReadAllText(self.path) } catch e: FileNotFoundException { return 0 }
+        if not int.TryParse(text, out let score) {
+            Log.Warn($"存档损坏，已忽略：{self.path}")
+            return 0
+        }
+        return score
+    }
+
+    public func Save(self, score: int) {
+        try {
+            using writer = new StreamWriter(self.path)
+            writer.Write(score)
+        } catch e: IOException {
+            Log.Warn($"保存最高分失败：{e.Message}")
+        }
+    }
+}

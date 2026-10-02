@@ -1,0 +1,35 @@
+namespace Samples.Combat
+
+import Engine
+
+/// 火球：飞得越久越大，打中目标造成灼烧。
+public class Fireball : Projectile {
+    public let StartRadius: float
+    var age: float = 0
+
+    public init(power: int, radius: float) {
+        super.init(power = power)
+        self.StartRadius = radius
+    }
+
+    /// 威力和半径都取较小固定值的火球。
+    public init Small() {
+        self.init(power = 5, radius = 0.5)
+    }
+
+    public property Radius: float {
+        get { return self.StartRadius + self.age * 0.5 }
+    }
+
+    public override func Update(self, dt: float) {
+        super.Update(dt = dt)
+        self.age += dt
+    }
+
+    /// 打中目标时的伤害：威力越大烧得越久。
+    public func ToDamage(self) -> Damage {
+        return new Damage.Burn(
+            amount = self.Power,
+            seconds = 1 + self.Power * 0.2)
+    }
+}

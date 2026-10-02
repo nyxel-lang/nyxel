@@ -1,0 +1,13 @@
+namespace Samples.Combat
+
+/// 一次伤害。每种情况带的数据不同，处理时用 `match` 按字段名取出。
+public enum Damage {
+    case Physical(amount: int)
+    case Burn(amount: int, seconds: float)
+    case Heal(amount: int)
+}
+
+/// 能受到伤害的东西。
+public interface IDamageable {
+    func TakeDamage(self, damage: Damage)
+}

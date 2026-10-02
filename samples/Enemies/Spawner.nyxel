@@ -1,0 +1,78 @@
+namespace Samples.Enemies
+
+import System
+import System.Collections.Generic
+import System.Linq
+import System.Numerics
+import Engine
+import Nyxel
+import Samples.Combat
+import Samples.Common
+
+/// 按波次在自己周围一圈生成史莱姆。
+public class Spawner : Behaviour {
+    public var WaveCount: int = 3
+    public var PerWave: int = 4
+    public var Interval: float = 5
+    public var BaseSpeed: float = 2
+    public var SpeedPerWave: float = 0.5
+    var alive: List<Slime> = new List<Slime>()
+
+    public property Wave: int = 0 {
+        get
+        private set
+    }
+
+    public property AliveCount: int {
+        get { return self.alive.Count }
+    }
+
+    protected override func OnEnable(self) {
+        launch self.RunWaves()        // 绑定在这个刷怪器上：它被销毁时，波次流程自动停止
+    }
+
+    /// 刷一波，等这一波清完，歇一会儿，再刷下一波。
+    async func RunWaves(self) {
+        while self.Wave < self.WaveCount {
+            self.SpawnWave()
+            await Wait.Until(func() = self.AliveCount == 0)
+            await Wait.Seconds(self.Interval)
+        }
+        Log.Info("all waves cleared")
+    }
+
+    func SpawnWave(self) {
+        // 每一波的圈比上一波大一点
+        let radius: float = 3 + self.Wave * 0.5
+        for i in 0..<self.PerWave {
+            let angle = MathF.Tau * i / self.PerWave
+            let offset = Vector3.FromAngle(radians = angle) * radius
+            let slime = self.World.Spawn<Slime>(position = self.Position + offset)
+            slime.Speed = self.BaseSpeed + self.Wave * self.SpeedPerWave
+            slime.Died += self.OnSlimeDied      // 绑定 self：刷怪器先被销毁时，订阅自动移除
+            self.alive.Add(slime)
+        }
+        self.Wave += 1
+        Log.Info($"wave {self.Wave}/{self.WaveCount}: {self.AliveCount} alive")
+    }
+
+    func OnSlimeDied(self, slime: Slime) {
+        self.alive.Remove(slime)
+    }
+
+    /// 离某个点最近的、还活着的史莱姆；一个都没有时是 null。
+    public func NearestTo(self, point: Vector3) -> Slime? {
+        return self.alive
+            .Where(func(s) = not s.IsDead)
+            .MinBy(func(s) = Vector3.Distance(s.Position, point))
+    }
+
+    public override func OnTriggerEnter(self, other: Collider) {
+        if other is not Projectile {
+            return
+        }
+        // 从这里开始 other 是 Projectile
+        let target = self.NearestTo(point = other.Position) ?? return
+        target.TakeDamage(damage = new Damage.Burn(amount = other.Power, seconds = 2))
+    }
+}

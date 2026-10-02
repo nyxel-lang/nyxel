@@ -1,0 +1,86 @@
+namespace Samples.Enemies
+
+import System.Numerics
+import Engine
+import Nyxel
+import Samples.Combat
+import Samples.Common
+
+/// 史莱姆：看见玩家就追，贴身就咬，血少了就逃。
+public class Slime : Behaviour, IDamageable {
+    public static var Killed: int = 0
+
+    public var Speed: float = 2.5
+    public var SightRange: float = 8
+    var health: Health = new Health(max = 30)
+    var state: SlimeState = SlimeState.Idle
+
+    /// 被消灭时触发，在从场景里移除之前。
+    public event Died(slime: Slime)
+
+    public property IsDead: bool {
+        get { return self.health.IsDead }
+    }
+
+    public override func Update(self, dt: float) {
+        if self.IsDead {
+            return
+        }
+        match self.state {
+            case Idle -> {
+                let player = self.World.FindNearest<Player>(self.Position) ?? return
+                if self.Position.HorizontalDistance(player.Position) < self.SightRange {
+                    self.state = new SlimeState.Chasing(target = player)
+                }
+            }
+            case Chasing(target) -> {
+                self.MoveTowards(target = target.Position, dt = dt)
+                if self.Position.HorizontalDistance(target.Position) < 1 {
+                    target.TakeDamage(damage = new Damage.Physical(amount = 5))
+                }
+                if self.health.Current < 10 {
+                    self.state = new SlimeState.Fleeing(from = target)
+                }
+            }
+            case Fleeing(from) -> {
+                let away = self.Position * 2 - from.Position
+                self.MoveTowards(target = away, dt = dt)
+            }
+        }
+    }
+
+    public func TakeDamage(self, damage: Damage) {
+        let change = self.health.Apply(damage = damage)
+        Log.Info($"{self.Name}: {change:+0;-0} -> {self.health.Current}")
+        if self.health.IsDead {
+            self.Die()
+            return
+        }
+        launch self.Flash()
+    }
+
+    /// 受击时闪一下红色。闪的过程中被消灭，协程随史莱姆一起停止。
+    async func Flash(self) {
+        self.Tint = Color.Red
+        await Wait.Seconds(0.1)
+        self.Tint = Color.White
+    }
+
+    func MoveTowards(self, target: Vector3, dt: float) {
+        let direction = Vector3.Normalize(target - self.Position)
+        self.Position += direction * self.Speed * dt
+    }
+
+    func Die(self) {
+        Slime.Killed += 1
+        emit self.Died(slime = self)
+        self.Destroy()
+    }
+}
+
+/// 每种状态带着它需要的数据：追谁、躲谁。
+enum SlimeState {
+    case Idle
+    case Chasing(target: Player)
+    case Fleeing(from: Player)
+}

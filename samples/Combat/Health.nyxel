@@ -1,0 +1,46 @@
+namespace Samples.Combat
+
+import System
+
+/// 生命值。struct：赋值时复制一份，不在堆上分配。
+public struct Health {
+    public let Max: int
+    var current: int
+
+    public init(max: int) {
+        self.Max = max
+        self.current = max
+    }
+
+    /// 空血状态，比如等待复活时。
+    public init Empty(max: int) {
+        self.Max = max
+        self.current = 0
+    }
+
+    public property Current: int {
+        get { return self.current }
+    }
+
+    public property IsDead: bool {
+        get { return self.current <= 0 }
+    }
+
+    /// 剩余比例，0 到 1。
+    public property Percent: float {
+        get { return self.current as float / self.Max }
+    }
+
+    // var self：struct 的方法修改自己时要写（class 的方法不用，见 Spawner.SpawnWave）。
+    /// 应用一次伤害，返回生命值的实际变化（负数是掉血）。
+    public func Apply(var self, damage: Damage) -> int {
+        let change = match damage {
+            case Physical(amount) -> -amount
+            case Burn(amount) -> -amount
+            case Heal(amount) -> amount
+        }
+        let before = self.current
+        self.current = Math.Clamp(self.current + change, 0, self.Max)
+        return self.current - before
+    }
+}
