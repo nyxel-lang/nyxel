@@ -48,4 +48,4 @@ Nyxel 是一门 .NET 上的游戏脚本语言，编译成普通 .NET 程序集�
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md); security issues are reported privately as described in [SECURITY.md](SECURITY.md).

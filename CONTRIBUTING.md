@@ -2,6 +2,8 @@
 
 Nyxel is at an early design stage. The most useful contributions right now are discussions about the language design, in issues.
 
+Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Do not report security vulnerabilities in public issues; see [SECURITY.md](SECURITY.md).
+
 ## Ground rules
 
 - **Readability over brevity.** Nyxel optimizes for code that agents write and humans read ([ADR-0003](docs/decisions/0003-design-goals.md)). Language proposals should show before / after code and explain why a reader would understand the new form.
