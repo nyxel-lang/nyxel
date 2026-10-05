@@ -1,7 +1,7 @@
 # 当前状态
 
 > 每次收工**覆盖**本文件，保持一屏以内。历史在 [progress/](progress/)，计划在 [roadmap.md](roadmap.md)。
-> 最后更新：2026-10-05
+> 最后更新：2026-10-06
 
 ## 在哪
 
@@ -11,7 +11,7 @@
 - **语言设计的大主题讨论完了**：ADR-0004 到 0017，十三轮，汇总在 design/language-reference.md，索引见 docs/README.md。剩下的细节在各节末尾的“待定”里。
 - samples/ 有八个示例文件，用的全是已定的语法。VSCode 扩展覆盖全部关键字，`tools\vscode-dev.cmd` 一键试用。
 - `#line` 映射验证通过（design/debug-mapping.md）。
-- 最近一次全绿：2026-10-05，`tools\build.cmd --test`，5 + 15 个测试；`dotnet format --verify-no-changes` 通过。GitHub Actions 首跑（main 1ee71bc）ubuntu + windows 全部通过。
+- 最近一次全绿：2026-10-06，`tools\build.cmd --test`，5 + 15 个测试；`dotnet format --verify-no-changes` 通过。GitHub Actions 首跑（main 1ee71bc）ubuntu + windows 全部通过。
 
 ## 下一步
 
@@ -21,6 +21,5 @@
 ## 悬而未决
 
 - roadmap “公开仓库前”剩下的几项（商标政策、命名 RFC、README 快速开始、Discord 等其他社区渠道）没挡公开，用户定什么时候做。
-- 要用户本人做的（仓库已公开，名字占位更紧迫）：占位 NuGet / npm 包名、VSCode Marketplace 和 Open VSX 的 publisher、正式商标检索（中国第 9 / 41 / 42 类，USPTO / EUIPO / WIPO）。清单和检索记录在 [brand.md](brand.md)。
+- 名字占位已完成：NuGet 六个 ID（unlisted 0.0.1）、npm 用户 `nyxel-lang`（`@nyxel` 被别人占了，ADR-0018）、VSCode Marketplace publisher 和 Open VSX namespace `nyxel-lang`（owner 等第一次发布时再去认领）。要用户本人做的还剩正式商标检索（中国第 9 / 41 / 42 类，USPTO / EUIPO / WIPO）。清单和检索记录在 [brand.md](brand.md)。
 - `nyxelc` 是独立可执行文件还是 `nyxel build` 的别名（ADR-0001 后果）。
-- VSCode 扩展的 publisher id 暂填 `nyxel-lang`，要在 Marketplace 注册后才能发布。

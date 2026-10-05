@@ -37,5 +37,6 @@
 | [0015](decisions/0015-ref-out-using-protected.md) | 调用处写 `out let x` / `out 目标` / `out _` / `ref 目标`；自己的函数只在 override / 实现接口时声明 `out` / `ref`；`using x = ...` 释放资源（无块形式、无 `defer`）；加 `protected`，不加 `internal` |
 | [0016](decisions/0016-async-await-launch.md) | 协程：`async func` + `await`（能等任何 .NET 可等待对象，恢复在主线程）；调用必须写 `await` 或 `launch`；`launch obj.M()` 绑定 `obj`，销毁后自动停止（`finally` 照常执行，`catch` 接不住）；热重载停止所有协程 |
 | [0017](decisions/0017-events-and-state-machines.md) | 事件 `event Died(slime: Slime)` + `emit`；`+=` / `-=` 订阅，绑定“执行谁的代码”，销毁或热重载时自动移除；方法可当函数值；状态机不加语法（enum + match + 协程） |
+| [0018](decisions/0018-npm-scope.md) | npm scope 用 `@nyxel-lang`（`@nyxel` 被别人注册了），取代 ADR-0001 的这一项 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

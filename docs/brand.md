@@ -43,7 +43,7 @@
 
 **GitHub**：没有 Nyxel 相关的组织或仓库被占用。
 
-**npm**：`nyxel`、`@nyxel` 都没有被占用。
+**npm**：`nyxel`、`@nyxel` 都没有被占用。2026-10-05 复查：包名 `nyxel` 仍没人发布；但 registry 的 `/-/org/<名字>/package` 对 `nyxel`、`nyxel-lang`、`nyxel-dev` 返回空列表（200），对不存在的名字返回 “Scope not found”（404），说明这三个名字都已注册（还没有公开包）。上次只查了包，没查 scope。其中 `nyxel-lang` 是用户当天注册的，`nyxel` 和 `nyxel-dev` 是别人的。
 
 **VSCode Marketplace / Open VSX**：没有名为 Nyxel Language 或类似名字的扩展。
 
@@ -52,9 +52,10 @@
 都要用户本人去做，进度记在 [STATUS.md](STATUS.md) 的“悬而未决”。
 
 - GitHub 组织 `nyxel-lang`：已创建（2026-10-05），仓库 `nyxel-lang/nyxel` 已公开。现在是单仓库；启动时设想过拆成 `nyxel-compiler`、`nyxel-runtime`、`nyxel-vscode`，暂时不拆。
-- NuGet：`Nyxel`，以及 `Nyxel.Compiler`、`Nyxel.Runtime`、`Nyxel.Host`、`Nyxel.Sdk`、`Nyxel.Cli`。
-- npm scope `@nyxel`：给 JavaScript / TypeScript 工具链、语法高亮、CLI 包装用。
-- VSCode Marketplace 的 publisher（现在暂填 `nyxel-lang`），扩展名 Nyxel Language；同时在 Open VSX 注册。
+- NuGet：`Nyxel`，以及 `Nyxel.Compiler`、`Nyxel.Runtime`、`Nyxel.Host`、`Nyxel.Sdk`、`Nyxel.Cli`。2026-10-05 用户在 nuget.org 账号 `nyxel-lang` 下传了后五个的 0.0.1（本地 Release 构建的 M0 骨架）并设为 unlisted：ID 从上传起就归这个账号，unlist 只是不出现在搜索里，指定版本仍可下载；nuget.org 不能删包、版本号不能重用，所以 0.0.1 已经用掉。这几个包的 DLL / PDB 里带着本机构建路径（没有用户名），删不掉，不再处理；之后的包只从 CI 打。`Nyxel` 本身没有项目，另打了一个不含代码的 0.0.1 占位包（只有元数据和 README），用户同日上传并 unlist；六个 ID 都已在 nuget.org 的公开接口上查到 0.0.1。`Nyxel`将来是 dotnet tool 还是元包到时候再定。可选：发邮件给 account@nuget.org 申请 ID 前缀保留 `Nyxel.*`，审核通过后别人不能再传这个前缀的包，包旁边显示认证标记。
+- npm scope `@nyxel-lang`：给 JavaScript / TypeScript 工具链、语法高亮、CLI 包装用。scope 就是 npm 的用户名或组织名。原计划的 `@nyxel` 已被别人注册，2026-10-05 用户注册了 npm 用户 `nyxel-lang`，scope 改用 `@nyxel-lang`，和 GitHub 组织、NuGet 账号、域名一致（[ADR-0018](decisions/0018-npm-scope.md)）。以后要多人管理时，npm 支持把用户账号转成组织。npm 的名称争议政策明确禁止“只为将来使用而注册用户名、组织名或发布包”，违反的可能被改名或删除，所以不发空的占位包，等有真东西（比如给其他编辑器用的语法包）再发。
+- VSCode Marketplace 的 publisher `nyxel-lang`：2026-10-05 用户已注册，扩展名 Nyxel Language。
+- Open VSX 的 namespace `nyxel-lang`（和 Marketplace 的 publisher 同名，扩展 package.json 的 `publisher` 就是它）：2026-10-06 用户已建好（API 显示 `verified: false`，还没认领 owner）。占 namespace 不用传扩展。步骤是注册 Eclipse 账号（填 GitHub 用户名）、用 GitHub 登录 open-vsx.org 并在 Profile 里关联 Eclipse 账号、签 Publisher Agreement、生成 access token，再运行 `npx ovsx create-namespace nyxel-lang -p <token>`。建了之后只有 namespace 成员能往里发（2020 年起 namespace 不再公开）。创建者只是 contributor，扩展会显示“未验证”；要成为 owner（扩展带验证标记、能管理成员）得到 github.com/EclipseFdn/open-vsx.org 公开提 issue 认领，可以等第一次发布时再做。
 - 域名：`nyxel-lang.dev` 已注册（2026-10-05，Cloudflare），和 GitHub 组织名一致，已在 GitHub 组织上验证；`nyxel.dev` 已被别人注册。联系邮箱 `nyxel@nyxel-lang.dev` 用 Cloudflare Email Routing 转发到项目的 hotmail 邮箱，只收不发（回信从 hotmail 发）。文档站做出来前，域名先 302 跳转到 GitHub 组织主页（Cloudflare Redirect Rule + 代理的占位记录 A `192.0.2.1` / AAAA `100::`），仓库 About 的 Website 填的是它。
 
 ## 品牌与社区设想
