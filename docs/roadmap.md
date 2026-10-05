@@ -63,7 +63,7 @@ M3 以后是草案，随 M1 的语法讨论细化。
 ## M6 发布（草案）
 
 - [ ] NuGet 包、dotnet tool、VSCode Marketplace / Open VSX
-- [ ] 发布流水线：打 tag 时发布 NuGet 包的 release.yml，CLI 作为 dotnet tool 发布
+- [ ] 发布流水线：打 tag 时发布 NuGet 包的 release.yml，CLI 作为 dotnet tool 发布。包只从 CI 打（`ContinuousIntegrationBuild` 去掉本机路径），版本号要高于 0.0.1（已被占位包用掉）
 - [ ] 文档站（`nyxel-lang.dev`）：getting-started、语言参考对外版、host-integration
 
 ## 公开仓库前
