@@ -50,7 +50,7 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
   5. `git push origin main`，推完 CI 会在 GitHub Actions 上跑。
   6. 回复里给出整理前 dev 的旧 tip hash（reflog 也能找回）。
 
-  远端：`origin` = https://github.com/nyxel-lang/nyxel，只推 `main`，dev 不推。已推送的历史不重写、不 force push，除非用户明确要求。不用 `rebase -i`（工具不支持交互）。main 的根提交是一个空提交，方便第一次 `reset --soft main`。
+  远端：`origin` = https://github.com/nyxel-lang/nyxel（公开仓库），只推 `main`，dev 不推。已推送的历史不重写、不 force push（main 上有 ruleset 禁止 force push 和删除）。不用 `rebase -i`（工具不支持交互）。main 的根提交是一个空提交，方便第一次 `reset --soft main`。
 
 ## 工具坑
 

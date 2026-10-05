@@ -64,18 +64,19 @@ M3 以后是草案，随 M1 的语法讨论细化。
 
 - [ ] NuGet 包、dotnet tool、VSCode Marketplace / Open VSX
 - [ ] 发布流水线：打 tag 时发布 NuGet 包的 release.yml，CLI 作为 dotnet tool 发布
-- [ ] 文档站（`nyxel.dev`）：getting-started、语言参考对外版、host-integration
+- [ ] 文档站（`nyxel-lang.dev`）：getting-started、语言参考对外版、host-integration
 
 ## 公开仓库前
 
 名字、域名、包名的占位和品牌设想见 [brand.md](brand.md)。
 
-- [x] CODE_OF_CONDUCT.md（Contributor Covenant 2.1 原文）、SECURITY.md，联系邮箱 nyxel-lang@hotmail.com
+- [x] CODE_OF_CONDUCT.md（Contributor Covenant 2.1 原文）、SECURITY.md，联系邮箱 nyxel@nyxel-lang.dev（Cloudflare Email Routing 转发到项目的 hotmail 邮箱）
 - [ ] 商标使用政策；CLA 可选
 - [ ] Nyxel 命名与发音 RFC
 - [x] README 徽章：CI（GitHub Actions 自带）、License、.NET（shields.io 静态徽章）
 - [x] 仓库描述和 Topics（GitHub 仓库主页 About 栏，用户自己填的）
-- [ ] 删掉 GitHub 仓库重建再推 main：Activity 记录着 2026-10-05 的 force push，旧提交 4995cb6（个人邮箱、本机路径）按哈希还能打开；重建后要重填描述和 Topics
-- [ ] 公开后在 Settings → Advanced Security 打开 Private vulnerability reporting（只有公开仓库才显示这一项）
+- [x] 删掉 GitHub 仓库重建再推 main（2026-10-05）：旧仓库的 Activity 记着 force push，旧提交按哈希还能打开。重建后 Activity 只有一条 branch_creation，旧提交查不到；描述和 Topics 重新填了
+- [x] 2026-10-05 转 Public；Settings → Advanced Security 打开了 Private vulnerability reporting（只有公开仓库才显示这一项）；main 加了 ruleset，禁止 force push 和删除
 - [ ] README 快速开始、最小示例、官方发音音频
-- [ ] 社区渠道（Discord / GitHub Discussions）
+- [x] GitHub Discussions、Reported content（允许举报不当内容）已打开（2026-10-05）
+- [ ] 其他社区渠道（Discord 等）

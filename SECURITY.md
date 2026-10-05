@@ -11,7 +11,7 @@ Please do not report security vulnerabilities in public issues, discussions or p
 Report them privately, either way works:
 
 - GitHub [private vulnerability reporting](https://github.com/nyxel-lang/nyxel/security/advisories/new)
-- Email: nyxel-lang@hotmail.com
+- Email: nyxel@nyxel-lang.dev
 
 Please include:
 

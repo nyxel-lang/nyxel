@@ -37,7 +37,7 @@
 
 **商标**：中国商标网有豪威科技（OMNIVISION）申请的“夜鹰 NYXEL”，第 9 类（数据处理设备、摄像机、集成电路、半导体等），2018 年 9 月收到驳回通知，驳回复审后未获注册，状态为商标无效。要做的：中国商标网检索第 9 / 41 / 42 类，USPTO、EUIPO、WIPO 检索，关注软件、游戏、编程语言相关类目；预算允许时委托商标代理出正式检索报告。
 
-**域名**：`nyxell.com`（双 L）被 Nyxell App 使用，和 Nyxel 不是同一个词。要查询可用性：`nyxel.dev`（优先）、`nyxel.io`、`nyxel.com`、`nyxel.net`、`nyxel.org`、`nyxel.cn`、`nyxel.run`；备选 `nyxel-lang.dev`、`nyxel.engineer`。
+**域名**：`nyxell.com`（双 L）被 Nyxell App 使用，和 Nyxel 不是同一个词。要查询可用性：`nyxel.dev`（优先）、`nyxel.io`、`nyxel.com`、`nyxel.net`、`nyxel.org`、`nyxel.cn`、`nyxel.run`；备选 `nyxel-lang.dev`、`nyxel.engineer`。2026-10-05：`nyxel.dev` 已被别人注册，用户在 Cloudflare 注册了 `nyxel-lang.dev`。
 
 **NuGet**：没有名为 Nyxel 的包。有一个 Nixcel（Excel 导入导出），无关。
 
@@ -55,12 +55,12 @@
 - NuGet：`Nyxel`，以及 `Nyxel.Compiler`、`Nyxel.Runtime`、`Nyxel.Host`、`Nyxel.Sdk`、`Nyxel.Cli`。
 - npm scope `@nyxel`：给 JavaScript / TypeScript 工具链、语法高亮、CLI 包装用。
 - VSCode Marketplace 的 publisher（现在暂填 `nyxel-lang`），扩展名 Nyxel Language；同时在 Open VSX 注册。
-- 域名，优先 `nyxel.dev`。
+- 域名：`nyxel-lang.dev` 已注册（2026-10-05，Cloudflare），和 GitHub 组织名一致，已在 GitHub 组织上验证；`nyxel.dev` 已被别人注册。联系邮箱 `nyxel@nyxel-lang.dev` 用 Cloudflare Email Routing 转发到项目的 hotmail 邮箱，只收不发（回信从 hotmail 发）。文档站做出来前，域名先 302 跳转到 GitHub 组织主页（Cloudflare Redirect Rule + 代理的占位记录 A `192.0.2.1` / AAAA `100::`），仓库 About 的 Website 填的是它。
 
 ## 品牌与社区设想
 
 - Logo 元素：夜、像素、符文、螺旋、核心。吉祥物候选：夜鸦、黑猫、暗影精灵。
-- 文档站放在 `nyxel.dev`。
+- 文档站放在 `nyxel-lang.dev`。
 - 社区渠道：Discord、GitHub Discussions、Reddit r/nyxel、X、Bilibili。
 - 公开前发布一篇“Nyxel 命名与发音 RFC”，录一段官方发音音频放进 README。
 - 需要商标使用政策；CLA 可选。
