@@ -12,7 +12,7 @@ M3 以后是草案，随 M1 的语法讨论细化。
 - [x] LICENSE / NOTICE（Apache-2.0）、README（含发音）、CONTRIBUTING、CHANGELOG、Issue / PR 模板
 - [x] 文档体系：CLAUDE.md、STATUS / roadmap / progress / decisions / design；ADR-0001 到 ADR-0003
 - [x] tools/vscode-nyxel：.nyxel 文件关联（声明式扩展，语法高亮等语法定了再填）
-- [x] git：master + dev 分支
+- [x] git：master + dev 分支（2026-10-05 master 改名 main，推到 GitHub nyxel-lang/nyxel）
 
 ## M1 语言基础设计 + 语法分析
 
@@ -70,7 +70,7 @@ M3 以后是草案，随 M1 的语法讨论细化。
 
 名字、域名、包名的占位和品牌设想见 [brand.md](brand.md)。
 
-- [ ] CODE_OF_CONDUCT.md、SECURITY.md（需要联系渠道）
+- [x] CODE_OF_CONDUCT.md（Contributor Covenant 2.1 原文）、SECURITY.md，联系邮箱 nyxel-lang@hotmail.com
 - [ ] 商标使用政策；CLA 可选
 - [ ] Nyxel 命名与发音 RFC
 - [ ] 仓库描述和 Topics；README 加状态徽章、快速开始、最小示例、官方发音音频

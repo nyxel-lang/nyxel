@@ -51,7 +51,7 @@
 
 都要用户本人去做，进度记在 [STATUS.md](STATUS.md) 的“悬而未决”。
 
-- GitHub 组织 `nyxel-lang`（备选 `nyxeldev`）。现在是单仓库 `nyxel`；启动时设想过拆成 `nyxel-compiler`、`nyxel-runtime`、`nyxel-vscode`，暂时不拆。
+- GitHub 组织 `nyxel-lang`：已创建（2026-10-05），仓库 `nyxel-lang/nyxel` 已公开。现在是单仓库；启动时设想过拆成 `nyxel-compiler`、`nyxel-runtime`、`nyxel-vscode`，暂时不拆。
 - NuGet：`Nyxel`，以及 `Nyxel.Compiler`、`Nyxel.Runtime`、`Nyxel.Host`、`Nyxel.Sdk`、`Nyxel.Cli`。
 - npm scope `@nyxel`：给 JavaScript / TypeScript 工具链、语法高亮、CLI 包装用。
 - VSCode Marketplace 的 publisher（现在暂填 `nyxel-lang`），扩展名 Nyxel Language；同时在 Open VSX 注册。

@@ -2,11 +2,11 @@
 
 Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 native 引擎宿主的 CLR 加载。设计优先级见 ADR-0003：读者能正确理解 > Agent 能一次写对 > .NET 互操作 > 性能 > 手写省键。
 
-## 和用户协作
+## 协作
 
-- 用户对编程语言开发了解不多，并希望在过程中学到。涉及的决策和技术要详细说明：先讲清概念（不假设读过编译原理），再比较方案（附代码对比），给出推荐和理由。
-- **语法和语义的每一项决定都要和用户讨论**，不要自己定了再告诉用户。一次讨论几项相关的，用代码样例对比。定了写 ADR（和用户讨论定的必写），写进 language-reference。
+- 语法和语义的决定不由 Agent 自行拍板：先和人讨论，一次讨论几项相关的，用代码样例对比方案；定了写 ADR，写进 language-reference。
 - 不涉及语言设计的工程细节（项目结构、测试、内部实现）照常自行决定，回复里说明。
+- 维护者本人的协作偏好写在 CLAUDE.local.md（不进仓库，没有就跳过）。
 
 ## 每次开工的起点
 
@@ -30,7 +30,7 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
 
 ## 硬性约定
 
-- 改决定：新建 ADR（`pwsh tools/new-adr.ps1 <slug>`），不改已合进 master 的 ADR。dev 上还没合并的 ADR 不算定案，推翻时直接改原文件。新决定满足任一条也写 ADR，和实现同一轮提交：约束多个组件；认真比较过备选（尤其是和用户讨论定的）；推翻代价高。设计文档写"是什么"，ADR 写"为什么、比较过什么"，进度日志不承载理由。
+- 改决定：新建 ADR（`pwsh tools/new-adr.ps1 <slug>`），不改已合进 main 的 ADR。dev 上还没合并的 ADR 不算定案，推翻时直接改原文件。新决定满足任一条也写 ADR，和实现同一轮提交：约束多个组件；认真比较过备选（尤其是和用户讨论定的）；推翻代价高。设计文档写"是什么"，ADR 写"为什么、比较过什么"，进度日志不承载理由。
 - 警告即错误；`dotnet format Nyxel.slnx --verify-no-changes` 要过（CI 会查）。
 - 构建产物统一在 build/（`UseArtifactsOutput`），不要在源码树留 bin/obj。
 - Nyxel.Runtime 零第三方依赖、保持 AOT 兼容。
@@ -42,14 +42,15 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
 - dotnet 一律用 `"/c/Program Files/dotnet/dotnet.exe"` 全路径：PATH 上的 dotnet 可能是没有 SDK 的纯运行时。
 - VSCode 扩展试用：`cmd //c 'tools\vscode-dev.cmd'`，开一个加载了 tools/vscode-nyxel 的新窗口并打开 samples/（会在用户屏幕上弹窗）。
 - CLI 冒烟：`"/c/Program Files/dotnet/dotnet.exe" build/dotnet/bin/Nyxel.Cli/debug/nyxel.dll --version`。
-- 提交（参照 EnginePlayground）：开发都在 `dev` 分支上。每轮改动结束就在 dev 上提交一次（`git add -A` + commit，标题 `wip: <这轮做了什么>`，不要求能编过），方便用户逐次看 diff；提交前看一眼 `git status`。master 只在用户说"整理合并"时动：
+- 提交（参照 EnginePlayground）：开发都在 `dev` 分支上。每轮改动结束就在 dev 上提交一次（`git add -A` + commit，标题 `wip: <这轮做了什么>`，不要求能编过），方便用户逐次看 diff；提交前看一眼 `git status`。main 只在用户说"整理合并"时动：
   1. 先按"收工前"清单更新文档、`tools\build.cmd --test` 全绿。
-  2. master 若有新提交，dev 先 `git rebase master`。
-  3. 在 dev 上 `git reset --soft master`，按仓库格式重新提交（`<area>: <summary>` + 正文 + 测试结果 + Co-Authored-By 行；消息用 Write 工具写到 build/COMMIT_MSG.txt 再 `git commit -F`，别走 Bash heredoc）。一次迭代含几个独立主题时改用 `git reset master`，按文件分组 add、分几条提交。
-  4. `git switch master && git merge --ff-only dev && git switch dev`，master 保持线性。
-  5. 回复里给出整理前 dev 的旧 tip hash（reflog 也能找回）。
+  2. `git fetch origin`；origin/main 有本地没有的提交（比如在网页上改过）就先 `git switch main && git merge --ff-only origin/main`。main 若有新提交，dev 先 `git rebase main`。
+  3. 在 dev 上 `git reset --soft main`，按仓库格式重新提交（`<area>: <summary>` + 正文 + 测试结果 + Co-Authored-By 行；消息用 Write 工具写到 build/COMMIT_MSG.txt 再 `git commit -F`，别走 Bash heredoc）。一次迭代含几个独立主题时改用 `git reset main`，按文件分组 add、分几条提交。
+  4. `git switch main && git merge --ff-only dev && git switch dev`，main 保持线性。
+  5. `git push origin main`，推完 CI 会在 GitHub Actions 上跑。
+  6. 回复里给出整理前 dev 的旧 tip hash（reflog 也能找回）。
 
-  不 push（还没有远端），不用 `rebase -i`（工具不支持交互）。master 的根提交是一个空提交，方便第一次 `reset --soft master`。
+  远端：`origin` = https://github.com/nyxel-lang/nyxel，只推 `main`，dev 不推。已推送的历史不重写、不 force push，除非用户明确要求。不用 `rebase -i`（工具不支持交互）。main 的根提交是一个空提交，方便第一次 `reset --soft main`。
 
 ## 工具坑
 
@@ -62,4 +63,4 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
 
 ## 环境
 
-Windows 10，Git Bash。.NET SDK 10.0.400（另有 8 / 9），node 24，pwsh 7。参考仓库 EnginePlayground（C++ 引擎 + C# 脚本经 hostfxr 嵌入，M4 宿主集成的候选验收目标）。
+本机环境（系统、SDK 版本、参考仓库的位置）写在 CLAUDE.local.md，不进仓库；公开文件里不写本机绝对路径和个人信息。参考仓库 EnginePlayground：C++ 引擎 + C# 脚本经 hostfxr 嵌入，M4 宿主集成的候选验收目标。

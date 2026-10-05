@@ -22,3 +22,6 @@ Thumbs.db
 
 # AgentDeck workspace state
 .deck/
+
+# Machine-specific Claude Code instructions (paths, local environment)
+CLAUDE.local.md
