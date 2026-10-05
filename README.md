@@ -1,5 +1,9 @@
 # Nyxel
 
+[![CI](https://github.com/nyxel-lang/nyxel/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/nyxel-lang/nyxel/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4.svg)](https://dotnet.microsoft.com/)
+
 > Nyxel is pronounced /ˈnɪksəl/ — **NIX-əl**, rhymes with “pixel”.
 
 Nyxel is a game scripting language for .NET. It compiles to ordinary .NET assemblies that a native game engine loads into the CLR it hosts, and it talks to C# code directly. It is meant for the control layer of a game: abilities, AI, state machines, level logic, events, with hot reload.
