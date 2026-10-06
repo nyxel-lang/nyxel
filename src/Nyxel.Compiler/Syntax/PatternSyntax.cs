@@ -82,8 +82,9 @@ public sealed class TypePatternSyntax : PatternSyntax
 }
 
 /// <summary>
-/// An enum case by its bare name, optionally taking out data fields by name: <c>Idle</c>, <c>Burn(seconds)</c>.
-/// A bare name that turns out not to be a case of the matched enum is reported during binding.
+/// An enum case by its bare name, optionally taking out its data by position like a deconstruction (ADR-0024):
+/// <c>Idle</c>, <c>Burn(amount, seconds)</c>, <c>Burn(_, seconds)</c>. A bare name that turns out not to be a case
+/// of the matched enum is reported during binding.
 /// </summary>
 public sealed class CasePatternSyntax : PatternSyntax
 {
@@ -102,7 +103,10 @@ public sealed class CasePatternSyntax : PatternSyntax
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Identifier, Fields);
 }
 
-/// <summary>The <c>(amount, seconds)</c> of a case pattern: field names, each becoming a local variable.</summary>
+/// <summary>
+/// The <c>(amount, seconds)</c> of a case pattern: one name per field in order, each becoming a local variable;
+/// <c>_</c> discards a field.
+/// </summary>
 public sealed class CaseFieldListSyntax : SyntaxNode
 {
     internal CaseFieldListSyntax(SyntaxToken openParenToken, SeparatedSyntaxList<IdentifierNameSyntax> fields, SyntaxToken closeParenToken)

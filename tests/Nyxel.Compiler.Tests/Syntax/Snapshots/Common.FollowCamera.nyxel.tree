@@ -1,4 +1,4 @@
-CompilationUnit 1:1-28:1
+CompilationUnit 1:1-29:1
   NamespaceDeclaration 1:1-1:25
     NamespaceKeyword "namespace"
     QualifiedName 1:11-1:25
@@ -19,7 +19,7 @@ CompilationUnit 1:1-28:1
     ImportKeyword "import"
     IdentifierName 4:8-4:14
       IdentifierToken "Engine"
-  ClassDeclaration 7:1-27:2
+  ClassDeclaration 7:1-28:2
     PublicKeyword "public"
     ClassKeyword "class"
     IdentifierToken "FollowCamera"
@@ -99,7 +99,7 @@ CompilationUnit 1:1-28:1
           DotToken "."
           IdentifierName 11:37-11:41
             IdentifierToken "Zero"
-    FunctionDeclaration 14:5-16:6
+    FunctionDeclaration 14:5-17:6
       ProtectedKeyword "protected"
       OverrideKeyword "override"
       FuncKeyword "func"
@@ -109,7 +109,7 @@ CompilationUnit 1:1-28:1
         SelfParameter 14:38-14:42
           SelfKeyword "self"
         CloseParenToken ")"
-      Block 14:44-16:6
+      Block 14:44-17:6
         OpenBraceToken "{"
         AssignmentStatement 15:9-15:37
           SimpleMemberAccessExpression 15:9-15:22
@@ -125,120 +125,154 @@ CompilationUnit 1:1-28:1
             DotToken "."
             IdentifierName 15:33-15:37
               IdentifierToken "Zero"
+        AssignmentStatement 16:9-16:70
+          SimpleMemberAccessExpression 16:9-16:20
+            SelfExpression 16:9-16:13
+              SelfKeyword "self"
+            DotToken "."
+            IdentifierName 16:14-16:20
+              IdentifierToken "Target"
+          QuestionQuestionEqualsToken "??="
+          InvocationExpression 16:25-16:70
+            SimpleMemberAccessExpression 16:25-16:55
+              SimpleMemberAccessExpression 16:25-16:35
+                SelfExpression 16:25-16:29
+                  SelfKeyword "self"
+                DotToken "."
+                IdentifierName 16:30-16:35
+                  IdentifierToken "World"
+              DotToken "."
+              GenericName 16:36-16:55
+                IdentifierToken "FindNearest"
+                TypeArgumentList 16:47-16:55
+                  LessThanToken "<"
+                  IdentifierName 16:48-16:54
+                    IdentifierToken "Player"
+                  GreaterThanToken ">"
+            ArgumentList 16:55-16:70
+              OpenParenToken "("
+              Argument 16:56-16:69
+                SimpleMemberAccessExpression 16:56-16:69
+                  SelfExpression 16:56-16:60
+                    SelfKeyword "self"
+                  DotToken "."
+                  IdentifierName 16:61-16:69
+                    IdentifierToken "Position"
+              CloseParenToken ")"
         CloseBraceToken "}"
-    FunctionDeclaration 18:5-26:6
+    FunctionDeclaration 19:5-27:6
       PublicKeyword "public"
       OverrideKeyword "override"
       FuncKeyword "func"
       IdentifierToken "Update"
-      ParameterList 18:32-18:49
+      ParameterList 19:32-19:49
         OpenParenToken "("
-        SelfParameter 18:33-18:37
+        SelfParameter 19:33-19:37
           SelfKeyword "self"
         CommaToken ","
-        Parameter 18:39-18:48
+        Parameter 19:39-19:48
           IdentifierToken "dt"
           ColonToken ":"
-          PredefinedType 18:43-18:48
+          PredefinedType 19:43-19:48
             FloatKeyword "float"
         CloseParenToken ")"
-      Block 18:50-26:6
+      Block 19:50-27:6
         OpenBraceToken "{"
-        LocalDeclarationStatement 19:9-19:43
+        LocalDeclarationStatement 20:9-20:43
           LetKeyword "let"
           IdentifierToken "target"
-          EqualsValueClause 19:20-19:43
+          EqualsValueClause 20:20-20:43
             EqualsToken "="
-            CoalesceExpression 19:22-19:43
-              SimpleMemberAccessExpression 19:22-19:33
-                SelfExpression 19:22-19:26
+            CoalesceExpression 20:22-20:43
+              SimpleMemberAccessExpression 20:22-20:33
+                SelfExpression 20:22-20:26
                   SelfKeyword "self"
                 DotToken "."
-                IdentifierName 19:27-19:33
+                IdentifierName 20:27-20:33
                   IdentifierToken "Target"
               QuestionQuestionToken "??"
-              ReturnExpression 19:37-19:43
+              ReturnExpression 20:37-20:43
                 ReturnKeyword "return"
-        AssignmentStatement 20:9-25:21
-          SimpleMemberAccessExpression 20:9-20:22
-            SelfExpression 20:9-20:13
+        AssignmentStatement 21:9-26:21
+          SimpleMemberAccessExpression 21:9-21:22
+            SelfExpression 21:9-21:13
               SelfKeyword "self"
             DotToken "."
-            IdentifierName 20:14-20:22
+            IdentifierName 21:14-21:22
               IdentifierToken "Position"
           EqualsToken "="
-          InvocationExpression 20:25-25:21
-            SimpleMemberAccessExpression 20:25-20:36
-              IdentifierName 20:25-20:31
+          InvocationExpression 21:25-26:21
+            SimpleMemberAccessExpression 21:25-21:36
+              IdentifierName 21:25-21:31
                 IdentifierToken "Smooth"
               DotToken "."
-              IdentifierName 20:32-20:36
+              IdentifierName 21:32-21:36
                 IdentifierToken "Damp"
-            ArgumentList 20:36-25:21
+            ArgumentList 21:36-26:21
               OpenParenToken "("
-              Argument 21:13-21:36
-                NameEquals 21:13-21:22
-                  IdentifierName 21:13-21:20
+              Argument 22:13-22:36
+                NameEquals 22:13-22:22
+                  IdentifierName 22:13-22:20
                     IdentifierToken "current"
                   EqualsToken "="
-                SimpleMemberAccessExpression 21:23-21:36
-                  SelfExpression 21:23-21:27
+                SimpleMemberAccessExpression 22:23-22:36
+                  SelfExpression 22:23-22:27
                     SelfKeyword "self"
                   DotToken "."
-                  IdentifierName 21:28-21:36
+                  IdentifierName 22:28-22:36
                     IdentifierToken "Position"
               CommaToken ","
-              Argument 22:13-22:51
-                NameEquals 22:13-22:21
-                  IdentifierName 22:13-22:19
+              Argument 23:13-23:51
+                NameEquals 23:13-23:21
+                  IdentifierName 23:13-23:19
                     IdentifierToken "target"
                   EqualsToken "="
-                AddExpression 22:22-22:51
-                  SimpleMemberAccessExpression 22:22-22:37
-                    IdentifierName 22:22-22:28
+                AddExpression 23:22-23:51
+                  SimpleMemberAccessExpression 23:22-23:37
+                    IdentifierName 23:22-23:28
                       IdentifierToken "target"
                     DotToken "."
-                    IdentifierName 22:29-22:37
+                    IdentifierName 23:29-23:37
                       IdentifierToken "Position"
                   PlusToken "+"
-                  SimpleMemberAccessExpression 22:40-22:51
-                    SelfExpression 22:40-22:44
+                  SimpleMemberAccessExpression 23:40-23:51
+                    SelfExpression 23:40-23:44
                       SelfKeyword "self"
                     DotToken "."
-                    IdentifierName 22:45-22:51
+                    IdentifierName 23:45-23:51
                       IdentifierToken "Offset"
               CommaToken ","
-              Argument 23:13-23:41
-                NameEquals 23:13-23:23
-                  IdentifierName 23:13-23:21
+              Argument 24:13-24:41
+                NameEquals 24:13-24:23
+                  IdentifierName 24:13-24:21
                     IdentifierToken "velocity"
                   EqualsToken "="
                 RefKeyword "ref"
-                SimpleMemberAccessExpression 23:28-23:41
-                  SelfExpression 23:28-23:32
+                SimpleMemberAccessExpression 24:28-24:41
+                  SelfExpression 24:28-24:32
                     SelfKeyword "self"
                   DotToken "."
-                  IdentifierName 23:33-23:41
+                  IdentifierName 24:33-24:41
                     IdentifierToken "velocity"
               CommaToken ","
-              Argument 24:13-24:41
-                NameEquals 24:13-24:25
-                  IdentifierName 24:13-24:23
+              Argument 25:13-25:41
+                NameEquals 25:13-25:25
+                  IdentifierName 25:13-25:23
                     IdentifierToken "smoothTime"
                   EqualsToken "="
-                SimpleMemberAccessExpression 24:26-24:41
-                  SelfExpression 24:26-24:30
+                SimpleMemberAccessExpression 25:26-25:41
+                  SelfExpression 25:26-25:30
                     SelfKeyword "self"
                   DotToken "."
-                  IdentifierName 24:31-24:41
+                  IdentifierName 25:31-25:41
                     IdentifierToken "SmoothTime"
               CommaToken ","
-              Argument 25:13-25:20
-                NameEquals 25:13-25:17
-                  IdentifierName 25:13-25:15
+              Argument 26:13-26:20
+                NameEquals 26:13-26:17
+                  IdentifierName 26:13-26:15
                     IdentifierToken "dt"
                   EqualsToken "="
-                IdentifierName 25:18-25:20
+                IdentifierName 26:18-26:20
                   IdentifierToken "dt"
               CloseParenToken ")"
         CloseBraceToken "}"

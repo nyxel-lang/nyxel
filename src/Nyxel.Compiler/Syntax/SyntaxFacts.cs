@@ -76,15 +76,23 @@ public static class SyntaxFacts
         ["char"] = SyntaxKind.CharKeyword,
         ["string"] = SyntaxKind.StringKeyword,
         ["object"] = SyntaxKind.ObjectKeyword,
+        ["array"] = SyntaxKind.ArrayKeyword,
+        ["array2d"] = SyntaxKind.Array2DKeyword,
+        ["array3d"] = SyntaxKind.Array3DKeyword,
     }.ToFrozenDictionary();
 
     private static readonly FrozenDictionary<SyntaxKind, string> KeywordTexts =
         Keywords.ToFrozenDictionary(pair => pair.Value, pair => pair.Key);
 
-    /// <summary>Words that are keywords only in one position (property accessors) and identifiers everywhere else.</summary>
+    /// <summary>
+    /// Words that are keywords only in one position (property accessors, just before <c>enum</c>) and identifiers
+    /// everywhere else.
+    /// </summary>
     public const string GetContextualKeyword = "get";
 
     public const string SetContextualKeyword = "set";
+
+    public const string FlagsContextualKeyword = "flags";
 
     public static SyntaxKind GetKeywordKind(string text) =>
         Keywords.TryGetValue(text, out var kind) ? kind : SyntaxKind.IdentifierToken;
@@ -95,6 +103,26 @@ public static class SyntaxFacts
 
     public static bool IsPredefinedType(SyntaxKind kind) =>
         kind is >= SyntaxKind.BoolKeyword and <= SyntaxKind.ObjectKeyword;
+
+    /// <summary><c>byte</c> through <c>ulong</c>: the types an enum can have underneath (ADR-0024).</summary>
+    public static bool IsIntegerType(SyntaxKind kind) =>
+        kind is >= SyntaxKind.ByteKeyword and <= SyntaxKind.ULongKeyword;
+
+    /// <summary><c>array</c>, <c>array2d</c> or <c>array3d</c> (ADR-0020, ADR-0022).</summary>
+    public static bool IsArrayKeyword(SyntaxKind kind) =>
+        kind is SyntaxKind.ArrayKeyword or SyntaxKind.Array2DKeyword or SyntaxKind.Array3DKeyword;
+
+    /// <summary>The array keyword for a number of dimensions from 1 to 3.</summary>
+    public static SyntaxKind GetArrayKeyword(int rank) => rank switch
+    {
+        2 => SyntaxKind.Array2DKeyword,
+        3 => SyntaxKind.Array3DKeyword,
+        _ => SyntaxKind.ArrayKeyword,
+    };
+
+    /// <summary>The range operators: <c>..&lt;</c>, <c>...</c>, and C#'s <c>..</c>, kept to be reported.</summary>
+    public static bool IsRangeOperator(SyntaxKind kind) =>
+        kind is SyntaxKind.DotDotLessThanToken or SyntaxKind.DotDotDotToken or SyntaxKind.DotDotToken;
 
     /// <summary>The fixed text of a token kind, or null for identifiers, literals and other variable-text tokens.</summary>
     public static string? GetText(SyntaxKind kind)
@@ -117,9 +145,11 @@ public static class SyntaxFacts
             SyntaxKind.ColonToken => ":",
             SyntaxKind.QuestionToken => "?",
             SyntaxKind.QuestionQuestionToken => "??",
+            SyntaxKind.QuestionQuestionEqualsToken => "??=",
             SyntaxKind.MinusGreaterThanToken => "->",
             SyntaxKind.DotDotLessThanToken => "..<",
             SyntaxKind.DotDotDotToken => "...",
+            SyntaxKind.DotDotToken => "..",
             SyntaxKind.EqualsToken => "=",
             SyntaxKind.EqualsEqualsToken => "==",
             SyntaxKind.ExclamationEqualsToken => "!=",
@@ -182,7 +212,7 @@ public static class SyntaxFacts
         SyntaxKind.AsteriskToken or SyntaxKind.SlashToken or SyntaxKind.PercentToken => 12,
         SyntaxKind.PlusToken or SyntaxKind.MinusToken => 11,
         SyntaxKind.LessThanLessThanToken or SyntaxKind.GreaterThanGreaterThanToken => 10,
-        SyntaxKind.DotDotLessThanToken or SyntaxKind.DotDotDotToken => 9,
+        SyntaxKind.DotDotLessThanToken or SyntaxKind.DotDotDotToken or SyntaxKind.DotDotToken => 9,
         SyntaxKind.LessThanToken or SyntaxKind.LessThanEqualsToken or SyntaxKind.GreaterThanToken
             or SyntaxKind.GreaterThanEqualsToken or SyntaxKind.IsKeyword => 8,
         SyntaxKind.EqualsEqualsToken or SyntaxKind.ExclamationEqualsToken => 7,
@@ -225,7 +255,7 @@ public static class SyntaxFacts
         or SyntaxKind.PlusEqualsToken or SyntaxKind.MinusEqualsToken or SyntaxKind.AsteriskEqualsToken
         or SyntaxKind.SlashEqualsToken or SyntaxKind.PercentEqualsToken or SyntaxKind.AmpersandEqualsToken
         or SyntaxKind.BarEqualsToken or SyntaxKind.CaretEqualsToken or SyntaxKind.LessThanLessThanEqualsToken
-        or SyntaxKind.GreaterThanGreaterThanEqualsToken;
+        or SyntaxKind.GreaterThanGreaterThanEqualsToken or SyntaxKind.QuestionQuestionEqualsToken;
 
     public static bool IsModifier(SyntaxKind kind) => GetModifierRank(kind) >= 0;
 

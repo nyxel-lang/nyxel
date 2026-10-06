@@ -165,3 +165,85 @@ public sealed class FunctionTypeSyntax : TypeSyntax
     public override IEnumerable<SyntaxNode> GetChildren() =>
         Children(AsyncKeyword, FuncKeyword, OpenParenToken, ParameterTypes, CloseParenToken, ReturnType);
 }
+
+/// <summary>
+/// <c>array&lt;T&gt;</c>, the .NET array <c>T[]</c> (ADR-0020); <c>array2d&lt;T&gt;</c> and <c>array3d&lt;T&gt;</c>, the
+/// multidimensional <c>T[,]</c> and <c>T[,,]</c> (ADR-0022). C#'s <c>T[]</c> and <c>T[,]</c> are reported and read into
+/// this node with a missing keyword, <c>&lt;</c> and <c>&gt;</c>.
+/// </summary>
+public sealed class ArrayTypeSyntax : TypeSyntax
+{
+    internal ArrayTypeSyntax(SyntaxToken arrayKeyword, SyntaxToken lessThanToken, TypeSyntax elementType, SyntaxToken greaterThanToken)
+        : base(SyntaxKind.ArrayType)
+    {
+        ArrayKeyword = arrayKeyword;
+        LessThanToken = lessThanToken;
+        ElementType = elementType;
+        GreaterThanToken = greaterThanToken;
+        AdoptChildren();
+    }
+
+    /// <summary><c>array</c>, <c>array2d</c> or <c>array3d</c>.</summary>
+    public SyntaxToken ArrayKeyword { get; }
+
+    public SyntaxToken LessThanToken { get; }
+
+    public TypeSyntax ElementType { get; }
+
+    /// <summary>The number of dimensions: 1, 2 or 3.</summary>
+    public int Rank => ArrayKeyword.Kind switch
+    {
+        SyntaxKind.Array2DKeyword => 2,
+        SyntaxKind.Array3DKeyword => 3,
+        _ => 1,
+    };
+
+    public SyntaxToken GreaterThanToken { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(ArrayKeyword, LessThanToken, ElementType, GreaterThanToken);
+}
+
+/// <summary>
+/// <c>(Min: int, Max: int)</c>, the .NET <c>ValueTuple</c> (ADR-0021). Every element is named; C#'s <c>(int Min, ...)</c>
+/// and the unnamed <c>(int, int)</c> are reported and read into elements with a missing name and colon.
+/// </summary>
+public sealed class TupleTypeSyntax : TypeSyntax
+{
+    internal TupleTypeSyntax(SyntaxToken openParenToken, SeparatedSyntaxList<TupleElementSyntax> elements, SyntaxToken closeParenToken)
+        : base(SyntaxKind.TupleType)
+    {
+        OpenParenToken = openParenToken;
+        Elements = elements;
+        CloseParenToken = closeParenToken;
+        AdoptChildren();
+    }
+
+    public SyntaxToken OpenParenToken { get; }
+
+    public SeparatedSyntaxList<TupleElementSyntax> Elements { get; }
+
+    public SyntaxToken CloseParenToken { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(OpenParenToken, Elements, CloseParenToken);
+}
+
+/// <summary><c>Min: int</c> in a tuple type.</summary>
+public sealed class TupleElementSyntax : SyntaxNode
+{
+    internal TupleElementSyntax(SyntaxToken identifier, SyntaxToken colonToken, TypeSyntax type)
+        : base(SyntaxKind.TupleElement)
+    {
+        Identifier = identifier;
+        ColonToken = colonToken;
+        Type = type;
+        AdoptChildren();
+    }
+
+    public SyntaxToken Identifier { get; }
+
+    public SyntaxToken ColonToken { get; }
+
+    public TypeSyntax Type { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(Identifier, ColonToken, Type);
+}

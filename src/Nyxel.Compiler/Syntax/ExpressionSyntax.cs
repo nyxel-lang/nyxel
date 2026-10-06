@@ -172,6 +172,55 @@ public sealed class ParenthesizedExpressionSyntax : ExpressionSyntax
     public override IEnumerable<SyntaxNode> GetChildren() => Children(OpenParenToken, Expression, CloseParenToken);
 }
 
+/// <summary>
+/// <c>(lo, hi)</c> or <c>(Min = lo, Max = hi)</c> (ADR-0021): arguments without <c>out</c> / <c>ref</c>. Whether the
+/// names are needed depends on the expected type and is checked during binding. As an assignment target it takes a
+/// tuple apart: <c>(a, b) = (b, a)</c>.
+/// </summary>
+public sealed class TupleExpressionSyntax : ExpressionSyntax
+{
+    internal TupleExpressionSyntax(SyntaxToken openParenToken, SeparatedSyntaxList<ArgumentSyntax> arguments, SyntaxToken closeParenToken)
+        : base(SyntaxKind.TupleExpression)
+    {
+        OpenParenToken = openParenToken;
+        Arguments = arguments;
+        CloseParenToken = closeParenToken;
+        AdoptChildren();
+    }
+
+    public SyntaxToken OpenParenToken { get; }
+
+    public SeparatedSyntaxList<ArgumentSyntax> Arguments { get; }
+
+    public SyntaxToken CloseParenToken { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(OpenParenToken, Arguments, CloseParenToken);
+}
+
+/// <summary>
+/// <c>[1, 2, 3]</c>, C# 12's collection expression (ADR-0022). The collection type comes from the expected type,
+/// checked during binding. C#'s spread <c>..xs</c> and dictionary entries <c>key: value</c> are reported and skipped.
+/// </summary>
+public sealed class CollectionExpressionSyntax : ExpressionSyntax
+{
+    internal CollectionExpressionSyntax(SyntaxToken openBracketToken, SeparatedSyntaxList<ExpressionSyntax> elements, SyntaxToken closeBracketToken)
+        : base(SyntaxKind.CollectionExpression)
+    {
+        OpenBracketToken = openBracketToken;
+        Elements = elements;
+        CloseBracketToken = closeBracketToken;
+        AdoptChildren();
+    }
+
+    public SyntaxToken OpenBracketToken { get; }
+
+    public SeparatedSyntaxList<ExpressionSyntax> Elements { get; }
+
+    public SyntaxToken CloseBracketToken { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(OpenBracketToken, Elements, CloseBracketToken);
+}
+
 /// <summary><c>a.b</c> or <c>a?.b</c>.</summary>
 public sealed class MemberAccessExpressionSyntax : ExpressionSyntax
 {
@@ -272,7 +321,7 @@ public sealed class ArgumentSyntax : SyntaxNode
     public override IEnumerable<SyntaxNode> GetChildren() => Children(NameEquals, RefKindKeyword, Expression);
 }
 
-/// <summary>The <c>name =</c> of a named argument.</summary>
+/// <summary>The <c>name =</c> of a named argument or tuple element.</summary>
 public sealed class NameEqualsSyntax : SyntaxNode
 {
     internal NameEqualsSyntax(IdentifierNameSyntax name, SyntaxToken equalsToken)
@@ -312,7 +361,7 @@ public sealed class DeclarationExpressionSyntax : ExpressionSyntax
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Keyword, Identifier, TypeAnnotation);
 }
 
-/// <summary><c>new Type(args)</c>; also named inits and data cases: <c>new Damage.Burn(amount = 3)</c> (ADR-0008).</summary>
+/// <summary><c>new Type(args)</c>; also named inits and data cases: <c>new Damage.Burn(Amount = 3)</c> (ADR-0008).</summary>
 public sealed class ObjectCreationExpressionSyntax : ExpressionSyntax
 {
     internal ObjectCreationExpressionSyntax(SyntaxToken newKeyword, TypeSyntax type, ArgumentListSyntax argumentList)
@@ -644,7 +693,10 @@ public sealed class AsExpressionSyntax : ExpressionSyntax
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Expression, AsKeyword, Type);
 }
 
-/// <summary><c>x is T</c> or <c>x is not T</c> (ADR-0010).</summary>
+/// <summary>
+/// <c>x is T</c> or <c>x is not T</c> (ADR-0010). The type may name an enum case, <c>state is SlimeState.Idle</c>
+/// (ADR-0024); which one it is is up to binding.
+/// </summary>
 public sealed class IsExpressionSyntax : ExpressionSyntax
 {
     internal IsExpressionSyntax(ExpressionSyntax expression, SyntaxToken isKeyword, SyntaxToken? notKeyword, TypeSyntax type)
@@ -668,10 +720,14 @@ public sealed class IsExpressionSyntax : ExpressionSyntax
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Expression, IsKeyword, NotKeyword, Type);
 }
 
-/// <summary><c>a..&lt;b</c> or <c>a...b</c> (ADR-0010, ADR-0019).</summary>
+/// <summary>
+/// <c>a..&lt;b</c> or <c>a...b</c> (ADR-0010, ADR-0019). A slice may leave out an end: <c>items[..&lt;3]</c>,
+/// <c>name[1...]</c> (ADR-0022). A range is not a value: where it may stand, and which ends it may leave out, is
+/// checked on the finished tree. The operator can be C#'s <c>..</c>, which is reported there too.
+/// </summary>
 public sealed class RangeExpressionSyntax : ExpressionSyntax
 {
-    internal RangeExpressionSyntax(ExpressionSyntax left, SyntaxToken operatorToken, ExpressionSyntax right)
+    internal RangeExpressionSyntax(ExpressionSyntax? left, SyntaxToken operatorToken, ExpressionSyntax? right)
         : base(SyntaxKind.RangeExpression)
     {
         Left = left;
@@ -680,11 +736,11 @@ public sealed class RangeExpressionSyntax : ExpressionSyntax
         AdoptChildren();
     }
 
-    public ExpressionSyntax Left { get; }
+    public ExpressionSyntax? Left { get; }
 
     public SyntaxToken OperatorToken { get; }
 
-    public ExpressionSyntax Right { get; }
+    public ExpressionSyntax? Right { get; }
 
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Left, OperatorToken, Right);
 }

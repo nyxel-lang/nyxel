@@ -18,7 +18,7 @@ CompilationUnit 1:1-14:1
       ParameterList 5:18-5:31
         OpenParenToken "("
         Parameter 5:19-5:30
-          IdentifierToken "amount"
+          IdentifierToken "Amount"
           ColonToken ":"
           PredefinedType 5:27-5:30
             IntKeyword "int"
@@ -29,13 +29,13 @@ CompilationUnit 1:1-14:1
       ParameterList 6:14-6:43
         OpenParenToken "("
         Parameter 6:15-6:26
-          IdentifierToken "amount"
+          IdentifierToken "Amount"
           ColonToken ":"
           PredefinedType 6:23-6:26
             IntKeyword "int"
         CommaToken ","
         Parameter 6:28-6:42
-          IdentifierToken "seconds"
+          IdentifierToken "Seconds"
           ColonToken ":"
           PredefinedType 6:37-6:42
             FloatKeyword "float"
@@ -46,7 +46,7 @@ CompilationUnit 1:1-14:1
       ParameterList 7:14-7:27
         OpenParenToken "("
         Parameter 7:15-7:26
-          IdentifierToken "amount"
+          IdentifierToken "Amount"
           ColonToken ":"
           PredefinedType 7:23-7:26
             IntKeyword "int"

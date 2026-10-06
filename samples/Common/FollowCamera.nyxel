@@ -13,6 +13,7 @@ public class FollowCamera : Behaviour {
     // Behaviour.OnEnable 在引擎里是 protected virtual：重写时照写 protected
     protected override func OnEnable(self) {
         self.velocity = Vector3.Zero
+        self.Target ??= self.World.FindNearest<Player>(self.Position)   // 没指定目标时跟着最近的玩家
     }
 
     public override func Update(self, dt: float) {

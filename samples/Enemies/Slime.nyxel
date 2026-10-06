@@ -22,6 +22,10 @@ public class Slime : Behaviour, IDamageable {
         get { return self.health.IsDead }
     }
 
+    public property IsChasing: bool {
+        get { return self.state is SlimeState.Chasing }   // 只问是哪个 case，不取数据
+    }
+
     public override func Update(self, dt: float) {
         if self.IsDead {
             return
@@ -30,16 +34,16 @@ public class Slime : Behaviour, IDamageable {
             case Idle -> {
                 let player = self.World.FindNearest<Player>(self.Position) ?? return
                 if self.Position.HorizontalDistance(player.Position) < self.SightRange {
-                    self.state = new SlimeState.Chasing(target = player)
+                    self.state = new SlimeState.Chasing(Target = player)
                 }
             }
             case Chasing(target) -> {
                 self.MoveTowards(target = target.Position, dt = dt)
                 if self.Position.HorizontalDistance(target.Position) < 1 {
-                    target.TakeDamage(damage = new Damage.Physical(amount = 5))
+                    target.TakeDamage(damage = new Damage.Physical(Amount = 5))
                 }
                 if self.health.Current < 10 {
-                    self.state = new SlimeState.Fleeing(from = target)
+                    self.state = new SlimeState.Fleeing(From = target)
                 }
             }
             case Fleeing(from) -> {
@@ -81,6 +85,6 @@ public class Slime : Behaviour, IDamageable {
 /// 每种状态带着它需要的数据：追谁、躲谁。
 enum SlimeState {
     case Idle
-    case Chasing(target: Player)
-    case Fleeing(from: Player)
+    case Chasing(Target: Player)
+    case Fleeing(From: Player)
 }

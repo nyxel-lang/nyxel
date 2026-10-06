@@ -20,6 +20,43 @@
     "strings": {
       "patterns": [
         {
+          "name": "string.quoted.triple.interpolated.nyxel",
+          "begin": "(\\$\\$+)(\"{3,})",
+          "end": "\\2",
+          "patterns": [
+            {
+              "name": "meta.interpolation.nyxel",
+              "contentName": "meta.embedded.line.nyxel",
+              "begin": "\\{\\{(?!\\{)",
+              "end": "\\}\\}",
+              "beginCaptures": { "0": { "name": "punctuation.definition.interpolation.begin.nyxel" } },
+              "endCaptures": { "0": { "name": "punctuation.definition.interpolation.end.nyxel" } },
+              "patterns": [{ "include": "$self" }]
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.triple.interpolated.nyxel",
+          "begin": "(\\$)(\"{3,})",
+          "end": "\\2",
+          "patterns": [
+            {
+              "name": "meta.interpolation.nyxel",
+              "contentName": "meta.embedded.line.nyxel",
+              "begin": "\\{",
+              "end": "\\}",
+              "beginCaptures": { "0": { "name": "punctuation.definition.interpolation.begin.nyxel" } },
+              "endCaptures": { "0": { "name": "punctuation.definition.interpolation.end.nyxel" } },
+              "patterns": [{ "include": "$self" }]
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.triple.nyxel",
+          "begin": "(\"{3,})",
+          "end": "\\1"
+        },
+        {
           "name": "string.quoted.double.interpolated.nyxel",
           "begin": "\\$\"",
           "end": "\"",
@@ -41,6 +78,12 @@
           "name": "string.quoted.double.nyxel",
           "begin": "\"",
           "end": "\"",
+          "patterns": [{ "include": "#escapes" }]
+        },
+        {
+          "name": "string.quoted.single.nyxel",
+          "begin": "'",
+          "end": "'|$",
           "patterns": [{ "include": "#escapes" }]
         }
       ]
@@ -73,6 +116,7 @@
         { "name": "keyword.other.namespace.nyxel", "match": "\\b(namespace|import)\\b" },
         { "name": "variable.language.self.nyxel", "match": "\\bself\\b" },
         { "name": "variable.language.super.nyxel", "match": "\\bsuper\\b" },
+        { "name": "storage.modifier.nyxel", "match": "\\bflags(?=[ \\t]+enum\\b)" },
         { "name": "storage.type.nyxel", "match": "\\b(let|var|func|init|property|class|struct|interface|enum|case|extension|event)\\b" },
         { "name": "storage.modifier.nyxel", "match": "\\b(public|private|protected|static|virtual|override|abstract|sealed|out|ref|using|async)\\b" },
         { "name": "keyword.operator.arrow.nyxel", "match": "->" }
@@ -83,7 +127,8 @@
         {
           "name": "storage.type.primitive.nyxel",
           "match": "\\b(bool|byte|sbyte|short|ushort|int|uint|long|ulong|float|double|decimal|char|string|object)\\b"
-        }
+        },
+        { "name": "storage.type.array.nyxel", "match": "\\b(array|array2d|array3d)\\b" }
       ]
     }
   }

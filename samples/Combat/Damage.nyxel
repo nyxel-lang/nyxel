@@ -1,10 +1,10 @@
 namespace Samples.Combat
 
-/// 一次伤害。每种情况带的数据不同，处理时用 `match` 按字段名取出。
+/// 一次伤害。每种情况带的数据不同，处理时用 `match` 按位置取出，同元组的解构。
 public enum Damage {
-    case Physical(amount: int)
-    case Burn(amount: int, seconds: float)
-    case Heal(amount: int)
+    case Physical(Amount: int)
+    case Burn(Amount: int, Seconds: float)
+    case Heal(Amount: int)
 }
 
 /// 能受到伤害的东西。

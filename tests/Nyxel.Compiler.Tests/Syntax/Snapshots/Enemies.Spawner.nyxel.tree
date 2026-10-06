@@ -823,7 +823,7 @@ CompilationUnit 1:1-79:1
                     Argument 76:52-76:72
                       NameEquals 76:52-76:60
                         IdentifierName 76:52-76:58
-                          IdentifierToken "amount"
+                          IdentifierToken "Amount"
                         EqualsToken "="
                       SimpleMemberAccessExpression 76:61-76:72
                         IdentifierName 76:61-76:66
@@ -835,7 +835,7 @@ CompilationUnit 1:1-79:1
                     Argument 76:74-76:85
                       NameEquals 76:74-76:83
                         IdentifierName 76:74-76:81
-                          IdentifierToken "seconds"
+                          IdentifierToken "Seconds"
                         EqualsToken "="
                       NumericLiteralExpression 76:84-76:85
                         NumericLiteralToken "2"

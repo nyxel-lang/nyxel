@@ -73,6 +73,6 @@ public class Spawner : Behaviour {
         }
         // 从这里开始 other 是 Projectile
         let target = self.NearestTo(point = other.Position) ?? return
-        target.TakeDamage(damage = new Damage.Burn(amount = other.Power, seconds = 2))
+        target.TakeDamage(damage = new Damage.Burn(Amount = other.Power, Seconds = 2))
     }
 }

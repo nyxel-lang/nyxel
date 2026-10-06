@@ -61,6 +61,52 @@ public sealed class LocalDeclarationStatementSyntax : StatementSyntax
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Keyword, Identifier, TypeAnnotation, Initializer);
 }
 
+/// <summary><c>let (min, max) = value</c> or <c>var ...</c> (ADR-0021): takes a tuple apart by position.</summary>
+public sealed class DeconstructionDeclarationStatementSyntax : StatementSyntax
+{
+    internal DeconstructionDeclarationStatementSyntax(SyntaxToken keyword, DeconstructionSyntax deconstruction, EqualsValueClauseSyntax initializer)
+        : base(SyntaxKind.DeconstructionDeclarationStatement)
+    {
+        Keyword = keyword;
+        Deconstruction = deconstruction;
+        Initializer = initializer;
+        AdoptChildren();
+    }
+
+    /// <summary><c>let</c> or <c>var</c>.</summary>
+    public SyntaxToken Keyword { get; }
+
+    public DeconstructionSyntax Deconstruction { get; }
+
+    public EqualsValueClauseSyntax Initializer { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(Keyword, Deconstruction, Initializer);
+}
+
+/// <summary>
+/// The <c>(min, max)</c> of <c>let (min, max) = ...</c> and <c>for (i, item) in ...</c> (ADR-0021): two or more plain
+/// names, <c>_</c> for an element that is not needed.
+/// </summary>
+public sealed class DeconstructionSyntax : SyntaxNode
+{
+    internal DeconstructionSyntax(SyntaxToken openParenToken, SeparatedSyntaxList<IdentifierNameSyntax> names, SyntaxToken closeParenToken)
+        : base(SyntaxKind.Deconstruction)
+    {
+        OpenParenToken = openParenToken;
+        Names = names;
+        CloseParenToken = closeParenToken;
+        AdoptChildren();
+    }
+
+    public SyntaxToken OpenParenToken { get; }
+
+    public SeparatedSyntaxList<IdentifierNameSyntax> Names { get; }
+
+    public SyntaxToken CloseParenToken { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(OpenParenToken, Names, CloseParenToken);
+}
+
 /// <summary><c>using name: Type = value</c> (ADR-0015).</summary>
 public sealed class UsingDeclarationStatementSyntax : StatementSyntax
 {
@@ -145,12 +191,16 @@ public sealed class WhileStatementSyntax : StatementSyntax
     public override IEnumerable<SyntaxNode> GetChildren() => Children(WhileKeyword, Condition, Body);
 }
 
-/// <summary><c>for name in collection { }</c> (ADR-0010).</summary>
+/// <summary>
+/// <c>for name in collection { }</c> (ADR-0010), or <c>for (i, item) in collection { }</c>, which takes each element
+/// apart (ADR-0021). Exactly one of <see cref="Identifier"/> and <see cref="Deconstruction"/> is set.
+/// </summary>
 public sealed class ForStatementSyntax : StatementSyntax
 {
     internal ForStatementSyntax(
         SyntaxToken forKeyword,
-        SyntaxToken identifier,
+        SyntaxToken? identifier,
+        DeconstructionSyntax? deconstruction,
         SyntaxToken inKeyword,
         ExpressionSyntax collection,
         BlockSyntax body)
@@ -158,6 +208,7 @@ public sealed class ForStatementSyntax : StatementSyntax
     {
         ForKeyword = forKeyword;
         Identifier = identifier;
+        Deconstruction = deconstruction;
         InKeyword = inKeyword;
         Collection = collection;
         Body = body;
@@ -166,7 +217,9 @@ public sealed class ForStatementSyntax : StatementSyntax
 
     public SyntaxToken ForKeyword { get; }
 
-    public SyntaxToken Identifier { get; }
+    public SyntaxToken? Identifier { get; }
+
+    public DeconstructionSyntax? Deconstruction { get; }
 
     public SyntaxToken InKeyword { get; }
 
@@ -174,7 +227,7 @@ public sealed class ForStatementSyntax : StatementSyntax
 
     public BlockSyntax Body { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(ForKeyword, Identifier, InKeyword, Collection, Body);
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(ForKeyword, Identifier, Deconstruction, InKeyword, Collection, Body);
 }
 
 public sealed class ReturnStatementSyntax : StatementSyntax

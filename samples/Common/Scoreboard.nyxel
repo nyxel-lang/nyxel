@@ -1,0 +1,40 @@
+namespace Samples.Common
+
+import System.Collections.Generic
+import System.Linq
+import Engine
+
+/// 一局里每个玩家的得分。
+public class Scoreboard {
+    let scores: Dictionary<string, int> = new Dictionary<string, int>()
+
+    public func Add(self, player: string, points: int) {
+        self.scores[player] = self.scores.GetValueOrDefault(player) + points
+    }
+
+    /// 最低分和最高分；还没人得分时都是 0。
+    public func Range(self) -> (Lowest: int, Highest: int) {
+        if self.scores.Count == 0 {
+            return (0, 0)
+        }
+        return (self.scores.Values.Min(), self.scores.Values.Max())
+    }
+
+    /// 按分数从高到低排好的名单。
+    public func Ranking(self) -> List<(Name: string, Score: int)> {
+        let ranking = new List<(Name: string, Score: int)>()
+        for (name, score) in self.scores {              // 字典的每一项拆成键和值
+            ranking.Add((name, score))                  // 元素名来自 List 的元素类型
+        }
+        ranking.Sort(func(a, b) = b.Score.CompareTo(a.Score))
+        return ranking
+    }
+
+    public func Print(self) {
+        for (i, entry) in self.Ranking().Index() {      // 同时拿到下标
+            Log.Info($"{i + 1}. {entry.Name}: {entry.Score}")
+        }
+        let (lowest, highest) = self.Range()            // 按位置拆开
+        Log.Info($"分差 {highest - lowest}")
+    }
+}

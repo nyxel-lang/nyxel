@@ -1,0 +1,115 @@
+namespace Samples.Common
+
+import System.Collections.Generic
+import System.Text
+import Engine
+
+public enum Tile : byte {                       // 一格只占 1 字节
+    case Floor
+    case Wall
+}
+
+/// 格子地图：二维数组，用 tiles[x, y] 访问；y 从上往下数。
+public class TileMap {
+    static let Neighbors: array<(X: int, Y: int)> = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+
+    public let Name: string
+    let tiles: array2d<Tile>
+    let coins: List<(X: int, Y: int)> = []
+
+    init(name: string, width: int, height: int) {
+        self.Name = name
+        self.tiles = new array2d<Tile>(width, height)   // 不带数据的 enum：一开始全是第一个 case，Floor
+    }
+
+    public property Width: int {
+        get { return self.tiles.GetLength(0) }
+    }
+
+    public property Height: int {
+        get { return self.tiles.GetLength(1) }
+    }
+
+    /// 从文本读地图。第一行是 "map: 名字"；其余每行一排格子：# 是墙，. 是地面，$ 是放着金币的地面。
+    public func Parse(text: string) -> TileMap {
+        let lines = text.Split('\n')
+        let name = lines[0][5...].Trim()                // 切片：去掉开头的 "map: "
+        let rows = lines[1...]                          // 第 1 行到最后
+        let map = new TileMap(name = name, width = rows[0].Length, height = rows.Length)
+        for y in 0..<rows.Length {
+            for x in 0..<rows[y].Length {
+                let c = rows[y][x]
+                if c == '#' {
+                    map.tiles[x, y] = Tile.Wall
+                } else if c == '$' {
+                    map.coins.Add((x, y))
+                }
+            }
+        }
+        return map
+    }
+
+    public func IsWall(self, x: int, y: int) -> bool {
+        if x < 0 or y < 0 or x >= self.Width or y >= self.Height {
+            return true                                 // 地图外面当作墙
+        }
+        return self.tiles[x, y] == Tile.Wall
+    }
+
+    /// 上下左右有几面墙。
+    public func WallsAround(self, x: int, y: int) -> int {
+        var count = 0
+        for (dx, dy) in TileMap.Neighbors {
+            if self.IsWall(x + dx, y + dy) {
+                count += 1
+            }
+        }
+        return count
+    }
+
+    /// 沿上下两边每隔一格立一根柱子。
+    public func AddPillars(self) {
+        for x in (0..<self.Width).StepBy(2) {          // 0, 2, 4, ...
+            self.tiles[x, 0] = Tile.Wall
+            self.tiles[x, self.Height - 1] = Tile.Wall
+        }
+    }
+
+    /// 捡起这一格上的金币，返回捡到几枚。
+    public func Collect(self, x: int, y: int) -> int {
+        var collected = 0
+        for i in (0..<self.coins.Count).Reversed() {   // 倒着走：删掉一个不会跳过下一个
+            if self.coins[i].X == x and self.coins[i].Y == y {
+                self.coins.RemoveAt(i)
+                collected += 1
+            }
+        }
+        return collected
+    }
+
+    public func Print(self) {
+        Log.Info($"{self.Name}: {self.Width} x {self.Height}")
+        for y in 0..<self.Height {
+            let line = new StringBuilder()
+            for x in 0..<self.Width {
+                line.Append(if self.IsWall(x, y) { '#' } else { '.' })
+            }
+            Log.Info(line.ToString())
+        }
+        for tile in [Tile.Wall, Tile.Floor] {           // 没有期望的类型，但马上被遍历：不用写类型
+            Log.Info($"{tile}: {self.Count(tile)}")
+        }
+    }
+
+    func Count(self, tile: Tile) -> int {
+        var count = 0
+        for x in 0..<self.Width {
+            for y in 0..<self.Height {
+                if self.tiles[x, y] == tile {
+                    count += 1
+                }
+            }
+        }
+        return count
+    }
+}

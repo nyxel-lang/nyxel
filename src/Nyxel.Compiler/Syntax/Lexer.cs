@@ -50,7 +50,42 @@ internal sealed class Lexer
 
         /// <summary>Open ( [ { inside a hole; ':' and '}' only end the hole at depth 0.</summary>
         public int Depth { get; set; }
+
+        /// <summary>Braces that open and close a hole: the number of '$' before a raw string, otherwise 1.</summary>
+        public int Braces { get; init; } = 1;
+
+        /// <summary>The raw string this text or hole belongs to; null in $"...".</summary>
+        public RawString? Raw { get; init; }
+
+        /// <summary>A reported $@"...": read without escapes so that its '\' cause no more errors.</summary>
+        public bool IsVerbatim { get; init; }
     }
+
+    /// <summary>A raw string being read (ADR-0020): the quotes that delimit it and whether it spans lines.</summary>
+    private sealed class RawString(int quotes, bool isMultiLine, int contentStart)
+    {
+        public int Quotes { get; } = quotes;
+
+        public bool IsMultiLine { get; } = isMultiLine;
+
+        /// <summary>Just after the opening quotes.</summary>
+        public int ContentStart { get; } = contentStart;
+
+        /// <summary>Indices in <see cref="_tokens"/> of the text tokens, whose values are set when the string closes.</summary>
+        public List<int> TextTokens { get; } = [];
+
+        /// <summary>Braces the string can't contain are reported once: $"""{{x}}""" is one mistake, not two.</summary>
+        public bool ReportedBraces { get; set; }
+    }
+
+    private enum RawStop
+    {
+        Close,
+        Hole,
+        End,
+    }
+
+    private const string QuoteName = "quote (\")";
 
     private char Current => Peek(0);
 
@@ -68,7 +103,11 @@ internal sealed class Lexer
         {
             if (_modes.TryPeek(out var mode) && mode.Kind != ModeKind.Hole)
             {
-                if (mode.Kind == ModeKind.Text)
+                if (mode.Kind == ModeKind.Text && mode.Raw != null)
+                {
+                    LexRawInterpolatedText(mode, mode.Raw);
+                }
+                else if (mode.Kind == ModeKind.Text)
                 {
                     LexInterpolatedText(mode);
                 }
@@ -196,19 +235,26 @@ internal sealed class Lexer
                 EnterBracket();
                 return (SyntaxKind.OpenBraceToken, null);
             case '}':
-                LeaveBracket(isBrace: true);
+                if (_modes.TryPeek(out var hole) && hole.Kind == ModeKind.Hole && hole.Depth == 0)
+                {
+                    CloseHole(hole, start);
+                }
+                else
+                {
+                    LeaveBracket();
+                }
                 return (SyntaxKind.CloseBraceToken, null);
             case '(':
                 EnterBracket();
                 return (SyntaxKind.OpenParenToken, null);
             case ')':
-                LeaveBracket(isBrace: false);
+                LeaveBracket();
                 return (SyntaxKind.CloseParenToken, null);
             case '[':
                 EnterBracket();
                 return (SyntaxKind.OpenBracketToken, null);
             case ']':
-                LeaveBracket(isBrace: false);
+                LeaveBracket();
                 return (SyntaxKind.CloseBracketToken, null);
             case ',':
                 return (SyntaxKind.CommaToken, null);
@@ -235,9 +281,9 @@ internal sealed class Lexer
                 }
                 if (Current == '.')
                 {
+                    // C#'s '..': the parser reports it with what to write in its place (ADR-0022).
                     _position++;
-                    _diagnostics.Report(DiagnosticDescriptors.RangeDotDot, new TextSpan(start, 2));
-                    return (SyntaxKind.DotDotLessThanToken, null);
+                    return (SyntaxKind.DotDotToken, null);
                 }
                 if (char.IsAsciiDigit(Current))
                 {
@@ -250,6 +296,11 @@ internal sealed class Lexer
                 {
                     _position++;
                     return (SyntaxKind.QuestionDotToken, null);
+                }
+                if (Current == '?' && Peek(1) == '=')
+                {
+                    _position += 2;
+                    return (SyntaxKind.QuestionQuestionEqualsToken, null);
                 }
                 return Choose('?', SyntaxKind.QuestionQuestionToken, SyntaxKind.QuestionToken);
             case '-':
@@ -315,20 +366,17 @@ internal sealed class Lexer
             case '"':
                 _position = start;
                 return LexString();
-            case '$' when Current == '"':
-                _position++;
-                _modes.Push(new Mode(ModeKind.Text, start));
-                return (SyntaxKind.InterpolatedStringStartToken, null);
+            case '$' when Current is '"' or '$' || (Current == '@' && Peek(1) == '"'):
+                return LexInterpolatedStringStart(start);
             case '@' when Current == '"' || (Current == '$' && Peek(1) == '"'):
-                // Recover by reading the rest as a regular string.
-                _diagnostics.Report(DiagnosticDescriptors.UnsupportedStringForm, new TextSpan(start, 1), "Verbatim strings (@\"...\")");
+                _diagnostics.Report(DiagnosticDescriptors.VerbatimString, new TextSpan(start, 1));
                 if (Current == '$')
                 {
                     _position += 2;
-                    _modes.Push(new Mode(ModeKind.Text, start));
+                    _modes.Push(new Mode(ModeKind.Text, start) { IsVerbatim = true });
                     return (SyntaxKind.InterpolatedStringStartToken, null);
                 }
-                return LexString();
+                return LexVerbatimString(start);
             case '\'':
                 return LexCharacterLiteral(start);
             default:
@@ -354,18 +402,29 @@ internal sealed class Lexer
         }
     }
 
-    private void LeaveBracket(bool isBrace)
+    private void LeaveBracket()
     {
-        if (_modes.TryPeek(out var mode) && mode.Kind == ModeKind.Hole)
+        if (_modes.TryPeek(out var mode) && mode.Kind == ModeKind.Hole && mode.Depth > 0)
         {
-            if (mode.Depth > 0)
+            mode.Depth--;
+        }
+    }
+
+    /// <summary>
+    /// The first '}' closing a hole has been read. After <c>$$"""</c> a hole closes with '}}', as many braces as
+    /// there are '$' (ADR-0020); too few are reported and the hole is closed anyway.
+    /// </summary>
+    private void CloseHole(Mode hole, int braceStart)
+    {
+        _modes.Pop();
+        for (var i = 1; i < hole.Braces; i++)
+        {
+            if (Current != '}')
             {
-                mode.Depth--;
+                _diagnostics.Report(DiagnosticDescriptors.RawStringHoleClose, TextSpan.FromBounds(braceStart, _position), new string('}', hole.Braces));
+                return;
             }
-            else if (isBrace)
-            {
-                _modes.Pop();
-            }
+            _position++;
         }
     }
 
@@ -571,7 +630,7 @@ internal sealed class Lexer
         {
             if (AtEnd || Current is '\r' or '\n')
             {
-                _diagnostics.Report(DiagnosticDescriptors.UnterminatedString, TextSpan.FromBounds(start, _position));
+                _diagnostics.Report(DiagnosticDescriptors.UnterminatedString, TextSpan.FromBounds(start, _position), QuoteName);
                 break;
             }
             if (Current == '"')
@@ -590,27 +649,10 @@ internal sealed class Lexer
         return (SyntaxKind.StringLiteralToken, value.ToString());
     }
 
-    /// <summary>Raw strings are not designed yet: report once and read up to the closing quotes as a string.</summary>
-    private (SyntaxKind, object?) LexRawString(int start)
-    {
-        var quotes = 0;
-        while (Current == '"')
-        {
-            quotes++;
-            _position++;
-        }
-        var contentStart = _position;
-        var closing = new string('"', quotes);
-        var end = _text.ToString().IndexOf(closing, _position, StringComparison.Ordinal);
-        _position = end < 0 ? _text.Length : end + quotes;
-        _diagnostics.Report(DiagnosticDescriptors.UnsupportedStringForm, new TextSpan(start, quotes), "Raw string literals (\"\"\"...\"\"\")");
-        var contentEnd = end < 0 ? _text.Length : end;
-        return (SyntaxKind.StringLiteralToken, _text.ToString(TextSpan.FromBounds(contentStart, contentEnd)));
-    }
-
+    /// <summary>'a', '\n': one UTF-16 character, with the escapes of strings (ADR-0020).</summary>
     private (SyntaxKind, object?) LexCharacterLiteral(int start)
     {
-        // Not designed yet. Read it as a one-character string so parsing goes on.
+        var errors = _diagnostics.Count;
         var value = new StringBuilder();
         while (!AtEnd && Current is not ('\'' or '\r' or '\n'))
         {
@@ -625,9 +667,375 @@ internal sealed class Lexer
         if (Current == '\'')
         {
             _position++;
+            if (value.Length != 1 && _diagnostics.Count == errors)
+            {
+                _diagnostics.Report(DiagnosticDescriptors.CharacterLiteralLength, TextSpan.FromBounds(start, _position));
+            }
         }
-        _diagnostics.Report(DiagnosticDescriptors.CharacterLiteral, TextSpan.FromBounds(start, _position));
+        else
+        {
+            _diagnostics.Report(DiagnosticDescriptors.UnterminatedString, TextSpan.FromBounds(start, _position), "quote (')");
+        }
+        return (SyntaxKind.CharacterLiteralToken, value.Length > 0 ? value[0] : '\0');
+    }
+
+    /// <summary>
+    /// <c>$"</c>, or <c>$"""</c> / <c>$$"""</c> opening an interpolated raw string whose holes take as many braces as
+    /// there are '$' (ADR-0020). The text that follows is read in a <see cref="ModeKind.Text"/> mode.
+    /// </summary>
+    private (SyntaxKind, object?) LexInterpolatedStringStart(int start)
+    {
+        var dollars = 1;
+        while (Current == '$')
+        {
+            dollars++;
+            _position++;
+        }
+        var isVerbatim = Current == '@';
+        if (isVerbatim)
+        {
+            _diagnostics.Report(DiagnosticDescriptors.VerbatimString, new TextSpan(_position, 1));
+            _position++;
+        }
+        if (Current != '"')
+        {
+            _position = start + 1;
+            return LexBadCharacters(start);
+        }
+
+        var quotes = CountRun('"');
+        if (quotes >= 3)
+        {
+            _position += quotes;
+            var raw = new RawString(quotes, RestOfLineIsWhitespace(), _position);
+            _modes.Push(new Mode(ModeKind.Text, start) { Braces = dollars, Raw = raw });
+            return (SyntaxKind.InterpolatedStringStartToken, null);
+        }
+        if (dollars > 1)
+        {
+            _diagnostics.Report(DiagnosticDescriptors.DollarsWithoutRawString, new TextSpan(start, dollars));
+        }
+        _position++;
+        _modes.Push(new Mode(ModeKind.Text, start) { IsVerbatim = isVerbatim });
+        return (SyntaxKind.InterpolatedStringStartToken, null);
+    }
+
+    /// <summary>
+    /// A reported @"...", read as C# reads it (no escapes, "" for a quote, line breaks allowed) so that its '\'
+    /// cause no more errors.
+    /// </summary>
+    private (SyntaxKind, object?) LexVerbatimString(int start)
+    {
+        _position++;
+        var value = new StringBuilder();
+        while (true)
+        {
+            if (AtEnd)
+            {
+                _diagnostics.Report(DiagnosticDescriptors.UnterminatedString, TextSpan.FromBounds(start, _position), QuoteName);
+                break;
+            }
+            if (Current == '"')
+            {
+                _position++;
+                if (Current != '"')
+                {
+                    break;
+                }
+            }
+            value.Append(Current);
+            _position++;
+        }
         return (SyntaxKind.StringLiteralToken, value.ToString());
+    }
+
+    // Raw strings (ADR-0020): the same as C# 11. ------------------------------------------------------------------
+
+    /// <summary>
+    /// <c>"""text"""</c> on one line, or <c>"""</c>, a line break, lines of text and the closing quotes on a line of
+    /// their own. More quotes delimit text that contains quotes. A multi-line string's value leaves out the
+    /// whitespace before its closing quotes from every line.
+    /// </summary>
+    private (SyntaxKind, object?) LexRawString(int start)
+    {
+        var quotes = CountRun('"');
+        _position += quotes;
+        var raw = new RawString(quotes, RestOfLineIsWhitespace(), _position);
+        var stop = ScanRawContent(raw, braces: 0, out var closeLength);
+        var contentEnd = _position;
+        if (stop != RawStop.Close)
+        {
+            ReportUnterminatedRawString(raw, start);
+            return (SyntaxKind.StringLiteralToken, _text.ToString(TextSpan.FromBounds(raw.ContentStart, contentEnd)));
+        }
+
+        _position += closeLength;
+        ReportExtraClosingQuotes(raw, contentEnd, closeLength);
+        var value = raw.IsMultiLine
+            ? MultiLineRawValues(raw, contentEnd, [TextSpan.FromBounds(raw.ContentStart, contentEnd)])[0]
+            : _text.ToString(TextSpan.FromBounds(raw.ContentStart, contentEnd));
+        return (SyntaxKind.StringLiteralToken, value);
+    }
+
+    /// <summary>Text of an interpolated raw string, then the '{' of a hole or the closing quotes.</summary>
+    private void LexRawInterpolatedText(Mode mode, RawString raw)
+    {
+        var start = _position;
+        var stop = ScanRawContent(raw, mode.Braces, out var closeLength);
+        if (_position > start)
+        {
+            // The value of a multi-line string's text is set when the string closes and its indentation is known.
+            raw.TextTokens.Add(_tokens.Count);
+            AddToken(SyntaxKind.InterpolatedStringTextToken, start, _text.ToString(TextSpan.FromBounds(start, _position)));
+        }
+
+        var noLineBreak = false;
+        switch (stop)
+        {
+            case RawStop.Hole:
+                {
+                    var braceStart = _position;
+                    _position += mode.Braces;
+                    var text = _text.ToString(TextSpan.FromBounds(braceStart, _position));
+                    var trailing = LexTrivia(leading: false, ref noLineBreak);
+                    _tokens.Add(new SyntaxToken(SyntaxKind.OpenBraceToken, braceStart, text, null, [], trailing, false));
+                    _modes.Push(new Mode(ModeKind.Hole, braceStart) { Braces = mode.Braces, Raw = raw });
+                    return;
+                }
+            case RawStop.Close:
+                {
+                    _modes.Pop();
+                    var quoteStart = _position;
+                    _position += closeLength;
+                    ReportExtraClosingQuotes(raw, quoteStart, closeLength);
+                    var text = _text.ToString(TextSpan.FromBounds(quoteStart, _position));
+                    var trailing = LexTrivia(leading: false, ref noLineBreak);
+                    _tokens.Add(new SyntaxToken(SyntaxKind.InterpolatedStringEndToken, quoteStart, text, null, [], trailing, false));
+                    if (raw.IsMultiLine)
+                    {
+                        SetMultiLineTextValues(raw, quoteStart);
+                    }
+                    return;
+                }
+            default:
+                _modes.Pop();
+                ReportUnterminatedRawString(raw, mode.Start);
+                _tokens.Add(SyntaxToken.Missing(SyntaxKind.InterpolatedStringEndToken, _position));
+                return;
+        }
+    }
+
+    /// <summary>
+    /// Reads raw string text up to the closing quotes, the braces that open a hole (when <paramref name="braces"/> is
+    /// positive: an interpolated string with that many '$') or where the string can't go on. Runs of quotes or
+    /// braces the string can't contain are reported and read as text, as C# does.
+    /// </summary>
+    private RawStop ScanRawContent(RawString raw, int braces, out int closeLength)
+    {
+        closeLength = 0;
+        while (true)
+        {
+            if (AtEnd || (!raw.IsMultiLine && Current is '\r' or '\n'))
+            {
+                return RawStop.End;
+            }
+            var c = Current;
+            if (c == '"')
+            {
+                var run = CountRun('"');
+                if (run >= raw.Quotes)
+                {
+                    if (!raw.IsMultiLine || IsFirstOnLine(_position))
+                    {
+                        closeLength = run;
+                        return RawStop.Close;
+                    }
+                    // C# ends the string here; reading on keeps the lines after it from turning into code.
+                    _diagnostics.Report(DiagnosticDescriptors.RawStringQuotes, new TextSpan(_position, run), raw.Quotes, run);
+                }
+                _position += run;
+            }
+            else if (braces > 0 && c == '{')
+            {
+                var run = CountRun('{');
+                if (run >= braces)
+                {
+                    // The braces before the last 'braces' ones are text: in $$"""{{{x}}}""" the value is "{" + x + "}".
+                    if (run >= 2 * braces)
+                    {
+                        ReportRawStringBraces(raw, run - braces, '{');
+                    }
+                    _position += run - braces;
+                    return RawStop.Hole;
+                }
+                _position += run;
+            }
+            else if (braces > 0 && c == '}')
+            {
+                var run = CountRun('}');
+                if (run >= braces)
+                {
+                    ReportRawStringBraces(raw, run, '}');
+                }
+                _position += run;
+            }
+            else
+            {
+                _position++;
+            }
+        }
+    }
+
+    private void ReportRawStringBraces(RawString raw, int count, char brace)
+    {
+        if (!raw.ReportedBraces)
+        {
+            raw.ReportedBraces = true;
+            _diagnostics.Report(DiagnosticDescriptors.RawStringBraces, new TextSpan(_position, count), new string(brace, count), new string('$', count + 1));
+        }
+    }
+
+    private void ReportExtraClosingQuotes(RawString raw, int quoteStart, int closeLength)
+    {
+        if (closeLength > raw.Quotes)
+        {
+            _diagnostics.Report(DiagnosticDescriptors.RawStringQuotes, new TextSpan(quoteStart, closeLength), raw.Quotes, closeLength);
+        }
+    }
+
+    private void ReportUnterminatedRawString(RawString raw, int start)
+    {
+        var quotes = new string('"', raw.Quotes);
+        if (raw.IsMultiLine)
+        {
+            _diagnostics.Report(DiagnosticDescriptors.UnterminatedRawString, TextSpan.FromBounds(start, raw.ContentStart), quotes);
+        }
+        else
+        {
+            _diagnostics.Report(DiagnosticDescriptors.UnterminatedString, TextSpan.FromBounds(start, _position), $"quotes ({quotes})");
+        }
+    }
+
+    private void SetMultiLineTextValues(RawString raw, int closeStart)
+    {
+        var segments = raw.TextTokens.Select(i => _tokens[i].Span).ToList();
+        var values = MultiLineRawValues(raw, closeStart, segments);
+        for (var i = 0; i < values.Length; i++)
+        {
+            var token = _tokens[raw.TextTokens[i]];
+            _tokens[raw.TextTokens[i]] = new SyntaxToken(
+                token.Kind, token.Position, token.Text, values[i], token.LeadingTrivia, token.TrailingTrivia, token.HasLeadingLineBreak);
+        }
+    }
+
+    /// <summary>
+    /// The values of the text segments of a closed multi-line raw string. Left out: the rest of the opening line,
+    /// the line break before the closing line, and from every line the whitespace before the closing quotes. A
+    /// line that doesn't start with that whitespace is reported, unless it is a blank line shorter than it (then
+    /// it becomes empty).
+    /// </summary>
+    private string[] MultiLineRawValues(RawString raw, int closeStart, List<TextSpan> segments)
+    {
+        // Line breaks of the string's own text; holes are on one line and their nested strings are not looked at.
+        var breaks = new List<TextSpan>();
+        foreach (var segment in segments)
+        {
+            for (var i = segment.Start; i < segment.End; i++)
+            {
+                if (_text[i] is '\r' or '\n')
+                {
+                    var length = _text[i] == '\r' && i + 1 < segment.End && _text[i + 1] == '\n' ? 2 : 1;
+                    breaks.Add(new TextSpan(i, length));
+                    i += length - 1;
+                }
+            }
+        }
+
+        // The closing quotes are first on their line, so there is at least the opening line's break.
+        var skipped = new List<TextSpan> { TextSpan.FromBounds(raw.ContentStart, breaks[0].End) };
+        if (breaks.Count == 1)
+        {
+            _diagnostics.Report(DiagnosticDescriptors.EmptyRawString, new TextSpan(closeStart, raw.Quotes));
+            skipped.Add(TextSpan.FromBounds(breaks[0].End, closeStart));
+        }
+        else
+        {
+            var indentation = _text.ToString(TextSpan.FromBounds(breaks[^1].End, closeStart));
+            for (var i = 0; i < breaks.Count - 1; i++)
+            {
+                SkipIndentation(TextSpan.FromBounds(breaks[i].End, breaks[i + 1].Start), indentation, skipped);
+            }
+            skipped.Add(TextSpan.FromBounds(breaks[^1].Start, closeStart));
+        }
+
+        var values = new string[segments.Count];
+        var next = 0;
+        for (var s = 0; s < segments.Count; s++)
+        {
+            var value = new StringBuilder();
+            for (var i = segments[s].Start; i < segments[s].End; i++)
+            {
+                while (next < skipped.Count && skipped[next].End <= i)
+                {
+                    next++;
+                }
+                if (next == skipped.Count || i < skipped[next].Start)
+                {
+                    value.Append(_text[i]);
+                }
+            }
+            values[s] = value.ToString();
+        }
+        return values;
+    }
+
+    private void SkipIndentation(TextSpan line, string indentation, List<TextSpan> skipped)
+    {
+        var text = _text.ToString(line);
+        if (text.StartsWith(indentation, StringComparison.Ordinal))
+        {
+            skipped.Add(new TextSpan(line.Start, indentation.Length));
+        }
+        else if (text.All(IsWhitespace) && indentation.StartsWith(text, StringComparison.Ordinal))
+        {
+            skipped.Add(line);
+        }
+        else
+        {
+            var whitespace = text.TakeWhile(IsWhitespace).Count();
+            _diagnostics.Report(DiagnosticDescriptors.RawStringIndentation, new TextSpan(line.Start, Math.Max(whitespace, 1)));
+        }
+    }
+
+    private int CountRun(char c)
+    {
+        var count = 0;
+        while (Peek(count) == c)
+        {
+            count++;
+        }
+        return count;
+    }
+
+    /// <summary>Only whitespace up to the end of the line: the opening quotes start a multi-line raw string.</summary>
+    private bool RestOfLineIsWhitespace()
+    {
+        var i = _position;
+        while (i < _text.Length && IsWhitespace(_text[i]))
+        {
+            i++;
+        }
+        return i == _text.Length || _text[i] is '\r' or '\n';
+    }
+
+    private bool IsFirstOnLine(int position)
+    {
+        var i = position - 1;
+        while (i >= 0 && IsWhitespace(_text[i]))
+        {
+            i--;
+        }
+        return i < 0 || _text[i] is '\r' or '\n';
     }
 
     /// <summary>The escape sequences of C# (ADR-0007). Appends the decoded character; invalid ones are reported.</summary>
@@ -694,9 +1102,18 @@ internal sealed class Lexer
     {
         var start = _position;
         var value = new StringBuilder();
-        while (!AtEnd && Current is not ('"' or '\r' or '\n'))
+        while (!AtEnd && Current is not ('\r' or '\n'))
         {
-            if (Current == '{' && Peek(1) == '{')
+            if (Current == '"' && mode.IsVerbatim && Peek(1) == '"')
+            {
+                value.Append('"');
+                _position += 2;
+            }
+            else if (Current == '"')
+            {
+                break;
+            }
+            else if (Current == '{' && Peek(1) == '{')
             {
                 value.Append('{');
                 _position += 2;
@@ -718,7 +1135,7 @@ internal sealed class Lexer
                 value.Append('}');
                 _position++;
             }
-            else if (Current == '\\')
+            else if (Current == '\\' && !mode.IsVerbatim)
             {
                 LexEscapeSequence(value);
             }
@@ -753,7 +1170,7 @@ internal sealed class Lexer
         }
         else
         {
-            _diagnostics.Report(DiagnosticDescriptors.UnterminatedString, TextSpan.FromBounds(mode.Start, _position));
+            _diagnostics.Report(DiagnosticDescriptors.UnterminatedString, TextSpan.FromBounds(mode.Start, _position), QuoteName);
             _modes.Pop();
             _tokens.Add(SyntaxToken.Missing(SyntaxKind.InterpolatedStringEndToken, _position));
         }
@@ -762,8 +1179,9 @@ internal sealed class Lexer
     /// <summary>The format after ':' in a hole, up to '}'.</summary>
     private void LexInterpolationFormat()
     {
+        var hole = _modes.Peek();
         var start = _position;
-        while (!AtEnd && Current is not ('}' or '"' or '\r' or '\n'))
+        while (!AtEnd && Current is not ('}' or '\r' or '\n') && !(Current == '"' && hole.Raw == null))
         {
             _position++;
         }
@@ -773,15 +1191,15 @@ internal sealed class Lexer
         }
         if (Current == '}')
         {
-            _modes.Pop();
             var braceStart = _position;
             _position++;
-            _tokens.Add(new SyntaxToken(SyntaxKind.CloseBraceToken, braceStart, "}", null, [], [], false));
+            CloseHole(hole, braceStart);
+            _tokens.Add(new SyntaxToken(SyntaxKind.CloseBraceToken, braceStart, _text.ToString(TextSpan.FromBounds(braceStart, _position)), null, [], [], false));
         }
         else if (Current == '"')
         {
             // $"{x:F2" -- close the hole and let the text mode end the string at the quote.
-            var hole = _modes.Pop();
+            _modes.Pop();
             _diagnostics.Report(DiagnosticDescriptors.UnclosedInterpolation, new TextSpan(hole.Start, 1));
             _tokens.Add(SyntaxToken.Missing(SyntaxKind.CloseBraceToken, _position));
         }
@@ -793,13 +1211,25 @@ internal sealed class Lexer
 
     /// <summary>
     /// A hole or format ran into the end of the line: report the open '{', close the hole and the string with
-    /// missing tokens so the parser does not report them again, and go back to normal lexing.
+    /// missing tokens so the parser does not report them again, and go back to normal lexing. A multi-line raw
+    /// string stays open and goes on with the next line.
     /// </summary>
     private void AbandonInterpolatedString()
     {
         var hole = _modes.Pop();
-        _diagnostics.Report(DiagnosticDescriptors.UnclosedInterpolation, new TextSpan(hole.Start, 1));
+        if (hole.Raw != null)
+        {
+            _diagnostics.Report(DiagnosticDescriptors.RawStringHoleClose, new TextSpan(hole.Start, hole.Braces), new string('}', hole.Braces));
+        }
+        else
+        {
+            _diagnostics.Report(DiagnosticDescriptors.UnclosedInterpolation, new TextSpan(hole.Start, 1));
+        }
         _tokens.Add(SyntaxToken.Missing(SyntaxKind.CloseBraceToken, _position));
+        if (hole.Raw is { IsMultiLine: true })
+        {
+            return;
+        }
         if (_modes.TryPop(out _))
         {
             _tokens.Add(SyntaxToken.Missing(SyntaxKind.InterpolatedStringEndToken, _position));

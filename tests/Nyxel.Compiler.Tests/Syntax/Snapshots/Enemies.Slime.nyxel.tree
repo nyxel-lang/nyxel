@@ -1,4 +1,4 @@
-CompilationUnit 1:1-87:1
+CompilationUnit 1:1-91:1
   NamespaceDeclaration 1:1-1:26
     NamespaceKeyword "namespace"
     QualifiedName 1:11-1:26
@@ -39,7 +39,7 @@ CompilationUnit 1:1-87:1
       DotToken "."
       IdentifierName 7:16-7:22
         IdentifierToken "Common"
-  ClassDeclaration 10:1-79:2
+  ClassDeclaration 10:1-83:2
     PublicKeyword "public"
     ClassKeyword "class"
     IdentifierToken "Slime"
@@ -166,711 +166,743 @@ CompilationUnit 1:1-87:1
                   IdentifierToken "IsDead"
             CloseBraceToken "}"
         CloseBraceToken "}"
-    FunctionDeclaration 25:5-50:6
+    PropertyDeclaration 25:5-27:6
+      PublicKeyword "public"
+      PropertyKeyword "property"
+      IdentifierToken "IsChasing"
+      TypeAnnotation 25:30-25:36
+        ColonToken ":"
+        PredefinedType 25:32-25:36
+          BoolKeyword "bool"
+      AccessorList 25:37-27:6
+        OpenBraceToken "{"
+        GetAccessorDeclaration 26:9-26:56
+          IdentifierToken "get"
+          Block 26:13-26:56
+            OpenBraceToken "{"
+            ReturnStatement 26:15-26:54
+              ReturnKeyword "return"
+              IsExpression 26:22-26:54
+                SimpleMemberAccessExpression 26:22-26:32
+                  SelfExpression 26:22-26:26
+                    SelfKeyword "self"
+                  DotToken "."
+                  IdentifierName 26:27-26:32
+                    IdentifierToken "state"
+                IsKeyword "is"
+                QualifiedName 26:36-26:54
+                  IdentifierName 26:36-26:46
+                    IdentifierToken "SlimeState"
+                  DotToken "."
+                  IdentifierName 26:47-26:54
+                    IdentifierToken "Chasing"
+            CloseBraceToken "}"
+        CloseBraceToken "}"
+    FunctionDeclaration 29:5-54:6
       PublicKeyword "public"
       OverrideKeyword "override"
       FuncKeyword "func"
       IdentifierToken "Update"
-      ParameterList 25:32-25:49
+      ParameterList 29:32-29:49
         OpenParenToken "("
-        SelfParameter 25:33-25:37
+        SelfParameter 29:33-29:37
           SelfKeyword "self"
         CommaToken ","
-        Parameter 25:39-25:48
+        Parameter 29:39-29:48
           IdentifierToken "dt"
           ColonToken ":"
-          PredefinedType 25:43-25:48
+          PredefinedType 29:43-29:48
             FloatKeyword "float"
         CloseParenToken ")"
-      Block 25:50-50:6
+      Block 29:50-54:6
         OpenBraceToken "{"
-        ExpressionStatement 26:9-28:10
-          IfExpression 26:9-28:10
+        ExpressionStatement 30:9-32:10
+          IfExpression 30:9-32:10
             IfKeyword "if"
-            SimpleMemberAccessExpression 26:12-26:23
-              SelfExpression 26:12-26:16
+            SimpleMemberAccessExpression 30:12-30:23
+              SelfExpression 30:12-30:16
                 SelfKeyword "self"
               DotToken "."
-              IdentifierName 26:17-26:23
+              IdentifierName 30:17-30:23
                 IdentifierToken "IsDead"
-            Block 26:24-28:10
+            Block 30:24-32:10
               OpenBraceToken "{"
-              ReturnStatement 27:13-27:19
+              ReturnStatement 31:13-31:19
                 ReturnKeyword "return"
               CloseBraceToken "}"
-        ExpressionStatement 29:9-49:10
-          MatchExpression 29:9-49:10
+        ExpressionStatement 33:9-53:10
+          MatchExpression 33:9-53:10
             MatchKeyword "match"
-            SimpleMemberAccessExpression 29:15-29:25
-              SelfExpression 29:15-29:19
+            SimpleMemberAccessExpression 33:15-33:25
+              SelfExpression 33:15-33:19
                 SelfKeyword "self"
               DotToken "."
-              IdentifierName 29:20-29:25
+              IdentifierName 33:20-33:25
                 IdentifierToken "state"
             OpenBraceToken "{"
-            MatchArm 30:13-35:14
+            MatchArm 34:13-39:14
               CaseKeyword "case"
-              CasePattern 30:18-30:22
+              CasePattern 34:18-34:22
                 IdentifierToken "Idle"
               MinusGreaterThanToken "->"
-              Block 30:26-35:14
+              Block 34:26-39:14
                 OpenBraceToken "{"
-                LocalDeclarationStatement 31:17-31:85
+                LocalDeclarationStatement 35:17-35:85
                   LetKeyword "let"
                   IdentifierToken "player"
-                  EqualsValueClause 31:28-31:85
+                  EqualsValueClause 35:28-35:85
                     EqualsToken "="
-                    CoalesceExpression 31:30-31:85
-                      InvocationExpression 31:30-31:75
-                        SimpleMemberAccessExpression 31:30-31:60
-                          SimpleMemberAccessExpression 31:30-31:40
-                            SelfExpression 31:30-31:34
+                    CoalesceExpression 35:30-35:85
+                      InvocationExpression 35:30-35:75
+                        SimpleMemberAccessExpression 35:30-35:60
+                          SimpleMemberAccessExpression 35:30-35:40
+                            SelfExpression 35:30-35:34
                               SelfKeyword "self"
                             DotToken "."
-                            IdentifierName 31:35-31:40
+                            IdentifierName 35:35-35:40
                               IdentifierToken "World"
                           DotToken "."
-                          GenericName 31:41-31:60
+                          GenericName 35:41-35:60
                             IdentifierToken "FindNearest"
-                            TypeArgumentList 31:52-31:60
+                            TypeArgumentList 35:52-35:60
                               LessThanToken "<"
-                              IdentifierName 31:53-31:59
+                              IdentifierName 35:53-35:59
                                 IdentifierToken "Player"
                               GreaterThanToken ">"
-                        ArgumentList 31:60-31:75
+                        ArgumentList 35:60-35:75
                           OpenParenToken "("
-                          Argument 31:61-31:74
-                            SimpleMemberAccessExpression 31:61-31:74
-                              SelfExpression 31:61-31:65
+                          Argument 35:61-35:74
+                            SimpleMemberAccessExpression 35:61-35:74
+                              SelfExpression 35:61-35:65
                                 SelfKeyword "self"
                               DotToken "."
-                              IdentifierName 31:66-31:74
+                              IdentifierName 35:66-35:74
                                 IdentifierToken "Position"
                           CloseParenToken ")"
                       QuestionQuestionToken "??"
-                      ReturnExpression 31:79-31:85
+                      ReturnExpression 35:79-35:85
                         ReturnKeyword "return"
-                ExpressionStatement 32:17-34:18
-                  IfExpression 32:17-34:18
+                ExpressionStatement 36:17-38:18
+                  IfExpression 36:17-38:18
                     IfKeyword "if"
-                    LessThanExpression 32:20-32:87
-                      InvocationExpression 32:20-32:69
-                        SimpleMemberAccessExpression 32:20-32:52
-                          SimpleMemberAccessExpression 32:20-32:33
-                            SelfExpression 32:20-32:24
+                    LessThanExpression 36:20-36:87
+                      InvocationExpression 36:20-36:69
+                        SimpleMemberAccessExpression 36:20-36:52
+                          SimpleMemberAccessExpression 36:20-36:33
+                            SelfExpression 36:20-36:24
                               SelfKeyword "self"
                             DotToken "."
-                            IdentifierName 32:25-32:33
+                            IdentifierName 36:25-36:33
                               IdentifierToken "Position"
                           DotToken "."
-                          IdentifierName 32:34-32:52
+                          IdentifierName 36:34-36:52
                             IdentifierToken "HorizontalDistance"
-                        ArgumentList 32:52-32:69
+                        ArgumentList 36:52-36:69
                           OpenParenToken "("
-                          Argument 32:53-32:68
-                            SimpleMemberAccessExpression 32:53-32:68
-                              IdentifierName 32:53-32:59
+                          Argument 36:53-36:68
+                            SimpleMemberAccessExpression 36:53-36:68
+                              IdentifierName 36:53-36:59
                                 IdentifierToken "player"
                               DotToken "."
-                              IdentifierName 32:60-32:68
+                              IdentifierName 36:60-36:68
                                 IdentifierToken "Position"
                           CloseParenToken ")"
                       LessThanToken "<"
-                      SimpleMemberAccessExpression 32:72-32:87
-                        SelfExpression 32:72-32:76
+                      SimpleMemberAccessExpression 36:72-36:87
+                        SelfExpression 36:72-36:76
                           SelfKeyword "self"
                         DotToken "."
-                        IdentifierName 32:77-32:87
+                        IdentifierName 36:77-36:87
                           IdentifierToken "SightRange"
-                    Block 32:88-34:18
+                    Block 36:88-38:18
                       OpenBraceToken "{"
-                      AssignmentStatement 33:21-33:73
-                        SimpleMemberAccessExpression 33:21-33:31
-                          SelfExpression 33:21-33:25
+                      AssignmentStatement 37:21-37:73
+                        SimpleMemberAccessExpression 37:21-37:31
+                          SelfExpression 37:21-37:25
                             SelfKeyword "self"
                           DotToken "."
-                          IdentifierName 33:26-33:31
+                          IdentifierName 37:26-37:31
                             IdentifierToken "state"
                         EqualsToken "="
-                        ObjectCreationExpression 33:34-33:73
+                        ObjectCreationExpression 37:34-37:73
                           NewKeyword "new"
-                          QualifiedName 33:38-33:56
-                            IdentifierName 33:38-33:48
+                          QualifiedName 37:38-37:56
+                            IdentifierName 37:38-37:48
                               IdentifierToken "SlimeState"
                             DotToken "."
-                            IdentifierName 33:49-33:56
+                            IdentifierName 37:49-37:56
                               IdentifierToken "Chasing"
-                          ArgumentList 33:56-33:73
+                          ArgumentList 37:56-37:73
                             OpenParenToken "("
-                            Argument 33:57-33:72
-                              NameEquals 33:57-33:65
-                                IdentifierName 33:57-33:63
-                                  IdentifierToken "target"
+                            Argument 37:57-37:72
+                              NameEquals 37:57-37:65
+                                IdentifierName 37:57-37:63
+                                  IdentifierToken "Target"
                                 EqualsToken "="
-                              IdentifierName 33:66-33:72
+                              IdentifierName 37:66-37:72
                                 IdentifierToken "player"
                             CloseParenToken ")"
                       CloseBraceToken "}"
                 CloseBraceToken "}"
-            MatchArm 36:13-44:14
+            MatchArm 40:13-48:14
               CaseKeyword "case"
-              CasePattern 36:18-36:33
+              CasePattern 40:18-40:33
                 IdentifierToken "Chasing"
-                CaseFieldList 36:25-36:33
+                CaseFieldList 40:25-40:33
                   OpenParenToken "("
-                  IdentifierName 36:26-36:32
+                  IdentifierName 40:26-40:32
                     IdentifierToken "target"
                   CloseParenToken ")"
               MinusGreaterThanToken "->"
-              Block 36:37-44:14
+              Block 40:37-48:14
                 OpenBraceToken "{"
-                ExpressionStatement 37:17-37:68
-                  InvocationExpression 37:17-37:68
-                    SimpleMemberAccessExpression 37:17-37:33
-                      SelfExpression 37:17-37:21
+                ExpressionStatement 41:17-41:68
+                  InvocationExpression 41:17-41:68
+                    SimpleMemberAccessExpression 41:17-41:33
+                      SelfExpression 41:17-41:21
                         SelfKeyword "self"
                       DotToken "."
-                      IdentifierName 37:22-37:33
+                      IdentifierName 41:22-41:33
                         IdentifierToken "MoveTowards"
-                    ArgumentList 37:33-37:68
+                    ArgumentList 41:33-41:68
                       OpenParenToken "("
-                      Argument 37:34-37:58
-                        NameEquals 37:34-37:42
-                          IdentifierName 37:34-37:40
+                      Argument 41:34-41:58
+                        NameEquals 41:34-41:42
+                          IdentifierName 41:34-41:40
                             IdentifierToken "target"
                           EqualsToken "="
-                        SimpleMemberAccessExpression 37:43-37:58
-                          IdentifierName 37:43-37:49
+                        SimpleMemberAccessExpression 41:43-41:58
+                          IdentifierName 41:43-41:49
                             IdentifierToken "target"
                           DotToken "."
-                          IdentifierName 37:50-37:58
+                          IdentifierName 41:50-41:58
                             IdentifierToken "Position"
                       CommaToken ","
-                      Argument 37:60-37:67
-                        NameEquals 37:60-37:64
-                          IdentifierName 37:60-37:62
+                      Argument 41:60-41:67
+                        NameEquals 41:60-41:64
+                          IdentifierName 41:60-41:62
                             IdentifierToken "dt"
                           EqualsToken "="
-                        IdentifierName 37:65-37:67
+                        IdentifierName 41:65-41:67
                           IdentifierToken "dt"
                       CloseParenToken ")"
-                ExpressionStatement 38:17-40:18
-                  IfExpression 38:17-40:18
+                ExpressionStatement 42:17-44:18
+                  IfExpression 42:17-44:18
                     IfKeyword "if"
-                    LessThanExpression 38:20-38:73
-                      InvocationExpression 38:20-38:69
-                        SimpleMemberAccessExpression 38:20-38:52
-                          SimpleMemberAccessExpression 38:20-38:33
-                            SelfExpression 38:20-38:24
+                    LessThanExpression 42:20-42:73
+                      InvocationExpression 42:20-42:69
+                        SimpleMemberAccessExpression 42:20-42:52
+                          SimpleMemberAccessExpression 42:20-42:33
+                            SelfExpression 42:20-42:24
                               SelfKeyword "self"
                             DotToken "."
-                            IdentifierName 38:25-38:33
+                            IdentifierName 42:25-42:33
                               IdentifierToken "Position"
                           DotToken "."
-                          IdentifierName 38:34-38:52
+                          IdentifierName 42:34-42:52
                             IdentifierToken "HorizontalDistance"
-                        ArgumentList 38:52-38:69
+                        ArgumentList 42:52-42:69
                           OpenParenToken "("
-                          Argument 38:53-38:68
-                            SimpleMemberAccessExpression 38:53-38:68
-                              IdentifierName 38:53-38:59
+                          Argument 42:53-42:68
+                            SimpleMemberAccessExpression 42:53-42:68
+                              IdentifierName 42:53-42:59
                                 IdentifierToken "target"
                               DotToken "."
-                              IdentifierName 38:60-38:68
+                              IdentifierName 42:60-42:68
                                 IdentifierToken "Position"
                           CloseParenToken ")"
                       LessThanToken "<"
-                      NumericLiteralExpression 38:72-38:73
+                      NumericLiteralExpression 42:72-42:73
                         NumericLiteralToken "1"
-                    Block 38:74-40:18
+                    Block 42:74-44:18
                       OpenBraceToken "{"
-                      ExpressionStatement 39:21-39:80
-                        InvocationExpression 39:21-39:80
-                          SimpleMemberAccessExpression 39:21-39:38
-                            IdentifierName 39:21-39:27
+                      ExpressionStatement 43:21-43:80
+                        InvocationExpression 43:21-43:80
+                          SimpleMemberAccessExpression 43:21-43:38
+                            IdentifierName 43:21-43:27
                               IdentifierToken "target"
                             DotToken "."
-                            IdentifierName 39:28-39:38
+                            IdentifierName 43:28-43:38
                               IdentifierToken "TakeDamage"
-                          ArgumentList 39:38-39:80
+                          ArgumentList 43:38-43:80
                             OpenParenToken "("
-                            Argument 39:39-39:79
-                              NameEquals 39:39-39:47
-                                IdentifierName 39:39-39:45
+                            Argument 43:39-43:79
+                              NameEquals 43:39-43:47
+                                IdentifierName 43:39-43:45
                                   IdentifierToken "damage"
                                 EqualsToken "="
-                              ObjectCreationExpression 39:48-39:79
+                              ObjectCreationExpression 43:48-43:79
                                 NewKeyword "new"
-                                QualifiedName 39:52-39:67
-                                  IdentifierName 39:52-39:58
+                                QualifiedName 43:52-43:67
+                                  IdentifierName 43:52-43:58
                                     IdentifierToken "Damage"
                                   DotToken "."
-                                  IdentifierName 39:59-39:67
+                                  IdentifierName 43:59-43:67
                                     IdentifierToken "Physical"
-                                ArgumentList 39:67-39:79
+                                ArgumentList 43:67-43:79
                                   OpenParenToken "("
-                                  Argument 39:68-39:78
-                                    NameEquals 39:68-39:76
-                                      IdentifierName 39:68-39:74
-                                        IdentifierToken "amount"
+                                  Argument 43:68-43:78
+                                    NameEquals 43:68-43:76
+                                      IdentifierName 43:68-43:74
+                                        IdentifierToken "Amount"
                                       EqualsToken "="
-                                    NumericLiteralExpression 39:77-39:78
+                                    NumericLiteralExpression 43:77-43:78
                                       NumericLiteralToken "5"
                                   CloseParenToken ")"
                             CloseParenToken ")"
                       CloseBraceToken "}"
-                ExpressionStatement 41:17-43:18
-                  IfExpression 41:17-43:18
+                ExpressionStatement 45:17-47:18
+                  IfExpression 45:17-47:18
                     IfKeyword "if"
-                    LessThanExpression 41:20-41:44
-                      SimpleMemberAccessExpression 41:20-41:39
-                        SimpleMemberAccessExpression 41:20-41:31
-                          SelfExpression 41:20-41:24
+                    LessThanExpression 45:20-45:44
+                      SimpleMemberAccessExpression 45:20-45:39
+                        SimpleMemberAccessExpression 45:20-45:31
+                          SelfExpression 45:20-45:24
                             SelfKeyword "self"
                           DotToken "."
-                          IdentifierName 41:25-41:31
+                          IdentifierName 45:25-45:31
                             IdentifierToken "health"
                         DotToken "."
-                        IdentifierName 41:32-41:39
+                        IdentifierName 45:32-45:39
                           IdentifierToken "Current"
                       LessThanToken "<"
-                      NumericLiteralExpression 41:42-41:44
+                      NumericLiteralExpression 45:42-45:44
                         NumericLiteralToken "10"
-                    Block 41:45-43:18
+                    Block 45:45-47:18
                       OpenBraceToken "{"
-                      AssignmentStatement 42:21-42:71
-                        SimpleMemberAccessExpression 42:21-42:31
-                          SelfExpression 42:21-42:25
+                      AssignmentStatement 46:21-46:71
+                        SimpleMemberAccessExpression 46:21-46:31
+                          SelfExpression 46:21-46:25
                             SelfKeyword "self"
                           DotToken "."
-                          IdentifierName 42:26-42:31
+                          IdentifierName 46:26-46:31
                             IdentifierToken "state"
                         EqualsToken "="
-                        ObjectCreationExpression 42:34-42:71
+                        ObjectCreationExpression 46:34-46:71
                           NewKeyword "new"
-                          QualifiedName 42:38-42:56
-                            IdentifierName 42:38-42:48
+                          QualifiedName 46:38-46:56
+                            IdentifierName 46:38-46:48
                               IdentifierToken "SlimeState"
                             DotToken "."
-                            IdentifierName 42:49-42:56
+                            IdentifierName 46:49-46:56
                               IdentifierToken "Fleeing"
-                          ArgumentList 42:56-42:71
+                          ArgumentList 46:56-46:71
                             OpenParenToken "("
-                            Argument 42:57-42:70
-                              NameEquals 42:57-42:63
-                                IdentifierName 42:57-42:61
-                                  IdentifierToken "from"
+                            Argument 46:57-46:70
+                              NameEquals 46:57-46:63
+                                IdentifierName 46:57-46:61
+                                  IdentifierToken "From"
                                 EqualsToken "="
-                              IdentifierName 42:64-42:70
+                              IdentifierName 46:64-46:70
                                 IdentifierToken "target"
                             CloseParenToken ")"
                       CloseBraceToken "}"
                 CloseBraceToken "}"
-            MatchArm 45:13-48:14
+            MatchArm 49:13-52:14
               CaseKeyword "case"
-              CasePattern 45:18-45:31
+              CasePattern 49:18-49:31
                 IdentifierToken "Fleeing"
-                CaseFieldList 45:25-45:31
+                CaseFieldList 49:25-49:31
                   OpenParenToken "("
-                  IdentifierName 45:26-45:30
+                  IdentifierName 49:26-49:30
                     IdentifierToken "from"
                   CloseParenToken ")"
               MinusGreaterThanToken "->"
-              Block 45:35-48:14
+              Block 49:35-52:14
                 OpenBraceToken "{"
-                LocalDeclarationStatement 46:17-46:61
+                LocalDeclarationStatement 50:17-50:61
                   LetKeyword "let"
                   IdentifierToken "away"
-                  EqualsValueClause 46:26-46:61
+                  EqualsValueClause 50:26-50:61
                     EqualsToken "="
-                    SubtractExpression 46:28-46:61
-                      MultiplyExpression 46:28-46:45
-                        SimpleMemberAccessExpression 46:28-46:41
-                          SelfExpression 46:28-46:32
+                    SubtractExpression 50:28-50:61
+                      MultiplyExpression 50:28-50:45
+                        SimpleMemberAccessExpression 50:28-50:41
+                          SelfExpression 50:28-50:32
                             SelfKeyword "self"
                           DotToken "."
-                          IdentifierName 46:33-46:41
+                          IdentifierName 50:33-50:41
                             IdentifierToken "Position"
                         AsteriskToken "*"
-                        NumericLiteralExpression 46:44-46:45
+                        NumericLiteralExpression 50:44-50:45
                           NumericLiteralToken "2"
                       MinusToken "-"
-                      SimpleMemberAccessExpression 46:48-46:61
-                        IdentifierName 46:48-46:52
+                      SimpleMemberAccessExpression 50:48-50:61
+                        IdentifierName 50:48-50:52
                           IdentifierToken "from"
                         DotToken "."
-                        IdentifierName 46:53-46:61
+                        IdentifierName 50:53-50:61
                           IdentifierToken "Position"
-                ExpressionStatement 47:17-47:57
-                  InvocationExpression 47:17-47:57
-                    SimpleMemberAccessExpression 47:17-47:33
-                      SelfExpression 47:17-47:21
+                ExpressionStatement 51:17-51:57
+                  InvocationExpression 51:17-51:57
+                    SimpleMemberAccessExpression 51:17-51:33
+                      SelfExpression 51:17-51:21
                         SelfKeyword "self"
                       DotToken "."
-                      IdentifierName 47:22-47:33
+                      IdentifierName 51:22-51:33
                         IdentifierToken "MoveTowards"
-                    ArgumentList 47:33-47:57
+                    ArgumentList 51:33-51:57
                       OpenParenToken "("
-                      Argument 47:34-47:47
-                        NameEquals 47:34-47:42
-                          IdentifierName 47:34-47:40
+                      Argument 51:34-51:47
+                        NameEquals 51:34-51:42
+                          IdentifierName 51:34-51:40
                             IdentifierToken "target"
                           EqualsToken "="
-                        IdentifierName 47:43-47:47
+                        IdentifierName 51:43-51:47
                           IdentifierToken "away"
                       CommaToken ","
-                      Argument 47:49-47:56
-                        NameEquals 47:49-47:53
-                          IdentifierName 47:49-47:51
+                      Argument 51:49-51:56
+                        NameEquals 51:49-51:53
+                          IdentifierName 51:49-51:51
                             IdentifierToken "dt"
                           EqualsToken "="
-                        IdentifierName 47:54-47:56
+                        IdentifierName 51:54-51:56
                           IdentifierToken "dt"
                       CloseParenToken ")"
                 CloseBraceToken "}"
             CloseBraceToken "}"
         CloseBraceToken "}"
-    FunctionDeclaration 52:5-60:6
+    FunctionDeclaration 56:5-64:6
       PublicKeyword "public"
       FuncKeyword "func"
       IdentifierToken "TakeDamage"
-      ParameterList 52:27-52:49
+      ParameterList 56:27-56:49
         OpenParenToken "("
-        SelfParameter 52:28-52:32
+        SelfParameter 56:28-56:32
           SelfKeyword "self"
         CommaToken ","
-        Parameter 52:34-52:48
+        Parameter 56:34-56:48
           IdentifierToken "damage"
           ColonToken ":"
-          IdentifierName 52:42-52:48
+          IdentifierName 56:42-56:48
             IdentifierToken "Damage"
         CloseParenToken ")"
-      Block 52:50-60:6
+      Block 56:50-64:6
         OpenBraceToken "{"
-        LocalDeclarationStatement 53:9-53:56
+        LocalDeclarationStatement 57:9-57:56
           LetKeyword "let"
           IdentifierToken "change"
-          EqualsValueClause 53:20-53:56
+          EqualsValueClause 57:20-57:56
             EqualsToken "="
-            InvocationExpression 53:22-53:56
-              SimpleMemberAccessExpression 53:22-53:39
-                SimpleMemberAccessExpression 53:22-53:33
-                  SelfExpression 53:22-53:26
+            InvocationExpression 57:22-57:56
+              SimpleMemberAccessExpression 57:22-57:39
+                SimpleMemberAccessExpression 57:22-57:33
+                  SelfExpression 57:22-57:26
                     SelfKeyword "self"
                   DotToken "."
-                  IdentifierName 53:27-53:33
+                  IdentifierName 57:27-57:33
                     IdentifierToken "health"
                 DotToken "."
-                IdentifierName 53:34-53:39
+                IdentifierName 57:34-57:39
                   IdentifierToken "Apply"
-              ArgumentList 53:39-53:56
+              ArgumentList 57:39-57:56
                 OpenParenToken "("
-                Argument 53:40-53:55
-                  NameEquals 53:40-53:48
-                    IdentifierName 53:40-53:46
+                Argument 57:40-57:55
+                  NameEquals 57:40-57:48
+                    IdentifierName 57:40-57:46
                       IdentifierToken "damage"
                     EqualsToken "="
-                  IdentifierName 53:49-53:55
+                  IdentifierName 57:49-57:55
                     IdentifierToken "damage"
                 CloseParenToken ")"
-        ExpressionStatement 54:9-54:74
-          InvocationExpression 54:9-54:74
-            SimpleMemberAccessExpression 54:9-54:17
-              IdentifierName 54:9-54:12
+        ExpressionStatement 58:9-58:74
+          InvocationExpression 58:9-58:74
+            SimpleMemberAccessExpression 58:9-58:17
+              IdentifierName 58:9-58:12
                 IdentifierToken "Log"
               DotToken "."
-              IdentifierName 54:13-54:17
+              IdentifierName 58:13-58:17
                 IdentifierToken "Info"
-            ArgumentList 54:17-54:74
+            ArgumentList 58:17-58:74
               OpenParenToken "("
-              Argument 54:18-54:73
-                InterpolatedStringExpression 54:18-54:73
+              Argument 58:18-58:73
+                InterpolatedStringExpression 58:18-58:73
                   InterpolatedStringStartToken "$\""
-                  Interpolation 54:20-54:31
+                  Interpolation 58:20-58:31
                     OpenBraceToken "{"
-                    SimpleMemberAccessExpression 54:21-54:30
-                      SelfExpression 54:21-54:25
+                    SimpleMemberAccessExpression 58:21-58:30
+                      SelfExpression 58:21-58:25
                         SelfKeyword "self"
                       DotToken "."
-                      IdentifierName 54:26-54:30
+                      IdentifierName 58:26-58:30
                         IdentifierToken "Name"
                     CloseBraceToken "}"
-                  InterpolatedStringText 54:31-54:33
+                  InterpolatedStringText 58:31-58:33
                     InterpolatedStringTextToken ": "
-                  Interpolation 54:33-54:47
+                  Interpolation 58:33-58:47
                     OpenBraceToken "{"
-                    IdentifierName 54:34-54:40
+                    IdentifierName 58:34-58:40
                       IdentifierToken "change"
-                    InterpolationFormatClause 54:40-54:46
+                    InterpolationFormatClause 58:40-58:46
                       ColonToken ":"
                       InterpolationFormatToken "+0;-0"
                     CloseBraceToken "}"
-                  InterpolatedStringText 54:47-54:51
+                  InterpolatedStringText 58:47-58:51
                     InterpolatedStringTextToken " -> "
-                  Interpolation 54:51-54:72
+                  Interpolation 58:51-58:72
                     OpenBraceToken "{"
-                    SimpleMemberAccessExpression 54:52-54:71
-                      SimpleMemberAccessExpression 54:52-54:63
-                        SelfExpression 54:52-54:56
+                    SimpleMemberAccessExpression 58:52-58:71
+                      SimpleMemberAccessExpression 58:52-58:63
+                        SelfExpression 58:52-58:56
                           SelfKeyword "self"
                         DotToken "."
-                        IdentifierName 54:57-54:63
+                        IdentifierName 58:57-58:63
                           IdentifierToken "health"
                       DotToken "."
-                      IdentifierName 54:64-54:71
+                      IdentifierName 58:64-58:71
                         IdentifierToken "Current"
                     CloseBraceToken "}"
                   InterpolatedStringEndToken "\""
               CloseParenToken ")"
-        ExpressionStatement 55:9-58:10
-          IfExpression 55:9-58:10
+        ExpressionStatement 59:9-62:10
+          IfExpression 59:9-62:10
             IfKeyword "if"
-            SimpleMemberAccessExpression 55:12-55:30
-              SimpleMemberAccessExpression 55:12-55:23
-                SelfExpression 55:12-55:16
+            SimpleMemberAccessExpression 59:12-59:30
+              SimpleMemberAccessExpression 59:12-59:23
+                SelfExpression 59:12-59:16
                   SelfKeyword "self"
                 DotToken "."
-                IdentifierName 55:17-55:23
+                IdentifierName 59:17-59:23
                   IdentifierToken "health"
               DotToken "."
-              IdentifierName 55:24-55:30
+              IdentifierName 59:24-59:30
                 IdentifierToken "IsDead"
-            Block 55:31-58:10
+            Block 59:31-62:10
               OpenBraceToken "{"
-              ExpressionStatement 56:13-56:23
-                InvocationExpression 56:13-56:23
-                  SimpleMemberAccessExpression 56:13-56:21
-                    SelfExpression 56:13-56:17
+              ExpressionStatement 60:13-60:23
+                InvocationExpression 60:13-60:23
+                  SimpleMemberAccessExpression 60:13-60:21
+                    SelfExpression 60:13-60:17
                       SelfKeyword "self"
                     DotToken "."
-                    IdentifierName 56:18-56:21
+                    IdentifierName 60:18-60:21
                       IdentifierToken "Die"
-                  ArgumentList 56:21-56:23
+                  ArgumentList 60:21-60:23
                     OpenParenToken "("
                     CloseParenToken ")"
-              ReturnStatement 57:13-57:19
+              ReturnStatement 61:13-61:19
                 ReturnKeyword "return"
               CloseBraceToken "}"
-        ExpressionStatement 59:9-59:28
-          LaunchExpression 59:9-59:28
+        ExpressionStatement 63:9-63:28
+          LaunchExpression 63:9-63:28
             LaunchKeyword "launch"
-            InvocationExpression 59:16-59:28
-              SimpleMemberAccessExpression 59:16-59:26
-                SelfExpression 59:16-59:20
+            InvocationExpression 63:16-63:28
+              SimpleMemberAccessExpression 63:16-63:26
+                SelfExpression 63:16-63:20
                   SelfKeyword "self"
                 DotToken "."
-                IdentifierName 59:21-59:26
+                IdentifierName 63:21-63:26
                   IdentifierToken "Flash"
-              ArgumentList 59:26-59:28
+              ArgumentList 63:26-63:28
                 OpenParenToken "("
                 CloseParenToken ")"
         CloseBraceToken "}"
-    FunctionDeclaration 63:5-67:6
+    FunctionDeclaration 67:5-71:6
       AsyncKeyword "async"
       FuncKeyword "func"
       IdentifierToken "Flash"
-      ParameterList 63:21-63:27
+      ParameterList 67:21-67:27
         OpenParenToken "("
-        SelfParameter 63:22-63:26
+        SelfParameter 67:22-67:26
           SelfKeyword "self"
         CloseParenToken ")"
-      Block 63:28-67:6
+      Block 67:28-71:6
         OpenBraceToken "{"
-        AssignmentStatement 64:9-64:30
-          SimpleMemberAccessExpression 64:9-64:18
-            SelfExpression 64:9-64:13
+        AssignmentStatement 68:9-68:30
+          SimpleMemberAccessExpression 68:9-68:18
+            SelfExpression 68:9-68:13
               SelfKeyword "self"
             DotToken "."
-            IdentifierName 64:14-64:18
+            IdentifierName 68:14-68:18
               IdentifierToken "Tint"
           EqualsToken "="
-          SimpleMemberAccessExpression 64:21-64:30
-            IdentifierName 64:21-64:26
+          SimpleMemberAccessExpression 68:21-68:30
+            IdentifierName 68:21-68:26
               IdentifierToken "Color"
             DotToken "."
-            IdentifierName 64:27-64:30
+            IdentifierName 68:27-68:30
               IdentifierToken "Red"
-        ExpressionStatement 65:9-65:32
-          AwaitExpression 65:9-65:32
+        ExpressionStatement 69:9-69:32
+          AwaitExpression 69:9-69:32
             AwaitKeyword "await"
-            InvocationExpression 65:15-65:32
-              SimpleMemberAccessExpression 65:15-65:27
-                IdentifierName 65:15-65:19
+            InvocationExpression 69:15-69:32
+              SimpleMemberAccessExpression 69:15-69:27
+                IdentifierName 69:15-69:19
                   IdentifierToken "Wait"
                 DotToken "."
-                IdentifierName 65:20-65:27
+                IdentifierName 69:20-69:27
                   IdentifierToken "Seconds"
-              ArgumentList 65:27-65:32
+              ArgumentList 69:27-69:32
                 OpenParenToken "("
-                Argument 65:28-65:31
-                  NumericLiteralExpression 65:28-65:31
+                Argument 69:28-69:31
+                  NumericLiteralExpression 69:28-69:31
                     NumericLiteralToken "0.1"
                 CloseParenToken ")"
-        AssignmentStatement 66:9-66:32
-          SimpleMemberAccessExpression 66:9-66:18
-            SelfExpression 66:9-66:13
+        AssignmentStatement 70:9-70:32
+          SimpleMemberAccessExpression 70:9-70:18
+            SelfExpression 70:9-70:13
               SelfKeyword "self"
             DotToken "."
-            IdentifierName 66:14-66:18
+            IdentifierName 70:14-70:18
               IdentifierToken "Tint"
           EqualsToken "="
-          SimpleMemberAccessExpression 66:21-66:32
-            IdentifierName 66:21-66:26
+          SimpleMemberAccessExpression 70:21-70:32
+            IdentifierName 70:21-70:26
               IdentifierToken "Color"
             DotToken "."
-            IdentifierName 66:27-66:32
+            IdentifierName 70:27-70:32
               IdentifierToken "White"
         CloseBraceToken "}"
-    FunctionDeclaration 69:5-72:6
+    FunctionDeclaration 73:5-76:6
       FuncKeyword "func"
       IdentifierToken "MoveTowards"
-      ParameterList 69:21-69:55
+      ParameterList 73:21-73:55
         OpenParenToken "("
-        SelfParameter 69:22-69:26
+        SelfParameter 73:22-73:26
           SelfKeyword "self"
         CommaToken ","
-        Parameter 69:28-69:43
+        Parameter 73:28-73:43
           IdentifierToken "target"
           ColonToken ":"
-          IdentifierName 69:36-69:43
+          IdentifierName 73:36-73:43
             IdentifierToken "Vector3"
         CommaToken ","
-        Parameter 69:45-69:54
+        Parameter 73:45-73:54
           IdentifierToken "dt"
           ColonToken ":"
-          PredefinedType 69:49-69:54
+          PredefinedType 73:49-73:54
             FloatKeyword "float"
         CloseParenToken ")"
-      Block 69:56-72:6
+      Block 73:56-76:6
         OpenBraceToken "{"
-        LocalDeclarationStatement 70:9-70:66
+        LocalDeclarationStatement 74:9-74:66
           LetKeyword "let"
           IdentifierToken "direction"
-          EqualsValueClause 70:23-70:66
+          EqualsValueClause 74:23-74:66
             EqualsToken "="
-            InvocationExpression 70:25-70:66
-              SimpleMemberAccessExpression 70:25-70:42
-                IdentifierName 70:25-70:32
+            InvocationExpression 74:25-74:66
+              SimpleMemberAccessExpression 74:25-74:42
+                IdentifierName 74:25-74:32
                   IdentifierToken "Vector3"
                 DotToken "."
-                IdentifierName 70:33-70:42
+                IdentifierName 74:33-74:42
                   IdentifierToken "Normalize"
-              ArgumentList 70:42-70:66
+              ArgumentList 74:42-74:66
                 OpenParenToken "("
-                Argument 70:43-70:65
-                  SubtractExpression 70:43-70:65
-                    IdentifierName 70:43-70:49
+                Argument 74:43-74:65
+                  SubtractExpression 74:43-74:65
+                    IdentifierName 74:43-74:49
                       IdentifierToken "target"
                     MinusToken "-"
-                    SimpleMemberAccessExpression 70:52-70:65
-                      SelfExpression 70:52-70:56
+                    SimpleMemberAccessExpression 74:52-74:65
+                      SelfExpression 74:52-74:56
                         SelfKeyword "self"
                       DotToken "."
-                      IdentifierName 70:57-70:65
+                      IdentifierName 74:57-74:65
                         IdentifierToken "Position"
                 CloseParenToken ")"
-        AssignmentStatement 71:9-71:53
-          SimpleMemberAccessExpression 71:9-71:22
-            SelfExpression 71:9-71:13
+        AssignmentStatement 75:9-75:53
+          SimpleMemberAccessExpression 75:9-75:22
+            SelfExpression 75:9-75:13
               SelfKeyword "self"
             DotToken "."
-            IdentifierName 71:14-71:22
+            IdentifierName 75:14-75:22
               IdentifierToken "Position"
           PlusEqualsToken "+="
-          MultiplyExpression 71:26-71:53
-            MultiplyExpression 71:26-71:48
-              IdentifierName 71:26-71:35
+          MultiplyExpression 75:26-75:53
+            MultiplyExpression 75:26-75:48
+              IdentifierName 75:26-75:35
                 IdentifierToken "direction"
               AsteriskToken "*"
-              SimpleMemberAccessExpression 71:38-71:48
-                SelfExpression 71:38-71:42
+              SimpleMemberAccessExpression 75:38-75:48
+                SelfExpression 75:38-75:42
                   SelfKeyword "self"
                 DotToken "."
-                IdentifierName 71:43-71:48
+                IdentifierName 75:43-75:48
                   IdentifierToken "Speed"
             AsteriskToken "*"
-            IdentifierName 71:51-71:53
+            IdentifierName 75:51-75:53
               IdentifierToken "dt"
         CloseBraceToken "}"
-    FunctionDeclaration 74:5-78:6
+    FunctionDeclaration 78:5-82:6
       FuncKeyword "func"
       IdentifierToken "Die"
-      ParameterList 74:13-74:19
+      ParameterList 78:13-78:19
         OpenParenToken "("
-        SelfParameter 74:14-74:18
+        SelfParameter 78:14-78:18
           SelfKeyword "self"
         CloseParenToken ")"
-      Block 74:20-78:6
+      Block 78:20-82:6
         OpenBraceToken "{"
-        AssignmentStatement 75:9-75:26
-          SimpleMemberAccessExpression 75:9-75:21
-            IdentifierName 75:9-75:14
+        AssignmentStatement 79:9-79:26
+          SimpleMemberAccessExpression 79:9-79:21
+            IdentifierName 79:9-79:14
               IdentifierToken "Slime"
             DotToken "."
-            IdentifierName 75:15-75:21
+            IdentifierName 79:15-79:21
               IdentifierToken "Killed"
           PlusEqualsToken "+="
-          NumericLiteralExpression 75:25-75:26
+          NumericLiteralExpression 79:25-79:26
             NumericLiteralToken "1"
-        EmitStatement 76:9-76:37
+        EmitStatement 80:9-80:37
           EmitKeyword "emit"
-          InvocationExpression 76:14-76:37
-            SimpleMemberAccessExpression 76:14-76:23
-              SelfExpression 76:14-76:18
+          InvocationExpression 80:14-80:37
+            SimpleMemberAccessExpression 80:14-80:23
+              SelfExpression 80:14-80:18
                 SelfKeyword "self"
               DotToken "."
-              IdentifierName 76:19-76:23
+              IdentifierName 80:19-80:23
                 IdentifierToken "Died"
-            ArgumentList 76:23-76:37
+            ArgumentList 80:23-80:37
               OpenParenToken "("
-              Argument 76:24-76:36
-                NameEquals 76:24-76:31
-                  IdentifierName 76:24-76:29
+              Argument 80:24-80:36
+                NameEquals 80:24-80:31
+                  IdentifierName 80:24-80:29
                     IdentifierToken "slime"
                   EqualsToken "="
-                SelfExpression 76:32-76:36
+                SelfExpression 80:32-80:36
                   SelfKeyword "self"
               CloseParenToken ")"
-        ExpressionStatement 77:9-77:23
-          InvocationExpression 77:9-77:23
-            SimpleMemberAccessExpression 77:9-77:21
-              SelfExpression 77:9-77:13
+        ExpressionStatement 81:9-81:23
+          InvocationExpression 81:9-81:23
+            SimpleMemberAccessExpression 81:9-81:21
+              SelfExpression 81:9-81:13
                 SelfKeyword "self"
               DotToken "."
-              IdentifierName 77:14-77:21
+              IdentifierName 81:14-81:21
                 IdentifierToken "Destroy"
-            ArgumentList 77:21-77:23
+            ArgumentList 81:21-81:23
               OpenParenToken "("
               CloseParenToken ")"
         CloseBraceToken "}"
     CloseBraceToken "}"
-  EnumDeclaration 82:1-86:2
+  EnumDeclaration 86:1-90:2
     EnumKeyword "enum"
     IdentifierToken "SlimeState"
     OpenBraceToken "{"
-    EnumCaseDeclaration 83:5-83:14
+    EnumCaseDeclaration 87:5-87:14
       CaseKeyword "case"
       IdentifierToken "Idle"
-    EnumCaseDeclaration 84:5-84:33
+    EnumCaseDeclaration 88:5-88:33
       CaseKeyword "case"
       IdentifierToken "Chasing"
-      ParameterList 84:17-84:33
+      ParameterList 88:17-88:33
         OpenParenToken "("
-        Parameter 84:18-84:32
-          IdentifierToken "target"
+        Parameter 88:18-88:32
+          IdentifierToken "Target"
           ColonToken ":"
-          IdentifierName 84:26-84:32
+          IdentifierName 88:26-88:32
             IdentifierToken "Player"
         CloseParenToken ")"
-    EnumCaseDeclaration 85:5-85:31
+    EnumCaseDeclaration 89:5-89:31
       CaseKeyword "case"
       IdentifierToken "Fleeing"
-      ParameterList 85:17-85:31
+      ParameterList 89:17-89:31
         OpenParenToken "("
-        Parameter 85:18-85:30
-          IdentifierToken "from"
+        Parameter 89:18-89:30
+          IdentifierToken "From"
           ColonToken ":"
-          IdentifierName 85:24-85:30
+          IdentifierName 89:24-89:30
             IdentifierToken "Player"
         CloseParenToken ")"
     CloseBraceToken "}"

@@ -287,6 +287,8 @@ internal sealed partial class Parser
             {
                 break;
             }
+            // Read on as if the comma were there; the list keeps alternating elements and separators.
+            items.Add(Missing(SyntaxKind.CommaToken));
         }
         return Separated<T>(items);
     }

@@ -23,14 +23,14 @@ internal sealed partial class Parser
     private ExpressionSyntax MissingExpression() => new IdentifierNameSyntax(Missing(SyntaxKind.IdentifierToken));
 
     private static bool CanStartExpression(SyntaxKind kind) => kind is SyntaxKind.IdentifierToken
-        or SyntaxKind.NumericLiteralToken or SyntaxKind.StringLiteralToken or SyntaxKind.InterpolatedStringStartToken
-        or SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword or SyntaxKind.NullKeyword or SyntaxKind.SelfKeyword
-        or SyntaxKind.SuperKeyword or SyntaxKind.OpenParenToken or SyntaxKind.NewKeyword or SyntaxKind.FuncKeyword
+        or SyntaxKind.NumericLiteralToken or SyntaxKind.StringLiteralToken or SyntaxKind.CharacterLiteralToken
+        or SyntaxKind.InterpolatedStringStartToken or SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword or SyntaxKind.NullKeyword or SyntaxKind.SelfKeyword
+        or SyntaxKind.SuperKeyword or SyntaxKind.OpenParenToken or SyntaxKind.OpenBracketToken or SyntaxKind.NewKeyword or SyntaxKind.FuncKeyword
         or SyntaxKind.AsyncKeyword or SyntaxKind.IfKeyword or SyntaxKind.MatchKeyword or SyntaxKind.TryKeyword
         or SyntaxKind.MinusToken or SyntaxKind.PlusToken or SyntaxKind.TildeToken or SyntaxKind.NotKeyword
         or SyntaxKind.ExclamationToken or SyntaxKind.AwaitKeyword or SyntaxKind.LaunchKeyword
-        or SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken
-        || SyntaxFacts.IsPredefinedType(kind);
+        or SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken or SyntaxKind.CaretToken
+        || SyntaxFacts.IsPredefinedType(kind) || SyntaxFacts.IsArrayKeyword(kind) || SyntaxFacts.IsRangeOperator(kind);
 
     // Operators ------------------------------------------------------------------------------------------------
 
@@ -69,15 +69,21 @@ internal sealed partial class Parser
                             Report(DiagnosticDescriptors.IsWithName, Current.Span, Current.Text);
                             SkipCurrentToken();
                         }
+                        else if (At(SyntaxKind.OpenParenToken))
+                        {
+                            // x is Damage.Burn(a, s): 'is' only checks the case; the data comes out in 'match' (ADR-0024).
+                            Report(DiagnosticDescriptors.IsCaseData, Current.Span);
+                            SkipBalanced();
+                        }
                         left = new IsExpressionSyntax(left, operatorToken, notKeyword, type);
                         continue;
                     }
-                case SyntaxKind.DotDotLessThanToken or SyntaxKind.DotDotDotToken:
+                case SyntaxKind.DotDotLessThanToken or SyntaxKind.DotDotDotToken or SyntaxKind.DotDotToken:
                     if (left is RangeExpressionSyntax)
                     {
                         Report(DiagnosticDescriptors.ChainedRange, operatorToken.Span);
                     }
-                    left = new RangeExpressionSyntax(left, operatorToken, ParseBinaryExpression(SyntaxFacts.RangePrecedence));
+                    left = new RangeExpressionSyntax(left, operatorToken, ParseRangeEnd());
                     continue;
                 case SyntaxKind.AmpersandAmpersandToken:
                     Report(DiagnosticDescriptors.SymbolicLogicalOperator, operatorToken.Span, "and", "&&");
@@ -122,8 +128,29 @@ internal sealed partial class Parser
         return new JumpExpressionSyntax(kind, keyword, value);
     }
 
+    /// <summary>
+    /// The end after a range operator, or null when nothing that can start one follows (<c>name[1...]</c>). Which
+    /// ranges may leave out an end is checked on the finished tree (<see cref="CheckRanges"/>).
+    /// </summary>
+    private ExpressionSyntax? ParseRangeEnd() =>
+        CanStartExpression(Current.Kind) && !AtLineBreak ? ParseBinaryExpression(SyntaxFacts.RangePrecedence) : null;
+
     private ExpressionSyntax ParseUnaryExpression()
     {
+        if (SyntaxFacts.IsRangeOperator(Current.Kind) && !AtLineBreak)
+        {
+            // items[..<3]: a range without a start (ADR-0022).
+            var rangeOperator = NextToken();
+            CheckOperatorAtLineEnd(rangeOperator);
+            return new RangeExpressionSyntax(null, rangeOperator, ParseRangeEnd());
+        }
+        if (Current.Kind == SyntaxKind.CaretToken && !AtLineBreak)
+        {
+            // items[^1] -- C#'s index from the end; read the operand without it.
+            Report(DiagnosticDescriptors.IndexFromEnd, Current.Span);
+            SkipCurrentToken();
+            return ParseUnaryExpression();
+        }
         var kind = Current.Kind switch
         {
             SyntaxKind.MinusToken => SyntaxKind.UnaryMinusExpression,
@@ -236,6 +263,8 @@ internal sealed partial class Parser
                 return new LiteralExpressionSyntax(SyntaxKind.NumericLiteralExpression, NextToken());
             case SyntaxKind.StringLiteralToken:
                 return new LiteralExpressionSyntax(SyntaxKind.StringLiteralExpression, NextToken());
+            case SyntaxKind.CharacterLiteralToken:
+                return new LiteralExpressionSyntax(SyntaxKind.CharacterLiteralExpression, NextToken());
             case SyntaxKind.TrueKeyword:
                 return new LiteralExpressionSyntax(SyntaxKind.TrueLiteralExpression, NextToken());
             case SyntaxKind.FalseKeyword:
@@ -252,6 +281,8 @@ internal sealed partial class Parser
                 return ParseSimpleNameInExpression();
             case SyntaxKind.OpenParenToken:
                 return ParseParenthesizedExpression();
+            case SyntaxKind.OpenBracketToken:
+                return ParseCollectionExpression();
             case SyntaxKind.NewKeyword:
                 return ParseObjectCreation();
             case SyntaxKind.FuncKeyword:
@@ -265,6 +296,8 @@ internal sealed partial class Parser
                 return ParseTryExpression();
             case var kind when SyntaxFacts.IsPredefinedType(kind):
                 return new PredefinedTypeSyntax(NextToken());
+            case var kind when SyntaxFacts.IsArrayKeyword(kind):
+                return ParseArrayType();
             default:
                 ReportExpected("an expression");
                 return MissingExpression();
@@ -319,12 +352,99 @@ internal sealed partial class Parser
             return ParseUnaryExpression();
         }
 
+        // (Min: lo) is a tuple with C#'s colon; (Min = lo) stays an assignment used as a value, reported as such.
+        if (IsTupleAhead() || (Peek(1).Kind == SyntaxKind.IdentifierToken && Peek(2).Kind == SyntaxKind.ColonToken))
+        {
+            return ParseTupleExpression();
+        }
+
         var open = NextToken();
         _bracketDepth++;
         var expression = ParseExpression();
         var close = Expect(SyntaxKind.CloseParenToken);
         _bracketDepth--;
         return new ParenthesizedExpressionSyntax(open, expression, close);
+    }
+
+    /// <summary>At '(': a ',' directly inside these parentheses makes them a tuple (ADR-0021).</summary>
+    private bool IsTupleAhead()
+    {
+        var depth = 0;
+        for (var offset = 0; ; offset++)
+        {
+            switch (Peek(offset).Kind)
+            {
+                case SyntaxKind.OpenParenToken or SyntaxKind.OpenBracketToken or SyntaxKind.OpenBraceToken:
+                    depth++;
+                    break;
+                case SyntaxKind.CloseParenToken or SyntaxKind.CloseBracketToken or SyntaxKind.CloseBraceToken:
+                    depth--;
+                    if (depth == 0)
+                    {
+                        return false;
+                    }
+                    break;
+                case SyntaxKind.CommaToken when depth == 1:
+                    return true;
+                case SyntaxKind.EndOfFileToken:
+                    return false;
+            }
+        }
+    }
+
+    /// <summary><c>(lo, hi)</c>, <c>(Min = lo, Max = hi)</c> (ADR-0021).</summary>
+    private TupleExpressionSyntax ParseTupleExpression()
+    {
+        var open = NextToken();
+        _bracketDepth++;
+        var arguments = ParseSeparatedList(SyntaxKind.CloseParenToken, _ => new ArgumentSyntax(TryParseNameEquals(), null, ParseExpression()));
+        var close = Expect(SyntaxKind.CloseParenToken);
+        _bracketDepth--;
+        var tuple = new TupleExpressionSyntax(open, arguments, close);
+        if (arguments.Count < 2)
+        {
+            Report(DiagnosticDescriptors.TupleElementCount, tuple.Span);
+        }
+        return tuple;
+    }
+
+    /// <summary>
+    /// <c>[1, 2, 3]</c> (ADR-0022). C#'s spread <c>..xs</c> (and JavaScript's <c>...xs</c>) and dictionary entries
+    /// <c>"a": 1</c> / <c>"a" = 1</c> are reported once per literal and dropped into trivia.
+    /// </summary>
+    private CollectionExpressionSyntax ParseCollectionExpression()
+    {
+        var open = NextToken();
+        _bracketDepth++;
+        var reportedSpread = false;
+        var reportedEntry = false;
+        var elements = ParseSeparatedList(SyntaxKind.CloseBracketToken, _ =>
+        {
+            if (Current.Kind is SyntaxKind.DotDotToken or SyntaxKind.DotDotDotToken)
+            {
+                if (!reportedSpread)
+                {
+                    Report(DiagnosticDescriptors.CollectionSpread, Current.Span);
+                    reportedSpread = true;
+                }
+                SkipCurrentToken();
+            }
+            var element = ParseExpressionCore();
+            if (Current.Kind is SyntaxKind.ColonToken or SyntaxKind.EqualsToken)
+            {
+                if (!reportedEntry)
+                {
+                    Report(DiagnosticDescriptors.DictionaryLiteral, Current.Span);
+                    reportedEntry = true;
+                }
+                SkipCurrentToken();
+                SkipNode(ParseExpressionCore());
+            }
+            return element;
+        });
+        var close = Expect(SyntaxKind.CloseBracketToken);
+        _bracketDepth--;
+        return new CollectionExpressionSyntax(open, elements, close);
     }
 
     /// <summary><c>( type )</c> followed on the same line by the start of an operand: a C# cast.</summary>
@@ -343,7 +463,8 @@ internal sealed partial class Parser
             return false;
         }
         var startsOperand = next.Kind is SyntaxKind.IdentifierToken or SyntaxKind.NumericLiteralToken
-            or SyntaxKind.StringLiteralToken or SyntaxKind.InterpolatedStringStartToken or SyntaxKind.SelfKeyword
+            or SyntaxKind.StringLiteralToken or SyntaxKind.CharacterLiteralToken or SyntaxKind.InterpolatedStringStartToken
+            or SyntaxKind.SelfKeyword
             or SyntaxKind.SuperKeyword or SyntaxKind.NewKeyword or SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword
             or SyntaxKind.NullKeyword
             || SyntaxFacts.IsPredefinedType(next.Kind)
@@ -365,11 +486,38 @@ internal sealed partial class Parser
         {
             arguments = ParseArgumentList(SyntaxKind.ArgumentList);
         }
+        else if (At(SyntaxKind.OpenBracketToken))
+        {
+            // new Enemy[10], new Tile[w, h] -- C#'s array creation; read it as new array<Enemy>(10), new array2d<Tile>(w, h).
+            arguments = ParseArgumentList(SyntaxKind.BracketedArgumentList);
+            var rank = Math.Max(arguments.Arguments.Count, 1);
+            var span = TextSpan.FromBounds(newKeyword.Span.Start, arguments.Span.End);
+            if (rank > 3)
+            {
+                Report(DiagnosticDescriptors.ArrayRank, span);
+            }
+            else
+            {
+                var lengths = string.Join(", ", arguments.Arguments.Select(a => a.ToString()));
+                Report(DiagnosticDescriptors.ArrayCreationBrackets, span, SyntaxFacts.GetText(SyntaxFacts.GetArrayKeyword(rank))!, type.ToString(), lengths);
+            }
+            type = MissingArrayType(type, rank);
+        }
         else
         {
-            ReportExpected("'('");
+            // An initializer right after the type (new List<int> { 1 }) is reported below instead.
+            if (!At(SyntaxKind.OpenBraceToken))
+            {
+                ReportExpected("'('");
+            }
             arguments = new ArgumentListSyntax(
                 SyntaxKind.ArgumentList, Missing(SyntaxKind.OpenParenToken), SeparatedSyntaxList<ArgumentSyntax>.Empty, Missing(SyntaxKind.CloseParenToken));
+        }
+        if (At(SyntaxKind.OpenBraceToken))
+        {
+            // new Enemy() { Hp = 3 }, new int[] { 1, 2 } -- C#'s initializers.
+            Report(DiagnosticDescriptors.Initializer, Current.Span);
+            SkipBalanced();
         }
         return new ObjectCreationExpressionSyntax(newKeyword, type, arguments);
     }
@@ -392,17 +540,7 @@ internal sealed partial class Parser
     /// <summary><c>value</c>, <c>name = value</c>, <c>out let x</c>, <c>ref self.velocity</c>.</summary>
     private ArgumentSyntax ParseArgument()
     {
-        NameEqualsSyntax? nameEquals = null;
-        if (Current.Kind == SyntaxKind.IdentifierToken && Peek(1).Kind is SyntaxKind.EqualsToken or SyntaxKind.ColonToken)
-        {
-            if (Peek(1).Kind == SyntaxKind.ColonToken)
-            {
-                Report(DiagnosticDescriptors.NamedArgumentColon, Peek(1).Span, Current.Text);
-            }
-            var name = new IdentifierNameSyntax(NextToken());
-            nameEquals = new NameEqualsSyntax(name, NextToken());
-        }
-
+        var nameEquals = TryParseNameEquals();
         var refKind = Current.Kind is SyntaxKind.OutKeyword or SyntaxKind.RefKeyword ? NextToken() : null;
         ExpressionSyntax expression;
         if (refKind?.Kind == SyntaxKind.OutKeyword && Current.Kind is SyntaxKind.LetKeyword or SyntaxKind.VarKeyword)
@@ -416,6 +554,21 @@ internal sealed partial class Parser
             expression = ParseExpression();
         }
         return new ArgumentSyntax(nameEquals, refKind, expression);
+    }
+
+    /// <summary>The <c>name =</c> of a named argument or tuple element; C#'s <c>name:</c> is reported and taken.</summary>
+    private NameEqualsSyntax? TryParseNameEquals()
+    {
+        if (Current.Kind != SyntaxKind.IdentifierToken || Peek(1).Kind is not (SyntaxKind.EqualsToken or SyntaxKind.ColonToken))
+        {
+            return null;
+        }
+        if (Peek(1).Kind == SyntaxKind.ColonToken)
+        {
+            Report(DiagnosticDescriptors.NamedArgumentColon, Peek(1).Span, Current.Text);
+        }
+        var name = new IdentifierNameSyntax(NextToken());
+        return new NameEqualsSyntax(name, NextToken());
     }
 
     private InterpolatedStringExpressionSyntax ParseInterpolatedString()
@@ -713,7 +866,7 @@ internal sealed partial class Parser
             return new RelationalPatternSyntax(operatorToken, ParseBinaryExpression(SyntaxFacts.RangePrecedence));
         }
         if (Current.Kind == SyntaxKind.IdentifierToken && !AtLineBreak
-            && Peek(1).Kind is not (SyntaxKind.DotToken or SyntaxKind.QuestionDotToken or SyntaxKind.DotDotLessThanToken or SyntaxKind.DotDotDotToken))
+            && Peek(1).Kind is not (SyntaxKind.DotToken or SyntaxKind.QuestionDotToken) && !SyntaxFacts.IsRangeOperator(Peek(1).Kind))
         {
             var identifier = NextToken();
             CaseFieldListSyntax? fields = null;
@@ -729,9 +882,13 @@ internal sealed partial class Parser
             return new CasePatternSyntax(identifier, fields);
         }
         var expression = ParseBinaryExpression(SyntaxFacts.RangePrecedence);
-        if (Current.Kind is SyntaxKind.DotDotLessThanToken or SyntaxKind.DotDotDotToken)
+        if (SyntaxFacts.IsRangeOperator(Current.Kind))
         {
             var operatorToken = NextToken();
+            if (operatorToken.Kind == SyntaxKind.DotDotToken)
+            {
+                Report(DiagnosticDescriptors.RangeDotDot, operatorToken.Span);
+            }
             CheckOperatorAtLineEnd(operatorToken);
             return new RangePatternSyntax(expression, operatorToken, ParseBinaryExpression(SyntaxFacts.RangePrecedence));
         }
@@ -752,6 +909,10 @@ internal sealed partial class Parser
         {
             type = new PredefinedTypeSyntax(NextToken());
         }
+        else if (SyntaxFacts.IsArrayKeyword(Current.Kind))
+        {
+            type = ParseArrayType();
+        }
         else if (Current.Kind == SyntaxKind.IdentifierToken)
         {
             type = ParseNamedType();
@@ -760,23 +921,132 @@ internal sealed partial class Parser
         {
             type = ParseFunctionType();
         }
+        else if (Current.Kind == SyntaxKind.OpenParenToken)
+        {
+            type = ParseTupleType();
+        }
         else
         {
             ReportExpected("a type");
             return new IdentifierNameSyntax(Missing(SyntaxKind.IdentifierToken));
         }
 
-        while (At(SyntaxKind.QuestionToken))
+        while (true)
         {
-            type = new NullableTypeSyntax(type, NextToken());
+            if (At(SyntaxKind.QuestionToken))
+            {
+                type = new NullableTypeSyntax(type, NextToken());
+            }
+            else if (At(SyntaxKind.OpenBracketToken) && IsRankSpecifierAhead(out var rank))
+            {
+                // C#'s T[] and T[,]: say how to write them and read them as array<T> and array2d<T>.
+                var commas = new string(',', rank - 1);
+                var span = TextSpan.FromBounds(Current.Span.Start, Peek(rank).Span.End);
+                if (rank > 3)
+                {
+                    Report(DiagnosticDescriptors.ArrayRank, span);
+                }
+                else
+                {
+                    Report(DiagnosticDescriptors.ArrayTypeBrackets, span, SyntaxFacts.GetText(SyntaxFacts.GetArrayKeyword(rank))!, type.ToString(), commas);
+                }
+                for (var i = 0; i <= rank; i++)
+                {
+                    SkipCurrentToken();
+                }
+                type = MissingArrayType(type, rank);
+            }
+            else
+            {
+                return type;
+            }
         }
-        if (At(SyntaxKind.OpenBracketToken) && Peek(1).Kind == SyntaxKind.CloseBracketToken)
+    }
+
+    /// <summary>At '[' after a type: C#'s <c>[]</c>, <c>[,]</c>, ...; <paramref name="rank"/> is one more than the commas.</summary>
+    private bool IsRankSpecifierAhead(out int rank)
+    {
+        rank = 1;
+        while (Peek(rank).Kind == SyntaxKind.CommaToken)
         {
-            Report(DiagnosticDescriptors.ArrayType, TextSpan.FromBounds(Current.Span.Start, Peek(1).Span.End));
-            SkipCurrentToken();
+            rank++;
+        }
+        return Peek(rank).Kind == SyntaxKind.CloseBracketToken;
+    }
+
+    /// <summary><c>array&lt;T&gt;</c> (ADR-0020), <c>array2d&lt;T&gt;</c>, <c>array3d&lt;T&gt;</c> (ADR-0022).</summary>
+    private ArrayTypeSyntax ParseArrayType()
+    {
+        var arrayKeyword = NextToken();
+        var lessThan = Expect(SyntaxKind.LessThanToken);
+        var elementType = ParseType();
+        var greaterThan = Expect(SyntaxKind.GreaterThanToken);
+        return new ArrayTypeSyntax(arrayKeyword, lessThan, elementType, greaterThan);
+    }
+
+    /// <summary>
+    /// The <c>array&lt;T&gt;</c> or <c>array2d&lt;T&gt;</c> that C#'s <c>T[]</c>, <c>T[,]</c> or <c>new T[n]</c> stands for,
+    /// with missing tokens.
+    /// </summary>
+    private static ArrayTypeSyntax MissingArrayType(TypeSyntax elementType, int rank) => new(
+        SyntaxToken.Missing(SyntaxFacts.GetArrayKeyword(rank), elementType.FullSpan.Start),
+        SyntaxToken.Missing(SyntaxKind.LessThanToken, elementType.FullSpan.Start),
+        elementType,
+        SyntaxToken.Missing(SyntaxKind.GreaterThanToken, elementType.FullSpan.End));
+
+    /// <summary><c>(Min: int, Max: int)</c> (ADR-0021). Unnamed elements are reported once per tuple.</summary>
+    private TupleTypeSyntax ParseTupleType()
+    {
+        var open = NextToken();
+        _bracketDepth++;
+        var reportedUnnamed = false;
+        var elements = ParseSeparatedList(SyntaxKind.CloseParenToken, _ =>
+        {
+            var element = ParseTupleElement(out var unnamed);
+            if (unnamed && !reportedUnnamed)
+            {
+                Report(DiagnosticDescriptors.TupleElementName, element.Type.Span);
+                reportedUnnamed = true;
+            }
+            return element;
+        });
+        var close = Expect(SyntaxKind.CloseParenToken);
+        _bracketDepth--;
+        var tuple = new TupleTypeSyntax(open, elements, close);
+        if (elements.Count < 2)
+        {
+            Report(DiagnosticDescriptors.TupleElementCount, tuple.Span);
+        }
+        return tuple;
+    }
+
+    /// <summary>
+    /// <c>Min: int</c>. C#'s <c>int Min</c> is reported and its name skipped; an element without a name gets a
+    /// missing name and colon. <paramref name="unnamed"/> is set for the latter, unless the type is missing too.
+    /// </summary>
+    private TupleElementSyntax ParseTupleElement(out bool unnamed)
+    {
+        unnamed = false;
+        if (Current.Kind == SyntaxKind.IdentifierToken && Peek(1).Kind == SyntaxKind.ColonToken)
+        {
+            var identifier = NextToken();
+            var colon = NextToken();
+            return new TupleElementSyntax(identifier, colon, ParseType());
+        }
+        var type = ParseType();
+        if (Current.Kind == SyntaxKind.IdentifierToken)
+        {
+            Report(DiagnosticDescriptors.TupleElementOrder, TextSpan.FromBounds(type.Span.Start, Current.Span.End), Current.Text, type.ToString());
             SkipCurrentToken();
         }
-        return type;
+        else
+        {
+            unnamed = !type.GetFirstToken().IsMissing;
+        }
+        return new TupleElementSyntax(
+            SyntaxToken.Missing(SyntaxKind.IdentifierToken, type.FullSpan.Start),
+            SyntaxToken.Missing(SyntaxKind.ColonToken, type.FullSpan.Start),
+            type);
     }
 
     private NameSyntax ParseNamedType()
@@ -864,6 +1134,14 @@ internal sealed partial class Parser
         {
             offset++;
         }
+        else if (SyntaxFacts.IsArrayKeyword(kind))
+        {
+            offset++;
+            if (!ScanTypeArgumentList(ref offset))
+            {
+                return false;
+            }
+        }
         else if (kind == SyntaxKind.IdentifierToken)
         {
             offset++;
@@ -909,6 +1187,13 @@ internal sealed partial class Parser
                 }
             }
         }
+        else if (kind == SyntaxKind.OpenParenToken)
+        {
+            if (!ScanTupleType(ref offset))
+            {
+                return false;
+            }
+        }
         else
         {
             return false;
@@ -918,6 +1203,38 @@ internal sealed partial class Parser
             offset++;
         }
         return true;
+    }
+
+    /// <summary><c>(Min: int, Max: int)</c>; also C#'s <c>(int Min, ...)</c> and <c>(int, int)</c>, reported when parsed.</summary>
+    private bool ScanTupleType(ref int offset)
+    {
+        offset++;
+        while (true)
+        {
+            if (Peek(offset).Kind == SyntaxKind.IdentifierToken && Peek(offset + 1).Kind == SyntaxKind.ColonToken)
+            {
+                offset += 2;
+            }
+            if (!ScanType(ref offset))
+            {
+                return false;
+            }
+            if (Peek(offset).Kind == SyntaxKind.IdentifierToken)
+            {
+                offset++;
+            }
+            switch (Peek(offset).Kind)
+            {
+                case SyntaxKind.CommaToken:
+                    offset++;
+                    continue;
+                case SyntaxKind.CloseParenToken:
+                    offset++;
+                    return true;
+                default:
+                    return false;
+            }
+        }
     }
 
     // Composed '>>' and '>>=' ----------------------------------------------------------------------------------

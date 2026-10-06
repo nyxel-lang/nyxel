@@ -1,0 +1,94 @@
+namespace Samples.Enemies
+
+import System.Numerics
+import Engine
+import Samples.Combat
+
+/// 炮塔会打哪些目标。flags：一个值可以同时包含几种，每种占一个二进制位。
+public flags enum TargetKind {
+    case None = 0
+    case Player = 1
+    case Enemy = 2
+    case Creature = TargetKind.Player | TargetKind.Enemy
+}
+
+/// 炮塔型号。值会写进存档：每个 case 都写明，以后插入新型号也不会改掉旧的值。
+public enum TurretModel : byte {
+    case Basic = 1
+    case Heavy = 2
+    case Laser = 3
+}
+
+/// 炮塔的状态。struct enum 是值类型：每帧切换状态也不在堆上分配。
+struct enum TurretState {
+    case Idle
+    case Aiming(Target: Behaviour, Since: float)
+    case Reloading(Until: float)
+}
+
+/// 自动炮塔：发现目标后瞄准一会儿再开火，开火后装弹。
+public class Turret : Behaviour {
+    public var Targets: TargetKind = TargetKind.Creature
+    public var Model: TurretModel = TurretModel.Basic
+    public var Range: float = 10
+    var state: TurretState = TurretState.Idle
+    var time: float = 0
+
+    public property IsBusy: bool {
+        get { return self.state is not TurretState.Idle }
+    }
+
+    public override func Update(self, dt: float) {
+        self.time += dt
+        match self.state {
+            case Idle -> {
+                let target = self.FindTarget() ?? return
+                self.state = new TurretState.Aiming(Target = target, Since = self.time)
+            }
+            case Aiming(target, since) -> {         // 按位置取出，名字自己起
+                if self.time - since >= self.AimTime() {
+                    self.Fire(target)
+                    self.state = new TurretState.Reloading(Until = self.time + 2)
+                }
+            }
+            case Reloading(until) when self.time >= until -> {
+                self.state = TurretState.Idle
+            }
+            case Reloading -> {}
+        }
+    }
+
+    func FindTarget(self) -> Behaviour? {
+        if self.Targets.HasFlag(TargetKind.Player) {
+            let player = self.World.FindNearest<Player>(self.Position)
+            if player != null and self.InRange(player) {
+                return player
+            }
+        }
+        if self.Targets.HasFlag(TargetKind.Enemy) {
+            let slime = self.World.FindNearest<Slime>(self.Position)
+            if slime != null and self.InRange(slime) {
+                return slime
+            }
+        }
+        return null
+    }
+
+    func InRange(self, other: Behaviour) -> bool {
+        return Vector3.Distance(self.Position, other.Position) <= self.Range
+    }
+
+    func AimTime(self) -> float {
+        return match self.Model {
+            case Basic -> 1
+            case Heavy -> 1.5
+            case Laser -> 0.2
+        }
+    }
+
+    func Fire(self, target: Behaviour) {
+        if target is IDamageable {
+            target.TakeDamage(damage = new Damage.Physical(Amount = 10))
+        }
+    }
+}

@@ -36,7 +36,7 @@ public struct Health {
     public func Apply(var self, damage: Damage) -> int {
         let change = match damage {
             case Physical(amount) -> -amount
-            case Burn(amount) -> -amount
+            case Burn(amount, _) -> -amount         // 按位置取；不要的 Seconds 写 _
             case Heal(amount) -> amount
         }
         let before = self.current

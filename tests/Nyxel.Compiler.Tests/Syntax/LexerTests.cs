@@ -55,8 +55,8 @@ public class LexerTests
             [SyntaxKind.DotDotLessThanToken, SyntaxKind.DotDotDotToken, SyntaxKind.QuestionDotToken, SyntaxKind.QuestionQuestionToken,
              SyntaxKind.MinusGreaterThanToken, SyntaxKind.LessThanLessThanEqualsToken, SyntaxKind.LessThanEqualsToken,
              SyntaxKind.GreaterThanEqualsToken, SyntaxKind.ExclamationEqualsToken, SyntaxKind.EqualsEqualsToken,
-             SyntaxKind.PlusEqualsToken, SyntaxKind.QuestionToken],
-            Kinds("..< ... ?. ?? -> <<= <= >= != == += ?"));
+             SyntaxKind.PlusEqualsToken, SyntaxKind.QuestionQuestionEqualsToken, SyntaxKind.QuestionToken],
+            Kinds("..< ... ?. ?? -> <<= <= >= != == += ??= ?"));
     }
 
     [Fact]
@@ -114,8 +114,15 @@ public class LexerTests
     [InlineData("0x", "NYX1005 1:1")]
     [InlineData("18446744073709551616", "NYX1006 1:1")]
     [InlineData(".5", "NYX1010 1:1")]
-    [InlineData("0..5", "NYX1013 1:2")]
     public void BadNumbers(string text, string expected) => Assert.Equal([expected], LexDiagnostics(text));
+
+    [Fact]
+    public void CSharpRangeIsATokenOfItsOwn()
+    {
+        // The parser reports it, with the spelling that fits the place: '0..<5', or 'name[1...]' (ADR-0022).
+        Assert.Equal([SyntaxKind.NumericLiteralToken, SyntaxKind.DotDotToken, SyntaxKind.NumericLiteralToken], Kinds("0..5"));
+        Assert.Empty(LexDiagnostics("0..5"));
+    }
 
     [Fact]
     public void StringEscapesAreDecoded()
@@ -129,11 +136,79 @@ public class LexerTests
     [InlineData("\"a\\qb\"", "NYX1003 1:3")]
     [InlineData("\"\\u12\"", "NYX1003 1:2")]
     [InlineData("@\"x\"", "NYX1008 1:1")]
-    [InlineData("\"\"\"raw\"\"\"", "NYX1008 1:1")]
-    [InlineData("'a'", "NYX1009 1:1")]
+    [InlineData("$@\"x\"", "NYX1008 1:2")]
+    [InlineData("@\"C:\\x \"\"q\"\"\"", "NYX1008 1:1")]
+    [InlineData("$@\"C:\\x {a}\"", "NYX1008 1:2")]
+    [InlineData("$\"\"\"{{x}}\"\"\"", "NYX1018 1:5")]
+    [InlineData("''", "NYX1009 1:1")]
+    [InlineData("'ab'", "NYX1009 1:1")]
+    [InlineData("'a", "NYX1002 1:1")]
+    [InlineData("\"\"\"a\nx", "NYX1002 1:1")]
+    [InlineData("\"\"\"\n  a\n", "NYX1014 1:1")]
+    [InlineData("\"\"\"a\"\"\"\"", "NYX1015 1:5")]
+    [InlineData("\"\"\"\n    a\n  b\n    \"\"\"", "NYX1016 3:1")]
+    [InlineData("\"\"\"\n    \"\"\"", "NYX1017 2:5")]
+    [InlineData("$\"\"\"a } b\"\"\"", "NYX1018 1:7")]
+    [InlineData("$$\"\"\"a {{x} b\"\"\"", "NYX1019 1:11")]
+    [InlineData("$$\"\"\"\n    a {{x\n    \"\"\"", "NYX1019 2:7")]
+    [InlineData("$$\"x\"", "NYX1020 1:1")]
     [InlineData("a # b", "NYX1001 1:3")]
     [InlineData("/* no */ x", "NYX1007 1:1")]
     public void BadStringsAndCharacters(string text, string expected) => Assert.Equal([expected], LexDiagnostics(text));
+
+    [Theory]
+    [InlineData("'a'", 'a')]
+    [InlineData("'\\n'", '\n')]
+    [InlineData("'\\''", '\'')]
+    [InlineData("'\"'", '"')]
+    [InlineData("'\\x41'", 'A')]
+    [InlineData("'é'", 'é')]
+    public void CharacterLiterals(string text, char value)
+    {
+        var token = Assert.Single(Lex(text));
+        Assert.Equal(SyntaxKind.CharacterLiteralToken, token.Kind);
+        Assert.Equal(value, token.Value);
+    }
+
+    [Fact]
+    public void SingleLineRawStringHasNoEscapes()
+    {
+        var token = Assert.Single(Lex("\"\"\"C:\\Games\\save.json \"quoted\" ok\"\"\""));
+        Assert.Equal(SyntaxKind.StringLiteralToken, token.Kind);
+        Assert.Equal("C:\\Games\\save.json \"quoted\" ok", token.Value);
+    }
+
+    [Fact]
+    public void MultiLineRawStringLeavesOutTheClosingIndentation()
+    {
+        var token = Assert.Single(Lex("\"\"\"\n    Usage:\n      spawn <kind>\n\n    \"\"\""));
+        Assert.Equal("Usage:\n  spawn <kind>\n", token.Value);
+    }
+
+    [Fact]
+    public void InterpolatedRawStringTakesAsManyBracesAsDollars()
+    {
+        var tokens = Lex("$$\"\"\"\n    { \"hp\": {{self.hp}} }\n    \"\"\"");
+        Assert.Equal(
+            [SyntaxKind.InterpolatedStringStartToken, SyntaxKind.InterpolatedStringTextToken, SyntaxKind.OpenBraceToken,
+             SyntaxKind.SelfKeyword, SyntaxKind.DotToken, SyntaxKind.IdentifierToken, SyntaxKind.CloseBraceToken,
+             SyntaxKind.InterpolatedStringTextToken, SyntaxKind.InterpolatedStringEndToken],
+            tokens.Select(t => t.Kind));
+        Assert.Equal("$$\"\"\"", tokens[0].Text);
+        Assert.Equal("{ \"hp\": ", tokens[1].Value);
+        Assert.Equal("{{", tokens[2].Text);
+        Assert.Equal("}}", tokens[6].Text);
+        Assert.Equal(" }", tokens[7].Value);
+    }
+
+    [Fact]
+    public void BrokenHoleInAMultiLineRawStringKeepsTheStringOpen()
+    {
+        // The hole is closed with a missing '}', and the lines after it are still text.
+        var tree = SyntaxTree.Parse(InMethod("let s = $\"\"\"\n    a {x\n    b\n    \"\"\"\nlet t = 1"));
+        Assert.Equal(["NYX1019 4:7"], tree.Diagnostics.Select(Format));
+        Assert.Equal(2, Body(tree).Statements.Count);
+    }
 
     [Fact]
     public void InterpolatedStringIsSplitIntoTextAndHoles()

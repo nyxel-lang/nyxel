@@ -8,6 +8,7 @@
 - 声明以关键字开头，类型写在名字后面：`hp: int`。
 - 语句以换行结束，不写分号。哪些换行不结束语句见“换行与续行”。
 - `if` / `while` 的条件不加括号，后面的块必须有花括号。
+- 花括号只跟在关键字或声明后面。语句位置不能单独写 `{ ... }`；要早点结束作用域就拆成函数（ADR-0020）。
 - **冒号后面是类型，等号后面是值**（ADR-0011）：`var hp: int = 100`、`count: int = 1`、`class Slime : Behaviour`、`Spawn(count = 3)`。例外只有插值字符串里的格式说明符 `{speed:F2}`。
 
 ## 换行与续行（ADR-0013）
@@ -28,9 +29,11 @@ let canAttack = self.cooldown <= 0
     and target != null
     and not target.IsDead
 
-// 行尾是 = 或 ->：接着下一行
+// 行尾是赋值运算符（= += -= …）或 ->：接着下一行
 let nearest =
     self.NearestTo(point = self.Position) ?? return
+self.score +=
+    enemy.Reward * self.comboMultiplier
 
 if self.IsDead {
     return
@@ -41,7 +44,7 @@ if self.IsDead {
 
 - 圆括号、方括号里的换行不结束语句。
 - 下一行以 `.`、`?.` 或二元运算符（`+`、`and`、`or`、`??`、`is`、`==` 等）开头时接着上一行。
-- 一行以 `=` 或 `->` 结尾时接着下一行。
+- 一行以赋值运算符（`=`、`+=`、`-=` 等）或 `->` 结尾时接着下一行（ADR-0013、ADR-0020）。
 - 其余换行都结束语句。
 - 运算符一律放在行首，括号里也一样（ADR-0019）：二元运算符和 `.`、`?.` 写在行尾都是编译错误，诊断提示挪到下一行开头。
   ```nyxel
@@ -56,7 +59,6 @@ if self.IsDead {
   ```
 - `{` 必须和前面的内容在同一行；`else` 必须跟在 `}` 后面同一行。
 - 每条语句、每个成员、每个 `case`、每个访问器各占一行；`{` 后面的第一个和 `}` 前面的最后一个可以和括号写在同一行（`get { return self.hp }`、`{ get }`）。
-- 待定：`+=` 等复合赋值写在行尾时是否接着下一行（目前不行，只有 `=` 和 `->`）。
 
 ## 文件结构（ADR-0012）
 
@@ -73,6 +75,7 @@ public class Spawner : Behaviour {
 ```
 
 - 顺序固定：`namespace`（最多一个，作用于整个文件；不写时在全局命名空间）、`import`、声明。
+- 类型都写在文件顶层，一个文件可以有多个类型；不能在类型里声明类型（ADR-0020）。.NET 里已有的嵌套类型照常用：`Environment.SpecialFolder.Desktop`。
 - `import 命名空间` 导入整个命名空间。每个文件显式列出，没有全局导入和隐式导入。内置类型名不用导入；外层命名空间的类型按 C# 规则可见。
 - 待定：导入别名、静态导入。
 
@@ -130,6 +133,11 @@ let count = 10                          // 没有上下文 → int（同 C#）
 - 小数字面量不能用在整数位置；超出目标类型范围是编译错误。
 - `2.5f`、`10L` 之类的后缀是编译错误。
 - `0xFF`、`0b1010`、`1_000_000`、`1e-3` 同 C#。
+- 小数点前面的 `0` 不能省：写 `0.5`，`.5` 是编译错误（ADR-0020）。
+- 字符字面量 `'a'` 同 C#（ADR-0020），比如 `line.Split(',')`、`text[0] == '#'`。
+  - 单引号里是一个 `char`，也就是一个 UTF-16 码元。
+  - 转义同字符串：`'\n'`、`'\''`。
+  - 双引号永远是 `string`。
 
 ## 字符串（ADR-0007）
 
@@ -141,7 +149,130 @@ let plain = "{ not interpolated }"
 
 - 插值字符串 `$"..."` 与 C# 完全相同：格式说明符、对齐、`{{` / `}}`。
 - 普通字符串的转义序列与 C# 相同。
-- 待定：逐字字符串、原始字符串、多行字符串。
+
+### 原始字符串（ADR-0020）
+
+不处理转义、可以跨行的字符串，与 C# 11 的原始字符串相同。
+
+```nyxel
+let pattern = """\d+\.\d+"""            // 单行：\ 是普通字符
+let path = """C:\Games\save.json"""
+
+let help = """
+    用法：
+      spawn <kind> [count]
+    """
+// 值是 "用法：\n  spawn <kind> [count]"：结尾 """ 前的 4 个空格从每一行去掉
+
+let json = $$"""
+    { "hp": {{self.hp}}, "name": "{{self.Name}}" }
+    """
+```
+
+- 单行写 `"""text"""`。多行写法：`"""` 后面换行，接着写内容各行，结尾的 `"""` 单独占一行。里面没有转义。内容里要出现 `"""` 时，开头和结尾都用更多引号（`""""...""""`）。
+- 多行时，结尾 `"""` 前面的空白（缩进）从每一行开头去掉：
+  - 某一行不以这段空白开头是编译错误。只含空白的行可以更短，但必须是这段空白的开头部分。
+  - 开头 `"""` 那一行的剩余部分、结尾 `"""` 前的换行，都不算内容。
+  - 至少要有一行内容；空字符串写 `""`。
+- `$"""` 可以插值，写 `{x}`；这时文字里不能有 `{`、`}`。要在文字里写大括号就用 `$$"""`：插值写 `{{x}}`，单个 `{`、`}` 是普通字符。`$` 有几个，插值就用几个大括号。格式说明符和对齐同 `$"..."`。
+- 没有逐字字符串 `@"..."`，用原始字符串代替。
+- 待定：插值的 `{ }` 里换行（C# 11 允许，目前是编译错误，`$"..."` 也一样）。
+
+## 数组（ADR-0020）
+
+```nyxel
+class Shooter : Behaviour {
+    var hits: array<RaycastHit> = new array<RaycastHit>(16)
+
+    func Scan(self) {
+        let count = Physics.RaycastNonAlloc(self.ray, self.hits)
+        for i in 0..<count {
+            self.Hit(self.hits[i])
+        }
+        let parts = self.line.Split(',')    // array<string>
+    }
+}
+```
+
+- 数组类型写 `array<T>`，就是 .NET 的 `T[]`。`array` 是小写关键字，和 `int`、`string` 一样不能当名字用。
+- `array<Item?>` 是元素可能为空，`array<Item>?` 是数组本身可能为空；数组的数组写 `array<array<int>>`。
+- 指定长度创建：`new array<T>(16)`，也可以写 `new array<T>(length = 16)`。下标、`.Length`、`for ... in` 同 C#。
+- 新数组的元素一开始是全零，所以只有全零就是合法值的元素类型能这样创建（ADR-0023）：可空类型（`array<Enemy?>`）、数字、`bool`、`char`、有值为 0 的 case 的简单 enum 和 flags enum（ADR-0024）、第一个 case 不带数据的 `struct enum`（ADR-0024）、C# 定义的 struct（`Vector3`、`RaycastHit`）和 enum。
+  - 其余的（class、接口、带数据的 enum、Nyxel 的 struct、没有值为 0 的 case 的 enum）用第二个参数 `element` 给出每个元素，编译成一个循环：
+    ```nyxel
+    let slots = new array<Slot>(16, func(i) = new Slot(index = i))
+    let ps = new array<Particle>(length = 100, element = func(i) = new Particle())
+    let grid = new array2d<Cell>(w, h, func(x, y) = new Cell(x = x, y = y))
+    ```
+  - Nyxel 的 struct 也算在内：全零的元素没有经过它的 `init` 和字段初始值。
+  - 让引擎往里填的数组（NonAlloc 系列）写成 `array<Collider?>`，取出来时 `hits[i] ?? continue`。
+- 带元素创建用集合字面量：`let primes: array<int> = [2, 3, 5, 7]`，见下一节。
+- C# 的 `T[]`、`new T[n]` 是编译错误，诊断给出 `array<T>` 的写法。
+- 多维数组（ADR-0022）写 `array2d<T>`、`array3d<T>`，就是 .NET 的 `T[,]`、`T[,,]`：
+  ```nyxel
+  let grid = new array2d<Tile>(width, height)   // 按位置写各维的长度
+  grid[x, y] = Tile.Wall
+  for x in 0..<grid.GetLength(0) { ... }
+  ```
+  - 最多三维。`array2d`、`array3d` 也是关键字。`GetLength`、`Length` 等成员同 .NET。
+  - C# 的 `T[,]`、`new T[w, h]` 是编译错误，诊断给出 `array2d<T>` 的写法。
+  - 多个下标 `a[i, j]` 也用于 C# 有多个参数的索引器（`Matrix4x4[row, column]`）。
+- 待定：带元素创建多维数组（C# 的 `new int[,] { { 1, 2 }, { 3, 4 } }`）。
+
+## 集合字面量（ADR-0022）
+
+```nyxel
+let primes: array<int> = [2, 3, 5, 7]
+var enemies: List<Enemy> = []                      // 空 List
+self.Patrol(points = [self.a, self.b, self.c])     // 参数是 List<Vector3>：创建 List
+let speeds: List<float> = [1, 2.5]                 // 元素按 float 处理
+let waves: List<int> = [
+    3,
+    5,
+    8,                                             // 末尾可以多一个逗号
+]
+for dir in [Dir.Up, Dir.Down] {                    // 马上被遍历：不用写类型
+    self.Probe(dir)
+}
+```
+
+- 同 C# 12 的集合表达式。集合的类型来自期望的类型（声明的类型、参数类型、返回类型）：数组、List、Span、`IEnumerable<T>`、`IReadOnlyList<T>` 等 C# 12 支持的类型都可以。元素按元素类型处理，同数字字面量的规则。
+- 没有期望的类型是编译错误：`let xs = [1, 2, 3]` 写成 `let xs: List<int> = [1, 2, 3]`。
+  - 例外：`for x in [a, b]` 不用写类型，元素类型取元素的共同类型，放在栈上，不分配。
+  - `for (dx, dy) in [(0, 1), (1, 0)]` 的元组马上被解构，也不用写名字。
+- 没有展开（C# 12 的 `[..a, ..b]`）：先创建，再 `AddRange`。
+- 没有字典字面量：先创建，再逐个 `prices["sword"] = 100`。
+- C# 的初始化器 `new List<int> { 1, 2 }`、`new Enemy { Hp = 10 }` 是编译错误。
+- 待定：展开；字典字面量（等 C# 的字典表达式发布）；对象初始化器（和 `init` 访问器一起讨论，见“属性”）。
+
+## 元组（ADR-0021）
+
+```nyxel
+func MinMax(values: List<int>) -> (Min: int, Max: int) {
+    ...
+    return (lo, hi)                         // 名字来自返回类型
+}
+
+let (min, max) = Stats.MinMax(values)       // 解构：按位置拆成两个局部变量
+let r = Stats.MinMax(values)
+Log.Info($"{r.Min}..{r.Max}")
+let limits = (Min = 0, Max = 10)            // 没有期望的类型：带名字
+(a, b) = (b, a)                             // 交换
+let (quotient, remainder) = Math.DivRem(17, 5)
+```
+
+- 元组就是 .NET 的 `ValueTuple`：值类型，不分配。公开 API、要长期存放的、元素超过三个的，建议定义 struct。
+- 类型写 `(Min: int, Max: int)`：每个元素都要有名字，用 PascalCase（相当于公开字段，同 .NET 的 `(Quotient, Remainder)`）。`(int, int)` 和 C# 的 `(int Min, int Max)` 是编译错误。至少两个元素。
+- 值写 `(lo, hi)`（按位置）或 `(Min = lo, Max = hi)`（带名字），同函数实参；C# 的 `(Min: lo, Max: hi)` 是编译错误。
+- 按位置写的值，名字来自期望的类型（返回类型、参数类型、声明的类型）；没有期望的类型时要带名字，`let r = (lo, hi)` 是编译错误。直接被解构的值不需要名字，包括 `for (dx, dy) in [(0, 1), (1, 0)]` 里的元组。
+- 元素用名字访问：`r.Min`。`Item1`、`Item2` 只用于 C# 那边没起名字的元组。`==`、`!=` 同 C#。
+- 解构按位置，同 C#：
+  - `let (min, max) = ...`、`var (a, b) = ...`；`_` 丢弃不要的元素：`let (_, max) = ...`。
+  - `(a, b) = (b, a)` 给已有的变量赋值。
+  - 元组和有 `Deconstruct` 方法的类型（如字典的 `KeyValuePair`）都能解构。`for` 里也能解构，见“循环与区间”。
+  - 变量名和元素名是同一组名字、顺序却不同时给警告：`Stats()` 返回 `(Total: int, Count: int)` 时，`let (count, total) = self.Stats()` 多半是写反了。
+  - 解构里只写名字。
+- 待定：`match` 里的元组模式（`case (0, 0)`）；嵌套解构；解构时写类型；重写 .NET 里元组元素没有名字的成员。
 
 ## 变量与字段（ADR-0006）
 
@@ -320,7 +451,7 @@ let biggest = Max(a = 3, b = 7)        // T 推断为 int
 
 - `<T>` 同 C#；类型实参推断同 C#。
 - 约束写在 `<>` 里，冒号后是类型；多个约束用 `and`。特殊约束 `class`、`struct`、`unmanaged`、`new()`。
-- 待定：泛型的可空性；协变 / 逆变。
+- 待定：泛型的可空性（包括 `new array<T>(n)` 能不能直接创建，ADR-0023）；协变 / 逆变。
 
 ## 成员访问（ADR-0008）
 
@@ -361,19 +492,78 @@ enum Element {
 }
 
 enum Damage {
-    case Physical(amount: int)
-    case Burn(amount: int, seconds: float)
-    case Heal(amount: int)
+    case Physical(Amount: int)
+    case Burn(Amount: int, Seconds: float)
+    case Heal(Amount: int)
 }
 
 let element = Element.Fire                              // 不带数据的 case：常量
-let hit = new Damage.Burn(amount = 12, seconds = 3)     // 带数据的 case：new
+let hit = new Damage.Burn(Amount = 12, Seconds = 3)     // 带数据的 case：new
 ```
 
-- 每种情况一行，以 `case` 开头。case 带的数据每一项都要有名字。
-- 全部 case 不带数据时等同 C# 的枚举；有带数据的 case 时，每个值是堆上的对象。
-- case 的数据用 `match` 按字段名取出（见“match”）。
-- 待定：简单枚举的底层值与 flags；带数据枚举的值类型版本。
+- 每种情况一行，以 `case` 开头。
+- 全部 case 不带数据时等同 C# 的枚举；有带数据的 case 时，每个值是堆上的对象（`struct enum` 除外，见下）。
+- case 的数据同元组（ADR-0024）：
+  - 每一项都有名字，用 PascalCase。C# 那边是同名的属性（`hit.Amount`）。
+  - 创建时按位置写（`new Damage.Burn(12, 3)`）或带名字写，同元组的值。
+  - 用 `match` 按位置取出，同元组的解构（见“match”）。数据创建以后不能改。
+- 判断是不是某个 case 写 `x is Damage.Burn`，得到 bool，不取数据（ADR-0024，见“类型检查与收窄”）。
+- 带数据的 enum 用 `==` 比内容（ADR-0024）：同一个 case、数据逐个相等就相等，能当字典的键。不带数据的 case 只有一个值，`state == SlimeState.Idle` 就是判断是不是 Idle。
+- 待定：带数据的 enum 实现接口；在 enum 里写方法（现在用扩展）。
+
+### enum 的值与 flags（ADR-0024）
+
+```nyxel
+enum CookedType : uint {                // 底层类型
+    case Mesh = 1                       // 要写值就每个 case 都写
+    case Texture = 2
+    case Material = 3
+}
+
+flags enum Layer {                      // 一个值可以同时包含几个 case
+    case None = 0
+    case Ground = 1
+    case Water = 2
+    case Air = 4
+    case Solid = Layer.Ground | Layer.Water
+}
+
+let mask = Layer.Ground | Layer.Air
+if mask.HasFlag(Layer.Air) { ... }
+```
+
+- 只有不带数据的 enum 能写值、底层类型和 `flags`。
+- 值：
+  - 要么每个 case 都写，要么都不写。都不写时按声明顺序 0、1、2，同 C#。
+  - 值是整数常量，可以用运算组合（`1 << 3`、`Layer.Ground | Layer.Water`）；引用别的 case 也写类型名。
+  - 存档、网络消息、和 C++ 引擎对齐的 enum 建议写明每个值：插入新 case 不会改掉旧的值。
+- 底层类型写在冒号后面，同 C#：`byte`、`sbyte`、`short`、`ushort`、`int`、`uint`、`long`、`ulong` 之一，不写是 `int`。
+- `flags enum`：
+  - 每个 case 都写值，通常每个占一个二进制位，用 `|` 组合。检查包含用 .NET 的 `HasFlag`。
+  - Nyxel 的 enum 只有 flags enum 能用 `|`、`&`、`^`、`~`；C# 定义的枚举照 C#，都能。
+  - `match` 一个 flags enum（包括 C# 带 `[Flags]` 的）必须写 `else`：组合出来的值列不全。
+  - C# 那边是 `[Flags] enum`。`flags` 只在 `enum` 前面是关键字，别处照样能当名字。
+- 没有值为 0 的 case 时，数组不能直接创建，要用 `element`（见“数组”）。flags enum 的 0 是“一个都没有”，总能直接创建。
+
+### struct enum（ADR-0024）
+
+```nyxel
+struct enum AiState {
+    case Idle
+    case Chasing(Target: Entity)
+    case Fleeing(From: Entity, Until: float)
+}
+
+struct Brain {                          // ECS 组件：引擎要求 unmanaged
+    var state: AiState = AiState.Idle
+}
+```
+
+- 带数据的 enum 的值类型版本，同 class 和 struct 的关系：不在堆上分配，赋值时复制。写法和用法（创建、`match`、`is`、`==`）同 `enum`。
+- 一个值里留着所有 case 的数据的位置（同类型的可以共用），大小约等于各 case 加起来。case 不能直接包含同一个 struct enum。
+- 数据全是 unmanaged 类型时，整个 enum 也是，能放进要求 `T : unmanaged` 的 ECS 组件。
+- 全零的值是第一个 case，前提是它不带数据（上例是 `Idle`）；否则数组要用 `element` 创建，同 Nyxel 的 struct。
+- 不带数据的 enum 本来就是值类型，写 `struct enum` 是编译错误。
 
 ### 构造
 
@@ -453,17 +643,17 @@ let speed = if self.IsFrozen {
 - 没有 `?:` 三元运算符。
 - 函数体必须用 `return` 返回值。
 
-## match（ADR-0009）
+## match（ADR-0009、ADR-0024）
 
 ```nyxel
 let change = match hit {
     case Physical(amount) -> -amount
-    case Burn(amount, seconds) -> -amount
+    case Burn(amount, _) -> -amount
     case Heal(amount) -> amount
 }
 
 match hit {
-    case Burn(seconds) -> {         // 只取需要的字段，顺序无关
+    case Burn(_, seconds) -> {      // 按位置取出，不要的写 _
         self.StartBurning(seconds)
     }
     case Physical -> {}             // 不需要数据时不写括号
@@ -473,8 +663,10 @@ match hit {
 
 - 每个分支一行，以 `case` 开头；默认分支 `else`。分支用 `->`（Nyxel 没有 `=>`）。
 - 分支右边是一个表达式或一个块；当表达式用时，块的值是最后一个表达式。
-- case 的数据按字段名取出，成为分支里的局部变量；可以只列一部分，顺序无关。不支持改名：与已有的局部变量或参数重名是编译错误。
-- 必须覆盖所有情况（当语句用也一样）：enum 列全所有 case 或写 `else`；其他类型必须有 `else`。“其余不处理”写 `else -> {}`。
+- case 的数据按位置取出，同元组的解构（ADR-0024）：
+  - 名字个数和数据项一样，`_` 丢弃不要的；名字自己起，成为分支里的局部变量。
+  - 名字和数据项名是同一组（不分大小写）、顺序却不同时给警告：多半是写反了。
+- 必须覆盖所有情况（当语句用也一样）：enum 列全所有 case 或写 `else`；flags enum 和其他类型必须有 `else`。“其余不处理”写 `else -> {}`。
 - 模式（ADR-0010）：
   - 常量 `case 0`、`case "boss"`、`case null`；
   - 比较 `case < 10`；区间 `case 10..<50`、`case 1...3`；
@@ -509,10 +701,16 @@ class Turret : Behaviour {
 - C# 程序集的可空标注照单全收；没有标注的程序集，返回值和字段当作 `T?`，参数可以接受 `null`。
 - 检查后自动收窄：只对局部变量和参数；字段、属性、调用结果先存进局部变量。
 - `?.`、`??` 同 C#；`??` 右边可以是 `return`、`throw`、`continue`、`break`。
+- 和 `null` 比较只看引用是不是空的（ADR-0023）：`x == null` 是 C# 的 `x is null`，不调用类型重载的 `==`。所以 `== null`、`!= null`、`?.`、`??`、`case null`、收窄的意思都一样。两个值之间的 `a == b` 照常调用重载。“已销毁”这类状态用引擎提供的属性或方法查（`world.IsAlive(entity)`），不借用 null。
+- `x ??= value`（ADR-0023）：`x` 是 null 时才赋值，同 C#，是语句。局部变量和参数之后当作非空；字段不收窄。
+  ```nyxel
+  name ??= "无名"                          // 之后 name 当作非空
+  self.Target ??= self.FindNearestPlayer()  // 字段：只赋值
+  ```
 - 没有 `x!` / `x!!`；断言非空写 `?? throw new 异常("原因")`。
-- 待定：数组元素的默认值；`== null` 的翻译（引擎重载的 `==`）；`??=`。
+- 数组元素一开始是全零，所以 `new array<Enemy>(16)` 是编译错误，见“数组”。
 
-## 循环与区间（ADR-0010）
+## 循环与区间（ADR-0010、ADR-0022）
 
 ```nyxel
 for enemy in self.enemies {
@@ -527,16 +725,58 @@ for level in 1...3 {                // 1、2、3
     self.Unlock(level)
 }
 
+for i in (0..<self.enemies.Count).Reversed() {  // 倒着走：边删边遍历不会跳过
+    if self.enemies[i].IsDead {
+        self.enemies.RemoveAt(i)
+    }
+}
+
+for x in (0..<self.width).StepBy(2) {           // 0、2、4、...
+    self.PlacePillar(x)
+}
+
+for (i, item) in self.inventory.Index() {   // 同时拿下标（.NET 的 Index()，import System.Linq）
+    self.slots[i].Show(item)
+}
+
+for (name, score) in self.scores {  // 字典：每一项拆成键和值
+    Log.Info($"{name}: {score}")
+}
+
 while self.hp > 0 {
     ...
 }
 ```
 
 - `for 名字 in 集合`，循环变量不可变。`while 条件 { }`。没有 C 风格的 `for`，没有 `do` / `while`。
+- `for (a, b) in 集合` 把每个元素按位置解构（ADR-0021，见“元组”）。
+  - 字典写 `for (key, value) in dict`。
+  - 同时拿下标用 .NET 的 `Index()`：`for (i, item) in list.Index()`。编译器把它翻译成计数器加普通遍历，不分配，结果和 `Index()` 相同。
+  - 只要下标、或者要边遍历边改元素时，写 `for i in 0..<list.Count`。
 - `a..<b` 不含 `b`，`a...b` 含 `b`。没有单独的 `..`。
 - 区间的优先级比算术低、比比较高（ADR-0019）：`0..<self.count - 1` 是 `0..<(count - 1)`。比较、`and` / `or`、`??` 写在两边要加括号。区间不能连写（`a..<b..<c` 是错误）。
-- `break` / `continue` 同 C#。
-- 待定：带标签的 `break`；区间作为值和切片；步长、倒序；同时拿下标。
+- 倒序和步长（ADR-0022）：`for` 里的区间后面可以接 `.Reversed()`、`.StepBy(n)`，翻译成普通的 `for`，不分配。
+  - 边界和正着遍历一样，不用自己算 `Count - 1`。
+  - 步长必须是正数。两个可以连用，按书写顺序生效：`(0..<10).StepBy(4).Reversed()` 是 8、4、0。
+- 区间不是值（ADR-0022）：只能写在 `for ... in` 后面、`case` 后面和切片里。`let r = 0..<10`、把区间传给函数都是编译错误。判断在不在区间里用 `match` 的 `case 1...3` 或比较运算。
+- `break` / `continue` 同 C#。没有循环标签（ADR-0021）：要从里层循环直接跳出外层，就把循环拆成函数，用 `return` 跳出。
+- 待定：区间作为值（以后有需要再讨论）。
+
+### 切片（ADR-0022）
+
+```nyxel
+let prefix = name[0..<3]                // 前 3 个字符
+let middle = items[2...4]               // 第 2、3、4 个
+let rest = name[1...]                   // 从第 1 个到末尾
+let head = items[..<3]                  // 从开头到第 3 个之前
+let last = items[items.Count - 1]       // 最后一个
+let stem = path[..<path.Length - 4]     // 去掉末尾 4 个字符
+```
+
+- 同 C# 8 的范围下标，写法用 Nyxel 的区间：`name[0..<3]` 是 C# 的 `name[0..3]`，`items[2...4]` 是 `items[2..5]`。
+- 只有切片能省略一边：省略开头写 `..<b` 或 `...b`；省略结尾只写 `a...`（C# 的 `a..`）。
+- 能切的类型和结果同 C#：字符串得到新字符串，数组和 List 复制出新的一份（会分配，改它不影响原来的），`Span` 只指向原来的那一段。
+- 没有 C# 的 `^1`（从末尾数）：最后一个写 `items[items.Count - 1]`，数组和字符串用 `Length`。`^` 只是异或。
 
 ## 运算符（ADR-0010）
 
@@ -550,11 +790,11 @@ self.combo += 1
 
 - 逻辑运算用单词 `and`、`or`、`not`（短路、优先级同 C#）。没有 `&&`、`||`、`!`。
 - 没有 `++` / `--`，写 `+= 1`。
-- 算术、比较、位运算、复合赋值、整数除法、隐式数值转换同 C#。
+- 算术、比较、位运算、复合赋值、整数除法、隐式数值转换同 C#。`??=` 见“空值”；Nyxel 的 enum 只有 flags enum 能位运算，见“enum 的值与 flags”。
 - 赋值（包括 `+=` 等）是语句，不产生值：不能 `a = b = 0`，不能写在条件里（ADR-0011）。
 - 优先级从高到低（ADR-0019）：成员访问、调用、下标 → 一元（`-` `+` `~` `not` `await` `launch`）→ `as` → `*` `/` `%` → `+` `-` → `<<` `>>` → `..<` `...` → `<` `>` `<=` `>=` `is` → `==` `!=` → `&` → `^` → `|` → `and` → `or` → `??`。除了 `as`（ADR-0014）和区间，其余同 C#。`??` 从右往左结合，区间不结合，其余从左往右。
 
-## 类型检查与收窄（ADR-0010）
+## 类型检查与收窄（ADR-0010、ADR-0024）
 
 ```nyxel
 func OnHit(self, other: Collider) {
@@ -568,9 +808,9 @@ func OnHit(self, other: Collider) {
 }
 ```
 
-- `x is T` 得到 bool；`x is not T` 是否定。`is` 后面只能写类型。
+- `x is T` 得到 bool；`x is not T` 是否定。`is` 后面只能写类型或 enum case。
 - 被检查的是局部变量或参数时自动收窄（同空值收窄的规则），不另起变量名。
-- 待定：`x is 某个 enum case`。
+- `x is 类型.Case` 判断是不是某个 enum case（ADR-0024）：`if self.state is SlimeState.Idle`、`hit is not Damage.Heal`。只判断，不取数据，也不收窄；要数据写 `match`。
 
 ## 类型转换（ADR-0014）
 
@@ -585,7 +825,7 @@ let p = other as Projectile                      // 错误：可能失败，用 
 
 - `as` 是转换，不是类型检查，不会因为“类型不对”而失败。允许：数字之间、枚举和整数之间、子类转父类或接口、C# 类型定义的显式转换运算符。
 - 可能失败的向下转换写 `as` 是编译错误，用 `is` 收窄。
-- 语义同 C# 的强制转换：向零截断，不检查溢出，常量超出范围是编译错误。
+- 语义同 C# 的强制转换：向零截断，不检查溢出，常量超出范围是编译错误。整数转成 enum 也不检查：`5 as Element` 可能不是任何 case，列全了 case 的 `match` 遇到它时抛异常，同 C# 的 switch 表达式（ADR-0024）。
 - 优先级比 `*` `/` 高，比一元运算符和成员访问低。
 - 没有 C# 的 `(int)x` 写法。
 
@@ -692,7 +932,7 @@ interface IDamageable {
 - 访问器要么都带函数体（计算属性），要么都不带（自动属性，初始值写在类型后面）。每个访问器一行，可以单独加可见性。
 - setter 的新值在括号里命名：`set(value)`。访问器里 `self` 隐式可用。静态属性写 `static property`。
 - 默认用字段；实现接口的属性、对外只读对内可写、值需要计算时用属性。
-- 待定：只能在构造时设置的访问器（C# 的 `init`）；索引器；`field` 关键字。
+- 待定：只能在构造时设置的访问器（C# 的 `init`），以及 C# 设置它们用的对象初始化器 `new T { X = 1 }`；索引器；`field` 关键字。
 
 ## 事件（ADR-0017）
 
@@ -729,8 +969,8 @@ slime.Died -= self.OnSlimeDied              // 提前取消
 ```nyxel
 enum SlimeState {
     case Idle
-    case Chasing(target: Player)
-    case Fleeing(from: Player)
+    case Chasing(Target: Player)
+    case Fleeing(From: Player)
 }
 
 match self.state {
@@ -742,6 +982,7 @@ match self.state {
 
 - 追击时才有 `target`，不会出现“处于 Idle 却拿着一个过期的 target”。
 - 新加一个状态，所有没处理它的 `match` 都会编译报错。
+- 状态要放进 ECS 组件（只能是 unmanaged）、或者每帧都在切换时，用 `struct enum`（ADR-0024），不在堆上分配。
 
 ## 可见性（ADR-0006、ADR-0008）
 
@@ -757,21 +998,13 @@ match self.state {
 
 | 什么 | 写法 | 例 |
 |---|---|---|
-| 类型、方法、属性、`public` / `protected` 字段、命名 init、enum case | PascalCase | `EnemySpawner`、`TakeDamage`、`SpawnInterval`、`FromPolar`、`Burn` |
+| 类型、方法、属性、`public` / `protected` 字段、命名 init、enum case 和它的数据、元组元素 | PascalCase | `EnemySpawner`、`TakeDamage`、`SpawnInterval`、`FromPolar`、`Burn`、`Seconds`、`Min` |
 | 参数、局部变量、非公开字段 | camelCase，不加前缀 | `amount`、`spawnPoint`、`hp` |
 
 调用 .NET API 时名字原样使用。待定：缩略词的大小写（`Id` / `IO`）。
 
 ## 待定
 
-大的主题都讨论过了。剩下的细节记在各节末尾的“待定”里，写 samples 或实现时遇到再逐个讨论。
+大的主题都讨论过了。剩下的细节记在各节末尾的“待定”里，写 samples 或实现时遇到再逐个讨论。还没定的写法一律是编译错误：以后放开不会让已有代码失效。诊断见 design/diagnostics.md。
 
-实现语法分析时碰到、还没讨论的写法。目前都按最保守的方式处理：报编译错误（以后放开不会让已有代码失效），诊断见 design/diagnostics.md：
-
-- 字符字面量 `'a'`（NYX1009）。
-- 小数点开头的小数 `.5`（NYX1010，目前要写 `0.5`）。行首的 `.` 是续行，`.5` 放在行首时读起来容易混。
-- 数组类型 `T[]` 和数组的创建（NYX1124）；索引 `a[i]` 照常可用。
-- 嵌套类型：类型里声明类型（NYX1114）。
-- 单独的块语句：语句位置直接写 `{ ... }`（NYX1102）。
-- `+=` 等复合赋值写在行尾时是否续行（见“换行与续行”）。
-- 逐字字符串 `@"..."`、原始字符串 `"""..."""`（NYX1008，见“字符串”）。
+不属于任何一节的：特性（C# 的 `[Serializable]`、`[Obsolete]`）还没讨论过，roadmap 记在 M3。

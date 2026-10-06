@@ -1,4 +1,5 @@
 using Nyxel.Compiler.Diagnostics;
+using Nyxel.Compiler.Text;
 
 namespace Nyxel.Compiler.Syntax;
 
@@ -88,7 +89,9 @@ internal sealed partial class Parser
             }
         }
 
-        return new CompilationUnitSyntax(@namespace, MakeList(imports), MakeList(members), NextToken());
+        var unit = new CompilationUnitSyntax(@namespace, MakeList(imports), MakeList(members), NextToken());
+        CheckRanges(unit);
+        return unit;
     }
 
     /// <summary>A dotted name in a namespace or import: <c>System.Collections.Generic</c>.</summary>
@@ -109,13 +112,14 @@ internal sealed partial class Parser
     /// <summary>Parses one declaration with its modifiers, or reports and skips the line and returns null.</summary>
     private MemberDeclarationSyntax? ParseMemberDeclaration(MemberContext context)
     {
+        SkipFlagsAttribute();
         var first = Current;
         var modifiers = ParseModifiers();
         MemberDeclarationSyntax? member = Current.Kind switch
         {
             _ when modifiers.Count > 0 && AtLineBreak => null,
+            _ when AtEnumDeclaration() => ParseEnumDeclaration(modifiers),
             SyntaxKind.ClassKeyword or SyntaxKind.StructKeyword or SyntaxKind.InterfaceKeyword => ParseTypeDeclaration(modifiers),
-            SyntaxKind.EnumKeyword => ParseEnumDeclaration(modifiers),
             SyntaxKind.ExtensionKeyword => ParseExtensionDeclaration(modifiers),
             SyntaxKind.LetKeyword or SyntaxKind.VarKeyword => ParseFieldDeclaration(modifiers),
             SyntaxKind.FuncKeyword => ParseFunctionDeclaration(modifiers),
@@ -155,6 +159,29 @@ internal sealed partial class Parser
             Report(DiagnosticDescriptors.NestedType, first.Span);
         }
         return member;
+    }
+
+    /// <summary>C#'s <c>[Flags]</c> on the line before an enum: say to write <c>flags enum</c> (ADR-0024).</summary>
+    private void SkipFlagsAttribute()
+    {
+        if (Current.Kind == SyntaxKind.OpenBracketToken && Peek(1).Kind == SyntaxKind.IdentifierToken
+            && Peek(1).Text == "Flags" && Peek(2).Kind == SyntaxKind.CloseBracketToken)
+        {
+            Report(DiagnosticDescriptors.FlagsAttribute, TextSpan.FromBounds(Current.Span.Start, Peek(2).Span.End));
+            for (var i = 0; i < 3; i++)
+            {
+                SkipCurrentToken();
+            }
+        }
+    }
+
+    /// <summary><c>enum</c>, or <c>flags</c> / <c>struct</c> followed by <c>enum</c> on the same line.</summary>
+    private bool AtEnumDeclaration()
+    {
+        var kindWord = Current.Kind == SyntaxKind.StructKeyword
+            || (Current.Kind == SyntaxKind.IdentifierToken && Current.Text == SyntaxFacts.FlagsContextualKeyword);
+        return Current.Kind == SyntaxKind.EnumKeyword
+            || (kindWord && Peek(1).Kind == SyntaxKind.EnumKeyword && !Peek(1).HasLeadingLineBreak);
     }
 
     /// <summary>Modifiers in the fixed order of ADR-0019; the order and repeats are checked here.</summary>
@@ -202,20 +229,21 @@ internal sealed partial class Parser
         };
         var identifier = ExpectIdentifier();
         var typeParameters = At(SyntaxKind.LessThanToken) ? ParseTypeParameterList() : null;
-        BaseListSyntax? baseList = null;
-        if (At(SyntaxKind.ColonToken))
-        {
-            var colon = NextToken();
-            var types = new List<SyntaxNode> { ParseType() };
-            while (At(SyntaxKind.CommaToken))
-            {
-                types.Add(NextToken());
-                types.Add(ParseType());
-            }
-            baseList = new BaseListSyntax(colon, Separated<TypeSyntax>(types));
-        }
+        var baseList = At(SyntaxKind.ColonToken) ? ParseBaseList() : null;
         var (open, members, close) = ParseMemberBody(MemberContext.Type);
         return new TypeDeclarationSyntax(kind, modifiers, keyword, identifier, typeParameters, baseList, open, members, close);
+    }
+
+    private BaseListSyntax ParseBaseList()
+    {
+        var colon = NextToken();
+        var types = new List<SyntaxNode> { ParseType() };
+        while (At(SyntaxKind.CommaToken))
+        {
+            types.Add(NextToken());
+            types.Add(ParseType());
+        }
+        return new BaseListSyntax(colon, Separated<TypeSyntax>(types));
     }
 
     private ExtensionDeclarationSyntax ParseExtensionDeclaration(SyntaxList<SyntaxToken> modifiers)
@@ -257,8 +285,10 @@ internal sealed partial class Parser
 
     private EnumDeclarationSyntax ParseEnumDeclaration(SyntaxList<SyntaxToken> modifiers)
     {
+        var kindKeyword = Current.Kind == SyntaxKind.EnumKeyword ? null : NextToken();
         var keyword = NextToken();
         var identifier = ExpectIdentifier();
+        var baseList = At(SyntaxKind.ColonToken) ? ParseBaseList() : null;
         var open = ExpectOpenBrace();
         var saved = _bracketDepth;
         _bracketDepth = 0;
@@ -275,7 +305,7 @@ internal sealed partial class Parser
                     var caseKeyword = NextToken();
                     var name = ExpectIdentifier();
                     var parameters = At(SyntaxKind.OpenParenToken) ? ParseParameterList(ParameterContext.EnumCase) : null;
-                    cases.Add(new EnumCaseDeclarationSyntax(caseKeyword, name, parameters));
+                    cases.Add(new EnumCaseDeclarationSyntax(caseKeyword, name, parameters, TryParseInitializer()));
                 }
                 else
                 {
@@ -291,7 +321,57 @@ internal sealed partial class Parser
         }
         var close = ExpectCloseBrace(open);
         _bracketDepth = saved;
-        return new EnumDeclarationSyntax(modifiers, keyword, identifier, open, MakeList(cases), close);
+        var declaration = new EnumDeclarationSyntax(modifiers, kindKeyword, keyword, identifier, baseList, open, MakeList(cases), close);
+        CheckEnum(declaration);
+        return declaration;
+    }
+
+    /// <summary>
+    /// The rules of ADR-0024 that the declaration alone shows: only an enum without data has an underlying type,
+    /// case values or 'flags'; its values are all given or none (a flags enum gives all); 'struct enum' has data.
+    /// </summary>
+    private void CheckEnum(EnumDeclarationSyntax declaration)
+    {
+        var hasData = declaration.Cases.Any(c => c.ParameterList != null);
+        if (declaration.IsStruct && !hasData)
+        {
+            Report(DiagnosticDescriptors.StructEnumWithoutData, declaration.KindKeyword!.Span);
+        }
+        if (declaration.BaseList is { } baseList)
+        {
+            for (var i = 0; i < baseList.Types.Count; i++)
+            {
+                var type = baseList.Types[i];
+                if (hasData)
+                {
+                    Report(DiagnosticDescriptors.EnumWithDataValues, type.Span, "have an underlying type");
+                }
+                else if (i > 0 || type is not PredefinedTypeSyntax { Keyword.Kind: var kind } || !SyntaxFacts.IsIntegerType(kind))
+                {
+                    Report(DiagnosticDescriptors.EnumUnderlyingType, type.Span);
+                }
+            }
+        }
+        if (hasData)
+        {
+            if (declaration.IsFlags)
+            {
+                Report(DiagnosticDescriptors.EnumWithDataValues, declaration.KindKeyword!.Span, "be a flags enum");
+            }
+            foreach (var @case in declaration.Cases.Where(c => c.EqualsValue != null))
+            {
+                Report(DiagnosticDescriptors.EnumWithDataValues, @case.EqualsValue!.Span, "give its cases values");
+            }
+            return;
+        }
+        if (declaration.IsFlags || declaration.Cases.Any(c => c.EqualsValue != null))
+        {
+            var descriptor = declaration.IsFlags ? DiagnosticDescriptors.FlagsCaseValue : DiagnosticDescriptors.EnumCaseValue;
+            foreach (var @case in declaration.Cases.Where(c => c.EqualsValue == null && !c.Identifier.IsMissing))
+            {
+                Report(descriptor, @case.Identifier.Span, @case.Identifier.Text);
+            }
+        }
     }
 
     private FieldDeclarationSyntax ParseFieldDeclaration(SyntaxList<SyntaxToken> modifiers)

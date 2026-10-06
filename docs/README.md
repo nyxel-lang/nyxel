@@ -41,5 +41,10 @@
 | [0017](decisions/0017-events-and-state-machines.md) | 事件 `event Died(slime: Slime)` + `emit`；`+=` / `-=` 订阅，绑定“执行谁的代码”，销毁或热重载时自动移除；方法可当函数值；状态机不加语法（enum + match + 协程） |
 | [0018](decisions/0018-npm-scope.md) | npm scope 用 `@nyxel-lang`（`@nyxel` 被别人注册了），取代 ADR-0001 的这一项 |
 | [0019](decisions/0019-syntax-details-for-parser.md) | 运算符一律放行首（括号里也一样）；修饰符顺序固定；区间优先级比算术低、比比较高；错误码 `NYX` 加四位数字 |
+| [0020](decisions/0020-literals-arrays-blocks.md) | 字符字面量 `'a'`；`0.5` 不省 0；原始字符串 `"""`（没有 `@"..."`）；数组类型 `array<T>`；不能嵌套类型；没有单独的块；赋值运算符可以写在行尾 |
+| [0021](decisions/0021-tuples-deconstruction-loops.md) | 元组 `(Min: int, Max: int)`（元素必须有名字）；按位置解构 `let (a, b) = ...`；`for (key, value) in dict`、`for (i, item) in list.Index()`；没有循环标签 |
+| [0022](decisions/0022-ranges-slices-collection-literals.md) | `(0..<n).Reversed()`、`.StepBy(2)`；区间不是值；切片 `name[0..<3]`、`name[1...]`（没有 `^1`）；集合字面量 `[1, 2, 3]`（没有展开和字典字面量）；多维数组 `array2d<T>` |
+| [0024](decisions/0024-enums-flags-struct-enum-case-data.md) | 简单枚举写值（要写就都写）、`enum Tile : byte`、`flags enum`；`x is 类型.Case`；带数据枚举的值类型版本 `struct enum`、`==` 比内容；case 的数据同元组（PascalCase、按位置取出，取代 ADR-0009 决策 6） |
+| [0023](decisions/0023-array-elements-null-checks-coalesce-assignment.md) | 只有全零合法的元素类型能直接 `new array<T>(n)`，其余用 `element` 给出每个元素；和 `null` 比较只看引用（不调用重载的 `==`）；`??=` |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

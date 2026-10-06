@@ -10,11 +10,11 @@ namespace Nyxel.Compiler.Tests.Syntax;
 /// </summary>
 public partial class GrammarConsistencyTests
 {
-    // Word alternatives inside \b...\b in the grammar's regexes: \b(if|else)\b, \bnew\b.
-    [GeneratedRegex(@"\\b\(?((?:[a-z]+\|)*[a-z]+)\)?\\b")]
+    // Word alternatives inside \b...\b in the grammar's regexes: \b(if|else)\b, \bnew\b, \b(array|array2d)\b.
+    [GeneratedRegex(@"\\b\(?((?:[a-z][a-z0-9]*\|)*[a-z][a-z0-9]*)\)?\\b")]
     private static partial Regex WordGroup();
 
-    [GeneratedRegex(@"\((?:\?:)?\(?((?:[a-z]+\|)*[a-z]+)\)")]
+    [GeneratedRegex(@"\((?:\?:)?\(?((?:[a-z][a-z0-9]*\|)*[a-z][a-z0-9]*)\)")]
     private static partial Regex Group();
 
     private static HashSet<string> GrammarWords()

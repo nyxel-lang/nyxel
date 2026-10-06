@@ -32,6 +32,32 @@ internal static class SyntaxTestHelpers
         _ => $"({node.Kind} {string.Join(" ", node.GetChildren().Select(Compact))})",
     };
 
+    /// <summary>
+    /// Every <see cref="SeparatedSyntaxList{T}"/> in the tree alternates elements and separators, even after error
+    /// recovery; its indexer relies on that.
+    /// </summary>
+    public static void AssertSeparatedListsAlternate(SyntaxNode root)
+    {
+        foreach (var node in root.DescendantNodesAndSelf())
+        {
+            foreach (var property in node.GetType().GetProperties())
+            {
+                if (!property.PropertyType.IsGenericType || property.PropertyType.GetGenericTypeDefinition() != typeof(SeparatedSyntaxList<>))
+                {
+                    continue;
+                }
+                var elementType = property.PropertyType.GetGenericArguments()[0];
+                var list = property.GetValue(node)!;
+                var items = ((IEnumerable<SyntaxNode>)property.PropertyType.GetMethod("GetNodesAndSeparators")!.Invoke(list, null)!).ToList();
+                for (var i = 0; i < items.Count; i++)
+                {
+                    var expected = i % 2 == 0 ? elementType : typeof(SyntaxToken);
+                    Assert.True(expected.IsInstanceOfType(items[i]), $"{node.Kind}.{property.Name}[{i}] is {items[i].Kind}");
+                }
+            }
+        }
+    }
+
     /// <summary>Parses a file and asserts it has no diagnostics.</summary>
     public static SyntaxTree ParseClean(string source)
     {

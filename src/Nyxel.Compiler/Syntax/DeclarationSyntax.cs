@@ -115,28 +115,45 @@ public sealed class TypeDeclarationSyntax : MemberDeclarationSyntax
         Children(Modifiers, Keyword, Identifier, TypeParameterList, BaseList, OpenBraceToken, Members, CloseBraceToken);
 }
 
+/// <summary>
+/// <c>enum Tile : byte { ... }</c>, <c>flags enum Layer { ... }</c> or <c>struct enum AiState { ... }</c> (ADR-0008,
+/// ADR-0024). The base list holds the underlying type.
+/// </summary>
 public sealed class EnumDeclarationSyntax : MemberDeclarationSyntax
 {
     internal EnumDeclarationSyntax(
         SyntaxList<SyntaxToken> modifiers,
+        SyntaxToken? kindKeyword,
         SyntaxToken enumKeyword,
         SyntaxToken identifier,
+        BaseListSyntax? baseList,
         SyntaxToken openBraceToken,
         SyntaxList<EnumCaseDeclarationSyntax> cases,
         SyntaxToken closeBraceToken)
         : base(SyntaxKind.EnumDeclaration, modifiers)
     {
+        KindKeyword = kindKeyword;
         EnumKeyword = enumKeyword;
         Identifier = identifier;
+        BaseList = baseList;
         OpenBraceToken = openBraceToken;
         Cases = cases;
         CloseBraceToken = closeBraceToken;
         AdoptChildren();
     }
 
+    /// <summary>The <c>flags</c> (a contextual keyword) or <c>struct</c> before <c>enum</c>, if any.</summary>
+    public SyntaxToken? KindKeyword { get; }
+
+    public bool IsFlags => KindKeyword?.Kind == SyntaxKind.IdentifierToken;
+
+    public bool IsStruct => KindKeyword?.Kind == SyntaxKind.StructKeyword;
+
     public SyntaxToken EnumKeyword { get; }
 
     public SyntaxToken Identifier { get; }
+
+    public BaseListSyntax? BaseList { get; }
 
     public SyntaxToken OpenBraceToken { get; }
 
@@ -145,18 +162,23 @@ public sealed class EnumDeclarationSyntax : MemberDeclarationSyntax
     public SyntaxToken CloseBraceToken { get; }
 
     public override IEnumerable<SyntaxNode> GetChildren() =>
-        Children(Modifiers, EnumKeyword, Identifier, OpenBraceToken, Cases, CloseBraceToken);
+        Children(Modifiers, KindKeyword, EnumKeyword, Identifier, BaseList, OpenBraceToken, Cases, CloseBraceToken);
 }
 
-/// <summary><c>case Burn(amount: int, seconds: float)</c>; the parameter list holds the case's named data.</summary>
+/// <summary>
+/// <c>case Burn(Amount: int, Seconds: float)</c> or <c>case Mesh = 1</c>. The parameter list holds the case's data,
+/// named like tuple elements (ADR-0024); the value is for enums without data.
+/// </summary>
 public sealed class EnumCaseDeclarationSyntax : SyntaxNode
 {
-    internal EnumCaseDeclarationSyntax(SyntaxToken caseKeyword, SyntaxToken identifier, ParameterListSyntax? parameterList)
+    internal EnumCaseDeclarationSyntax(
+        SyntaxToken caseKeyword, SyntaxToken identifier, ParameterListSyntax? parameterList, EqualsValueClauseSyntax? equalsValue)
         : base(SyntaxKind.EnumCaseDeclaration)
     {
         CaseKeyword = caseKeyword;
         Identifier = identifier;
         ParameterList = parameterList;
+        EqualsValue = equalsValue;
         AdoptChildren();
     }
 
@@ -166,7 +188,9 @@ public sealed class EnumCaseDeclarationSyntax : SyntaxNode
 
     public ParameterListSyntax? ParameterList { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(CaseKeyword, Identifier, ParameterList);
+    public EqualsValueClauseSyntax? EqualsValue { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(CaseKeyword, Identifier, ParameterList, EqualsValue);
 }
 
 /// <summary><c>extension Vector3 { ... }</c> (ADR-0014).</summary>

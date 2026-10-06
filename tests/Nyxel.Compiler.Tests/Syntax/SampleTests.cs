@@ -32,7 +32,7 @@ public class SampleTests
     }
 
     [Fact]
-    public void AllEightSamplesAreFound() => Assert.Equal(8, Samples().Count);
+    public void AllElevenSamplesAreFound() => Assert.Equal(11, Samples().Count);
 
     [Theory]
     [MemberData(nameof(Samples))]
@@ -93,6 +93,85 @@ public class SampleTests
             var text = new string([.. chars]);
             var tree = SyntaxTree.Parse(text);
             Assert.Equal(text, tree.Root.ToFullString());
+            AssertSeparatedListsAlternate(tree.Root);
+        }
+    }
+
+    /// <summary>
+    /// The samples have no raw strings or C# habits, so a source with them (and tuples, slices, enum errors) gets
+    /// mangled too.
+    /// </summary>
+    [Fact]
+    public void MangledLiteralsNeverThrowAndStayLossless()
+    {
+        const string original = """"
+            [Flags]
+            flags enum L : byte {
+                case A = 1
+                case B = L.A | 2
+            }
+
+            struct enum S {
+                case X(A: int) = 1
+            }
+
+            class C {
+                func F(self) {
+                    if hit is Damage.Burn(var a, var s) and s is not S.X {
+                    }
+                    let parts = line.Split(',')
+                    let quote = '\''
+                    let pattern = """\d+\.\d+"""
+                    let help = """
+                        Usage: "spawn" {kind}
+                        """
+                    let json = $$"""
+                        { "hp": {{self.hp}}, "name": "{{self.Name}}" }
+                        """
+                    let report = $"""Wave {self.wave}: {self.alive.Count:D2} alive"""
+                    var hits: array<RaycastHit?> = new array<RaycastHit?>(16)
+                    let a: Enemy?[] = new Enemy?[self.count]
+                    let b = new int[] { 1, 2 }
+                    let d = @"C:\x" + $@"{d}\y"
+                    self.total +=
+                        bonus
+                    let (lo, hi) = self.Range()
+                    let r: (Min: int, Max: int)? = (Min = lo, Max = hi)
+                    for (i, item) in self.items.Index() {
+                        (lo, hi) = (hi, lo)
+                    }
+                    let c: List<(int A, int)> = F((A: 1, 2), (x))
+                    outer: for x in xs {
+                        break outer
+                    }
+                    for i in (0..<self.items.Count).Reversed() {
+                        let s = name[1...] + name[..<3] + path[..^4] + text[1..] + items[^1]
+                    }
+                    let xs: List<int> = [1, 2, ..ys, "a": 3]
+                    let grid: int[,] = new array2d<int>(w, h)
+                    grid[x, y] = new int[2, 3]
+                }
+            }
+
+            """";
+        string[] pieces = ["\"", "\"\"\"", "$", "$$", "{", "}", "{{", "}}", "'", "\\", "\n", " ", "\t", "@", "[", "]", "array<", ">", ",", "(", ")", ":", "..", "..<", "...", "^", "flags ", "struct ", "=", "|"];
+        var random = new Random(20261006);
+        for (var round = 0; round < 2000; round++)
+        {
+            var text = original;
+            for (var edit = 0; edit < 1 + (round % 5); edit++)
+            {
+                var index = random.Next(text.Length);
+                text = random.Next(3) switch
+                {
+                    0 => text.Insert(index, pieces[random.Next(pieces.Length)]),
+                    1 => text.Remove(index, Math.Min(random.Next(1, 4), text.Length - index)),
+                    _ => text.Insert(index, text.Substring(random.Next(text.Length - 8), random.Next(1, 8))),
+                };
+            }
+            var tree = SyntaxTree.Parse(text);
+            Assert.Equal(text, tree.Root.ToFullString());
+            AssertSeparatedListsAlternate(tree.Root);
         }
     }
 }

@@ -33,12 +33,22 @@ public class ParserTests
     public void AsBindsTighterThanMultiplication(string expression, string expected) => Assert.Equal(expected, Expr(expression));
 
     [Theory]
-    // Ranges are below arithmetic and above comparisons (ADR-0019).
+    // Ranges are below arithmetic (ADR-0019); shown in a 'for', one of the places a range may stand (ADR-0022).
     [InlineData("0..<self.count - 1", "(RangeExpression 0 ..< (SubtractExpression (SimpleMemberAccessExpression self . count) - 1))")]
     [InlineData("a + 1...b * 2", "(RangeExpression (AddExpression a + 1) ... (MultiplyExpression b * 2))")]
     [InlineData("a << 1..<b", "(RangeExpression (LeftShiftExpression a << 1) ..< b)")]
-    [InlineData("0..<n == r", "(EqualsExpression (RangeExpression 0 ..< n) == r)")]
-    public void RangesAreBelowArithmetic(string expression, string expected) => Assert.Equal(expected, Expr(expression));
+    public void RangesAreBelowArithmetic(string range, string expected) =>
+        Assert.Equal(expected, Compact(((ForStatementSyntax)ParseStatement($"for i in {range} {{\n}}")).Collection));
+
+    [Fact]
+    public void RangesAreAboveComparisons()
+    {
+        // Not a place for a range (ADR-0022), but the tree still shows how it binds.
+        var source = InMethod("let x = 0..<n == r");
+        Assert.Equal(["NYX1127 3:9"], DiagnosticsOf(source));
+        var statement = (LocalDeclarationStatementSyntax)Body(SyntaxTree.Parse(source)).Statements.Single();
+        Assert.Equal("(EqualsExpression (RangeExpression 0 ..< n) == r)", Compact(statement.Initializer!.Value));
+    }
 
     [Theory]
     [InlineData("x is Enemy", "(IsExpression x is Enemy)")]
@@ -84,7 +94,7 @@ public class ParserTests
     [InlineData("int.TryParse(text, out let n)", "(InvocationExpression (SimpleMemberAccessExpression int . TryParse) (ArgumentList ( (Argument text) , (Argument out (DeclarationExpression let n)) )))")]
     [InlineData("F(out let n: int, out _, ref self.v)", "(InvocationExpression F (ArgumentList ( (Argument out (DeclarationExpression let n (TypeAnnotation : int))) , (Argument out _) , (Argument ref (SimpleMemberAccessExpression self . v)) )))")]
     [InlineData("Damp(velocity = ref self.v)", "(InvocationExpression Damp (ArgumentList ( (Argument (NameEquals velocity =) ref (SimpleMemberAccessExpression self . v)) )))")]
-    [InlineData("new Damage.Burn(amount = 3)", "(ObjectCreationExpression new (QualifiedName Damage . Burn) (ArgumentList ( (Argument (NameEquals amount =) 3) )))")]
+    [InlineData("new Damage.Burn(Amount = 3)", "(ObjectCreationExpression new (QualifiedName Damage . Burn) (ArgumentList ( (Argument (NameEquals Amount =) 3) )))")]
     [InlineData("(a + b).Length()", "(InvocationExpression (SimpleMemberAccessExpression (ParenthesizedExpression ( (AddExpression a + b) )) . Length) (ArgumentList ( )))")]
     [InlineData("await launch self.Load()", "(AwaitExpression await (LaunchExpression launch (InvocationExpression (SimpleMemberAccessExpression self . Load) (ArgumentList ( )))))")]
     public void PostfixAndPrimary(string expression, string expected) => Assert.Equal(expected, Expr(expression));
@@ -104,6 +114,94 @@ public class ParserTests
     [InlineData("$\"HP: {self.hp}\"", "(InterpolatedStringExpression $\" (InterpolatedStringText HP: ) (Interpolation { (SimpleMemberAccessExpression self . hp) }) \")")]
     [InlineData("$\"{a,8:F2}\"", "(InterpolatedStringExpression $\" (Interpolation { a (InterpolationAlignmentClause , 8) (InterpolationFormatClause : F2) }) \")")]
     public void InterpolatedStrings(string expression, string expected) => Assert.Equal(expected, Expr(expression));
+
+    [Theory]
+    [InlineData("line.Split(',')", "(InvocationExpression (SimpleMemberAccessExpression line . Split) (ArgumentList ( (Argument ',') )))")]
+    [InlineData("text[0] == '#'", "(EqualsExpression (ElementAccessExpression text (BracketedArgumentList [ (Argument 0) ])) == '#')")]
+    [InlineData("\"\"\"\\d+\"\"\"", "\"\"\"\\d+\"\"\"")]
+    [InlineData("$$\"\"\"{ {{a}} }\"\"\"", "(InterpolatedStringExpression $$\"\"\" (InterpolatedStringText { ) (Interpolation {{ a }}) (InterpolatedStringText  }) \"\"\")")]
+    public void CharactersAndRawStrings(string expression, string expected) => Assert.Equal(expected, Expr(expression));
+
+    [Fact]
+    public void MultiLineRawStringIsOneExpression() =>
+        Assert.Equal(
+            "(LocalDeclarationStatement let help (EqualsValueClause = \"\"\"\n    Usage:\n    \"\"\"))",
+            Stmt("let help = \"\"\"\n    Usage:\n    \"\"\""));
+
+    [Theory]
+    [InlineData("var hits: array<RaycastHit>", "(LocalDeclarationStatement var hits (TypeAnnotation : (ArrayType array < RaycastHit >)))")]
+    [InlineData("let rows: array<array<int>?>?", "(LocalDeclarationStatement let rows (TypeAnnotation : (NullableType (ArrayType array < (NullableType (ArrayType array < int >) ?) >) ?)))")]
+    [InlineData("let a = new array<int>(16)", "(LocalDeclarationStatement let a (EqualsValueClause = (ObjectCreationExpression new (ArrayType array < int >) (ArgumentList ( (Argument 16) )))))")]
+    [InlineData("let a = new array<int>(length = 3)", "(LocalDeclarationStatement let a (EqualsValueClause = (ObjectCreationExpression new (ArrayType array < int >) (ArgumentList ( (Argument (NameEquals length =) 3) )))))")]
+    [InlineData("let ok = x is array<int>", "(LocalDeclarationStatement let ok (EqualsValueClause = (IsExpression x is (ArrayType array < int >))))")]
+    [InlineData("let m = new Dictionary<string, array<int>>()", "(LocalDeclarationStatement let m (EqualsValueClause = (ObjectCreationExpression new (GenericName Dictionary (TypeArgumentList < string , (ArrayType array < int >) >)) (ArgumentList ( )))))")]
+    public void ArrayTypes(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
+
+    // Tuples (ADR-0021) -------------------------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("let r: (Min: int, Max: int)? = x", "(LocalDeclarationStatement let r (TypeAnnotation : (NullableType (TupleType ( (TupleElement Min : int) , (TupleElement Max : int) )) ?)) (EqualsValueClause = x))")]
+    [InlineData("let all = new List<(Name: string, Score: int)>()", "(LocalDeclarationStatement let all (EqualsValueClause = (ObjectCreationExpression new (GenericName List (TypeArgumentList < (TupleType ( (TupleElement Name : string) , (TupleElement Score : int) )) >)) (ArgumentList ( )))))")]
+    [InlineData("let f: func((A: int, B: int)) -> (C: int, D: int) = g", "(LocalDeclarationStatement let f (TypeAnnotation : (FunctionType func ( (TupleType ( (TupleElement A : int) , (TupleElement B : int) )) ) (ReturnTypeClause -> (TupleType ( (TupleElement C : int) , (TupleElement D : int) ))))) (EqualsValueClause = g))")]
+    [InlineData("let p = World.Get<(A: int, B: int)>()", "(LocalDeclarationStatement let p (EqualsValueClause = (InvocationExpression (SimpleMemberAccessExpression World . (GenericName Get (TypeArgumentList < (TupleType ( (TupleElement A : int) , (TupleElement B : int) )) >))) (ArgumentList ( )))))")]
+    [InlineData("let r = (lo, hi)", "(LocalDeclarationStatement let r (EqualsValueClause = (TupleExpression ( (Argument lo) , (Argument hi) ))))")]
+    [InlineData("let r = (Min = lo, Max = hi)", "(LocalDeclarationStatement let r (EqualsValueClause = (TupleExpression ( (Argument (NameEquals Min =) lo) , (Argument (NameEquals Max =) hi) ))))")]
+    [InlineData("let s = (a + b) * 2", "(LocalDeclarationStatement let s (EqualsValueClause = (MultiplyExpression (ParenthesizedExpression ( (AddExpression a + b) )) * 2)))")]
+    [InlineData("let q = ($\"{a,5}\", F(b, c))", "(LocalDeclarationStatement let q (EqualsValueClause = (TupleExpression ( (Argument (InterpolatedStringExpression $\" (Interpolation { a (InterpolationAlignmentClause , 5) }) \")) , (Argument (InvocationExpression F (ArgumentList ( (Argument b) , (Argument c) )))) ))))")]
+    [InlineData("self.history.Add((name, 1))", "(ExpressionStatement (InvocationExpression (SimpleMemberAccessExpression (SimpleMemberAccessExpression self . history) . Add) (ArgumentList ( (Argument (TupleExpression ( (Argument name) , (Argument 1) ))) ))))")]
+    [InlineData("let (min, max) = self.Range()", "(DeconstructionDeclarationStatement let (Deconstruction ( min , max )) (EqualsValueClause = (InvocationExpression (SimpleMemberAccessExpression self . Range) (ArgumentList ( )))))")]
+    [InlineData("var (_, count) = stats", "(DeconstructionDeclarationStatement var (Deconstruction ( _ , count )) (EqualsValueClause = stats))")]
+    [InlineData("for (i, item) in items.Index() { }", "(ForStatement for (Deconstruction ( i , item )) in (InvocationExpression (SimpleMemberAccessExpression items . Index) (ArgumentList ( ))) (Block { }))")]
+    [InlineData("for (key, value) in self.prices { }", "(ForStatement for (Deconstruction ( key , value )) in (SimpleMemberAccessExpression self . prices) (Block { }))")]
+    [InlineData("(a, b) = (b, a)", "(AssignmentStatement (TupleExpression ( (Argument a) , (Argument b) )) = (TupleExpression ( (Argument b) , (Argument a) )))")]
+    public void Tuples(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
+
+    [Fact]
+    public void TupleElementsMayGoOnSeparateLines() =>
+        Assert.Equal(
+            "(LocalDeclarationStatement let t (EqualsValueClause = (TupleExpression ( (Argument (NameEquals Name =) \"a\") , (Argument (NameEquals Score =) 3) ))))",
+            Stmt("let t = (\n    Name = \"a\",\n    Score = 3)"));
+
+    // Ranges, slices, collection literals, multidimensional arrays (ADR-0022) ------------------------------------
+
+    [Theory]
+    [InlineData("for i in (0..<self.enemies.Count).Reversed() { }", "(ForStatement for i in (InvocationExpression (SimpleMemberAccessExpression (ParenthesizedExpression ( (RangeExpression 0 ..< (SimpleMemberAccessExpression (SimpleMemberAccessExpression self . enemies) . Count)) )) . Reversed) (ArgumentList ( ))) (Block { }))")]
+    [InlineData("for x in (0..<width).StepBy(2).Reversed() { }", "(ForStatement for x in (InvocationExpression (SimpleMemberAccessExpression (InvocationExpression (SimpleMemberAccessExpression (ParenthesizedExpression ( (RangeExpression 0 ..< width) )) . StepBy) (ArgumentList ( (Argument 2) ))) . Reversed) (ArgumentList ( ))) (Block { }))")]
+    [InlineData("let prefix = name[0..<3]", "(LocalDeclarationStatement let prefix (EqualsValueClause = (ElementAccessExpression name (BracketedArgumentList [ (Argument (RangeExpression 0 ..< 3)) ]))))")]
+    [InlineData("let rest = name[1...]", "(LocalDeclarationStatement let rest (EqualsValueClause = (ElementAccessExpression name (BracketedArgumentList [ (Argument (RangeExpression 1 ...)) ]))))")]
+    [InlineData("let head = items[..<3]", "(LocalDeclarationStatement let head (EqualsValueClause = (ElementAccessExpression items (BracketedArgumentList [ (Argument (RangeExpression ..< 3)) ]))))")]
+    [InlineData("let upTo = items[...2]", "(LocalDeclarationStatement let upTo (EqualsValueClause = (ElementAccessExpression items (BracketedArgumentList [ (Argument (RangeExpression ... 2)) ]))))")]
+    [InlineData("let stem = path[..<path.Length - 4]", "(LocalDeclarationStatement let stem (EqualsValueClause = (ElementAccessExpression path (BracketedArgumentList [ (Argument (RangeExpression ..< (SubtractExpression (SimpleMemberAccessExpression path . Length) - 4))) ]))))")]
+    public void RangesInForAndSlices(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
+
+    [Theory]
+    [InlineData("let xs: List<int> = [1, 2, 3]", "(LocalDeclarationStatement let xs (TypeAnnotation : (GenericName List (TypeArgumentList < int >))) (EqualsValueClause = (CollectionExpression [ 1 , 2 , 3 ])))")]
+    [InlineData("var enemies: List<Enemy> = []", "(LocalDeclarationStatement var enemies (TypeAnnotation : (GenericName List (TypeArgumentList < Enemy >))) (EqualsValueClause = (CollectionExpression [ ])))")]
+    [InlineData("self.Patrol(points = [self.a, self.b])", "(ExpressionStatement (InvocationExpression (SimpleMemberAccessExpression self . Patrol) (ArgumentList ( (Argument (NameEquals points =) (CollectionExpression [ (SimpleMemberAccessExpression self . a) , (SimpleMemberAccessExpression self . b) ])) ))))")]
+    [InlineData("for dir in [Dir.Up, Dir.Down] { }", "(ForStatement for dir in (CollectionExpression [ (SimpleMemberAccessExpression Dir . Up) , (SimpleMemberAccessExpression Dir . Down) ]) (Block { }))")]
+    [InlineData("for (dx, dy) in [(0, 1), (1, 0)] { }", "(ForStatement for (Deconstruction ( dx , dy )) in (CollectionExpression [ (TupleExpression ( (Argument 0) , (Argument 1) )) , (TupleExpression ( (Argument 1) , (Argument 0) )) ]) (Block { }))")]
+    [InlineData("let nested: List<List<int>> = [[1, 2], [3]]", "(LocalDeclarationStatement let nested (TypeAnnotation : (GenericName List (TypeArgumentList < (GenericName List (TypeArgumentList < int >)) >))) (EqualsValueClause = (CollectionExpression [ (CollectionExpression [ 1 , 2 ]) , (CollectionExpression [ 3 ]) ])))")]
+    public void CollectionLiterals(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
+
+    [Fact]
+    public void CollectionLiteralMayGoOnSeparateLinesWithATrailingComma() =>
+        Assert.Equal(
+            "(LocalDeclarationStatement let waves (TypeAnnotation : (GenericName List (TypeArgumentList < int >))) (EqualsValueClause = (CollectionExpression [ 3 , 5 , ])))",
+            Stmt("let waves: List<int> = [\n    3,\n    5,\n]"));
+
+    [Fact]
+    public void BracketAtTheStartOfALineStartsAStatement()
+    {
+        // Not an element access of the line before (ADR-0013): a '[' on a new line begins a collection literal.
+        var tree = ParseClean(InMethod("let a = b\n[1, 2].Count"));
+        Assert.Equal(2, Body(tree).Statements.Count);
+    }
+
+    [Theory]
+    [InlineData("let grid = new array2d<Tile>(width, height)", "(LocalDeclarationStatement let grid (EqualsValueClause = (ObjectCreationExpression new (ArrayType array2d < Tile >) (ArgumentList ( (Argument width) , (Argument height) )))))")]
+    [InlineData("grid[x, y] = Tile.Wall", "(AssignmentStatement (ElementAccessExpression grid (BracketedArgumentList [ (Argument x) , (Argument y) ])) = (SimpleMemberAccessExpression Tile . Wall))")]
+    [InlineData("let cube: array3d<float>? = null", "(LocalDeclarationStatement let cube (TypeAnnotation : (NullableType (ArrayType array3d < float >) ?)) (EqualsValueClause = null))")]
+    public void MultidimensionalArrays(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
 
     // Lambdas (ADR-0012, ADR-0016) --------------------------------------------------------------------------------
 
@@ -200,6 +298,13 @@ public class ParserTests
     public void TrailingEqualsContinuesTheLine() =>
         Assert.Equal("(LocalDeclarationStatement let x (EqualsValueClause = (AddExpression a + b)))", Stmt("let x =\n    a + b"));
 
+    [Theory]
+    [InlineData("self.total +=\n    bonus * 2", "(AssignmentStatement (SimpleMemberAccessExpression self . total) += (MultiplyExpression bonus * 2))")]
+    [InlineData("self.Position =\n    target", "(AssignmentStatement (SimpleMemberAccessExpression self . Position) = target)")]
+    [InlineData("slime.Died -=\n    self.OnDied", "(AssignmentStatement (SimpleMemberAccessExpression slime . Died) -= (SimpleMemberAccessExpression self . OnDied))")]
+    [InlineData("self.cache ??=\n    self.Build()", "(AssignmentStatement (SimpleMemberAccessExpression self . cache) ??= (InvocationExpression (SimpleMemberAccessExpression self . Build) (ArgumentList ( ))))")]
+    public void TrailingAssignmentOperatorContinuesTheLine(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
+
     [Fact]
     public void LineBreaksInsideBracketsAreIgnored() =>
         Assert.Equal(
@@ -236,6 +341,8 @@ public class ParserTests
     [InlineData("using s: FileStream = Open()", "(UsingDeclarationStatement using s (TypeAnnotation : FileStream) (EqualsValueClause = (InvocationExpression Open (ArgumentList ( )))))")]
     [InlineData("self.combo += 1", "(AssignmentStatement (SimpleMemberAccessExpression self . combo) += 1)")]
     [InlineData("slime.Died -= self.OnDied", "(AssignmentStatement (SimpleMemberAccessExpression slime . Died) -= (SimpleMemberAccessExpression self . OnDied))")]
+    [InlineData("self.target ??= self.FindTarget()", "(AssignmentStatement (SimpleMemberAccessExpression self . target) ??= (InvocationExpression (SimpleMemberAccessExpression self . FindTarget) (ArgumentList ( ))))")]
+    [InlineData("name ??= a ?? b", "(AssignmentStatement name ??= (CoalesceExpression a ?? b))")]
     [InlineData("for i in 0..<n { }", "(ForStatement for i in (RangeExpression 0 ..< n) (Block { }))")]
     [InlineData("while self.hp > 0 { }", "(WhileStatement while (GreaterThanExpression (SimpleMemberAccessExpression self . hp) > 0) (Block { }))")]
     [InlineData("throw e", "(ThrowStatement throw e)")]
@@ -259,6 +366,7 @@ public class ParserTests
     [InlineData("func Max<T: IComparable<T>>(a: T, b: T) -> T = a", "(FunctionDeclaration func Max (TypeParameterList < (TypeParameter T (TypeParameterConstraintClause : (TypeConstraint (GenericName IComparable (TypeArgumentList < T >))))) >) (ParameterList ( (Parameter a : T) , (Parameter b : T) )) (ReturnTypeClause -> T) (ExpressionBody = a))")]
     [InlineData("public init FromPolar(radius: float) { }", "(InitDeclaration public init FromPolar (ParameterList ( (Parameter radius : float) )) (Block { }))")]
     [InlineData("public event Died(slime: Slime)", "(EventDeclaration public event Died (ParameterList ( (Parameter slime : Slime) )))")]
+    [InlineData("func MinMax(values: List<int>) -> (Min: int, Max: int) = (0, 0)", "(FunctionDeclaration func MinMax (ParameterList ( (Parameter values : (GenericName List (TypeArgumentList < int >))) )) (ReturnTypeClause -> (TupleType ( (TupleElement Min : int) , (TupleElement Max : int) ))) (ExpressionBody = (TupleExpression ( (Argument 0) , (Argument 0) ))))")]
     [InlineData("protected override async func OnEnable(self) { }", "(FunctionDeclaration protected override async func OnEnable (ParameterList ( (SelfParameter self) )) (Block { }))")]
     public void Members(string member, string expected) => Assert.Equal(expected, Compact(ParseMember(member)));
 
@@ -286,8 +394,8 @@ public class ParserTests
             }
 
             public enum Damage {
-                case Physical(amount: int)
-                case Burn(amount: int, seconds: float)
+                case Physical(Amount: int)
+                case Burn(Amount: int, Seconds: float)
                 case Heal
             }
 
@@ -314,6 +422,26 @@ public class ParserTests
         Assert.Equal(3, damage.Cases.Count);
         Assert.Null(damage.Cases[2].ParameterList);
     }
+
+    // Enums (ADR-0024) ----------------------------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("enum CookedType : uint {\n    case Mesh = 1\n    case Texture = 2\n}", "(EnumDeclaration enum CookedType (BaseList : uint) { (EnumCaseDeclaration case Mesh (EqualsValueClause = 1)) (EnumCaseDeclaration case Texture (EqualsValueClause = 2)) })")]
+    [InlineData("public flags enum Layer {\n    case None = 0\n    case Solid = Layer.Ground | 1 << 2\n}", "(EnumDeclaration public flags enum Layer { (EnumCaseDeclaration case None (EqualsValueClause = 0)) (EnumCaseDeclaration case Solid (EqualsValueClause = (BitwiseOrExpression (SimpleMemberAccessExpression Layer . Ground) | (LeftShiftExpression 1 << 2)))) })")]
+    [InlineData("struct enum AiState {\n    case Idle\n    case Chasing(Target: Entity)\n}", "(EnumDeclaration struct enum AiState { (EnumCaseDeclaration case Idle) (EnumCaseDeclaration case Chasing (ParameterList ( (Parameter Target : Entity) ))) })")]
+    public void EnumDeclarations(string source, string expected) => Assert.Equal(expected, Compact(ParseClean(source).Root.Members[0]));
+
+    [Fact]
+    public void FlagsIsAnIdentifierExceptBeforeEnum()
+    {
+        Assert.Equal("(LocalDeclarationStatement let flags (EqualsValueClause = (BitwiseOrExpression a | b)))", Stmt("let flags = a | b"));
+        Assert.Equal("(FieldDeclaration var flags (TypeAnnotation : int) (EqualsValueClause = 0))", Compact(ParseMember("var flags: int = 0")));
+    }
+
+    [Theory]
+    [InlineData("if state is AiState.Idle {\n}", "(ExpressionStatement (IfExpression if (IsExpression state is (QualifiedName AiState . Idle)) (Block { })))")]
+    [InlineData("match hit {\n    case Burn(_, seconds) -> seconds\n}", "(ExpressionStatement (MatchExpression match hit { (MatchArm case (CasePattern Burn (CaseFieldList ( _ , seconds ))) -> seconds) }))")]
+    public void EnumCasesInConditionsAndPatterns(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
 
     [Fact]
     public void DocCommentsStayInTheLeadingTriviaOfTheDeclaration()

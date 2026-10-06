@@ -10,6 +10,7 @@ public enum SyntaxKind
     IdentifierToken,
     NumericLiteralToken,
     StringLiteralToken,
+    CharacterLiteralToken,
     InterpolatedStringStartToken,
     InterpolatedStringTextToken,
     InterpolationFormatToken,
@@ -57,6 +58,7 @@ public enum SyntaxKind
     BarEqualsToken,
     CaretEqualsToken,
     LessThanLessThanEqualsToken,
+    QuestionQuestionEqualsToken,
 
     // Composed by the parser from adjacent '>' tokens, so that '>>' can also close two type argument lists.
     GreaterThanGreaterThanToken,
@@ -70,6 +72,7 @@ public enum SyntaxKind
     MinusMinusToken,
     EqualsGreaterThanToken,
     SemicolonToken,
+    DotDotToken,
 
     // Keywords.
     LetKeyword,
@@ -144,6 +147,12 @@ public enum SyntaxKind
     StringKeyword,
     ObjectKeyword,
 
+    // array<T> (ADR-0020), array2d<T> and array3d<T> (ADR-0022): type keywords, but with a type argument, so not
+    // among the predefined types above.
+    ArrayKeyword,
+    Array2DKeyword,
+    Array3DKeyword,
+
     // Trivia.
     WhitespaceTrivia,
     EndOfLineTrivia,
@@ -197,10 +206,15 @@ public enum SyntaxKind
     PredefinedType,
     NullableType,
     FunctionType,
+    ArrayType,
+    TupleType,
+    TupleElement,
 
     // Statements.
     Block,
     LocalDeclarationStatement,
+    DeconstructionDeclarationStatement,
+    Deconstruction,
     UsingDeclarationStatement,
     ExpressionStatement,
     AssignmentStatement,
@@ -215,6 +229,7 @@ public enum SyntaxKind
     // Expressions.
     NumericLiteralExpression,
     StringLiteralExpression,
+    CharacterLiteralExpression,
     TrueLiteralExpression,
     FalseLiteralExpression,
     NullLiteralExpression,
@@ -226,6 +241,8 @@ public enum SyntaxKind
     SelfExpression,
     SuperExpression,
     ParenthesizedExpression,
+    TupleExpression,
+    CollectionExpression,
     SimpleMemberAccessExpression,
     ConditionalMemberAccessExpression,
     InvocationExpression,

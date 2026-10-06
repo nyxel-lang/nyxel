@@ -1,4 +1,5 @@
 using Nyxel.Compiler.Diagnostics;
+using Nyxel.Compiler.Text;
 
 namespace Nyxel.Compiler.Syntax;
 
@@ -43,14 +44,16 @@ internal sealed partial class Parser
         {
             SyntaxKind.LetKeyword or SyntaxKind.VarKeyword => ParseLocalDeclaration(),
             SyntaxKind.UsingKeyword => ParseUsingDeclaration(),
-            SyntaxKind.WhileKeyword => new WhileStatementSyntax(NextToken(), ParseExpression(), ParseBlock()),
+            SyntaxKind.WhileKeyword => ParseWhileStatement(),
             SyntaxKind.ForKeyword => ParseForStatement(),
             SyntaxKind.ReturnKeyword => ParseReturnStatement(),
             SyntaxKind.ThrowKeyword => new ThrowStatementSyntax(NextToken(), ParseExpression()),
-            SyntaxKind.BreakKeyword => new JumpStatementSyntax(SyntaxKind.BreakStatement, NextToken()),
-            SyntaxKind.ContinueKeyword => new JumpStatementSyntax(SyntaxKind.ContinueStatement, NextToken()),
+            SyntaxKind.BreakKeyword => ParseJumpStatement(SyntaxKind.BreakStatement),
+            SyntaxKind.ContinueKeyword => ParseJumpStatement(SyntaxKind.ContinueStatement),
             SyntaxKind.EmitKeyword => new EmitStatementSyntax(NextToken(), ParseExpression()),
             SyntaxKind.OpenBraceToken => ParseStrayBlock(),
+            SyntaxKind.IdentifierToken when Peek(1).Kind == SyntaxKind.ColonToken
+                && Peek(2).Kind is SyntaxKind.ForKeyword or SyntaxKind.WhileKeyword => ParseLabeledLoop(),
             _ when CanStartExpression(Current.Kind) => ParseExpressionOrAssignmentStatement(),
             _ => ReportInvalidStatementStart(),
         };
@@ -76,13 +79,20 @@ internal sealed partial class Parser
     /// <summary>A '{' where a statement should start. Bare blocks are not part of the language; read it to recover.</summary>
     private BlockSyntax ParseStrayBlock()
     {
-        Report(DiagnosticDescriptors.UnexpectedToken, Current.Span, "'{'");
+        Report(DiagnosticDescriptors.StandaloneBlock, Current.Span);
         return ParseBlock();
     }
 
-    private LocalDeclarationStatementSyntax ParseLocalDeclaration()
+    private StatementSyntax ParseLocalDeclaration()
     {
         var keyword = NextToken();
+        if (At(SyntaxKind.OpenParenToken))
+        {
+            var deconstruction = ParseDeconstruction();
+            var value = TryParseInitializer()
+                ?? new EqualsValueClauseSyntax(Expect(SyntaxKind.EqualsToken), MissingExpression());
+            return new DeconstructionDeclarationStatementSyntax(keyword, deconstruction, value);
+        }
         var identifier = ExpectIdentifier();
         var typeAnnotation = TryParseTypeAnnotation();
         var initializer = TryParseInitializer();
@@ -115,20 +125,114 @@ internal sealed partial class Parser
         return new UsingDeclarationStatementSyntax(usingKeyword, identifier, typeAnnotation, initializer);
     }
 
+    private WhileStatementSyntax ParseWhileStatement() => new(NextToken(), ParseExpression(), ParseBlock());
+
     private ForStatementSyntax ParseForStatement()
     {
         var forKeyword = NextToken();
+        SyntaxToken? identifier = null;
+        DeconstructionSyntax? deconstruction = null;
         if (At(SyntaxKind.OpenParenToken))
         {
-            Report(DiagnosticDescriptors.CStyleFor, Current.Span);
-            SkipBalanced();
-            return new ForStatementSyntax(
-                forKeyword, Missing(SyntaxKind.IdentifierToken), Missing(SyntaxKind.InKeyword), MissingExpression(), ParseBlock());
+            if (!IsDeconstructionBeforeIn())
+            {
+                Report(DiagnosticDescriptors.CStyleFor, Current.Span);
+                SkipBalanced();
+                return new ForStatementSyntax(
+                    forKeyword, Missing(SyntaxKind.IdentifierToken), null, Missing(SyntaxKind.InKeyword), MissingExpression(), ParseBlock());
+            }
+            deconstruction = ParseDeconstruction();
         }
-        var identifier = ExpectIdentifier();
+        else
+        {
+            identifier = ExpectIdentifier();
+        }
         var inKeyword = Expect(SyntaxKind.InKeyword);
         var collection = ParseExpression();
-        return new ForStatementSyntax(forKeyword, identifier, inKeyword, collection, ParseBlock());
+        return new ForStatementSyntax(forKeyword, identifier, deconstruction, inKeyword, collection, ParseBlock());
+    }
+
+    /// <summary>
+    /// At '(' after <c>for</c>: <c>(i, item) in</c> takes each element apart (ADR-0021); anything else, such as
+    /// <c>(var i = 0; ...)</c> or <c>(item in items)</c>, is C#'s or another language's loop header.
+    /// </summary>
+    private bool IsDeconstructionBeforeIn()
+    {
+        var depth = 0;
+        for (var offset = 0; ; offset++)
+        {
+            switch (Peek(offset).Kind)
+            {
+                case SyntaxKind.OpenParenToken:
+                    depth++;
+                    break;
+                case SyntaxKind.CloseParenToken:
+                    depth--;
+                    if (depth == 0)
+                    {
+                        return Peek(offset + 1).Kind == SyntaxKind.InKeyword;
+                    }
+                    break;
+                case SyntaxKind.InKeyword or SyntaxKind.SemicolonToken or SyntaxKind.OpenBraceToken or SyntaxKind.EndOfFileToken:
+                    return false;
+            }
+        }
+    }
+
+    /// <summary><c>(min, max)</c> after <c>let</c>, <c>var</c> or <c>for</c>: plain names or <c>_</c> (ADR-0021).</summary>
+    private DeconstructionSyntax ParseDeconstruction()
+    {
+        var open = NextToken();
+        _bracketDepth++;
+        var names = ParseSeparatedList(SyntaxKind.CloseParenToken, _ => ParseDeconstructionName());
+        var close = Expect(SyntaxKind.CloseParenToken);
+        _bracketDepth--;
+        var deconstruction = new DeconstructionSyntax(open, names, close);
+        if (names.Count < 2)
+        {
+            Report(DiagnosticDescriptors.TupleElementCount, deconstruction.Span);
+        }
+        return deconstruction;
+    }
+
+    /// <summary>A name in a deconstruction. Types and nested tuples are reported and skipped.</summary>
+    private IdentifierNameSyntax ParseDeconstructionName()
+    {
+        if (Current.Kind == SyntaxKind.OpenParenToken)
+        {
+            Report(DiagnosticDescriptors.DeconstructionElement, Current.Span, "take the inner tuple apart with a second 'let'");
+            SkipBalanced();
+            return new IdentifierNameSyntax(Missing(SyntaxKind.IdentifierToken));
+        }
+        var name = new IdentifierNameSyntax(ExpectIdentifier());
+        if (Current.Kind == SyntaxKind.ColonToken)
+        {
+            Report(DiagnosticDescriptors.DeconstructionElement, Current.Span, "the types come from the value");
+            SkipCurrentToken();
+            SkipNode(ParseType());
+        }
+        return name;
+    }
+
+    /// <summary><c>break</c> or <c>continue</c>; a label after it is reported (ADR-0021).</summary>
+    private JumpStatementSyntax ParseJumpStatement(SyntaxKind kind)
+    {
+        var keyword = NextToken();
+        if (Current.Kind == SyntaxKind.IdentifierToken && !AtStatementEnd)
+        {
+            Report(DiagnosticDescriptors.LoopLabel, Current.Span);
+            SkipCurrentToken();
+        }
+        return new JumpStatementSyntax(kind, keyword);
+    }
+
+    /// <summary><c>outer: for ...</c>: Nyxel has no loop labels (ADR-0021). Reports the label and reads the loop.</summary>
+    private StatementSyntax ParseLabeledLoop()
+    {
+        Report(DiagnosticDescriptors.LoopLabel, TextSpan.FromBounds(Current.Span.Start, Peek(1).Span.End));
+        SkipCurrentToken();
+        SkipCurrentToken();
+        return Current.Kind == SyntaxKind.ForKeyword ? ParseForStatement() : ParseWhileStatement();
     }
 
     private ReturnStatementSyntax ParseReturnStatement()
@@ -144,12 +248,8 @@ internal sealed partial class Parser
         var expression = ParseExpressionCore();
         if (TryEatAssignmentOperator() is { } operatorToken)
         {
-            // A line may end after '=' (ADR-0013). Whether '+=' and the like may end a line is not decided; until
-            // then they follow the literal rule and may not.
-            if (operatorToken.Kind == SyntaxKind.EqualsToken)
-            {
-                AllowLineBreak();
-            }
+            // A line may end after any assignment operator (ADR-0013, ADR-0020).
+            AllowLineBreak();
             var value = ParseExpressionCore();
             if (SyntaxFacts.IsAssignmentOperator(Current.Kind) && !AtLineBreak)
             {
