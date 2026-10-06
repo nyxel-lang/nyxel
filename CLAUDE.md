@@ -44,15 +44,19 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
 - CLI 冒烟：`"/c/Program Files/dotnet/dotnet.exe" build/dotnet/bin/Nyxel.Cli/debug/nyxel.dll --version`；检查语法：同一个 dll 加 `parse [--tree] samples/*/*.nyxel`。
 - 语法树快照（tests/Nyxel.Compiler.Tests/Syntax/Snapshots）：树的形状有意改变后，`NYXEL_UPDATE_SNAPSHOTS=1` 跑一次测试重新生成，看 diff 再提交。
 - 提交（参照 EnginePlayground）：开发都在 `dev` 分支上。每轮改动结束就在 dev 上提交一次（`git add -A` + commit，标题 `wip: <这轮做了什么>`，不要求能编过），方便用户逐次看 diff；提交前看一眼 `git status`。main 只在用户说"整理合并"时动：
-  1. 先按"收工前"清单更新文档、`tools\build.cmd --test` 全绿。
-  2. `git fetch origin`；origin/main 有本地没有的提交（比如在网页上改过）就先 `git switch main && git merge --ff-only origin/main`。main 若有新提交，dev 先 `git rebase main`。
-  3. 给 dev 的旧 tip 打本地标签留住 wip 提交：`git tag -a wip/<日期> -m "<压进了 main 的哪几条>"`，同一天第二次起加 `-2`、`-3`。
-  4. 在 dev 上 `git reset --soft main`，按仓库格式重新提交（`<area>: <summary>` + 正文 + 测试结果 + Co-Authored-By 行；消息用 Write 工具写到 build/COMMIT_MSG.txt 再 `git commit -F`，别走 Bash heredoc）。一次迭代含几个独立主题时改用 `git reset main`，按文件分组 add、分几条提交；几个主题改的是同一批文件时，可以按某个 wip 提交的状态切开：`git commit-tree <wip>^{tree} -p main -F 消息` 逐条接上，最后 `git reset --hard` 到最后一条（树和 dev 原来的 tip 相同）。切开的每个状态先在 `git worktree` 里跑一遍 `tools\build.cmd --test`。
-  5. `git switch main && git merge --ff-only dev && git switch dev`，main 保持线性。
-  6. `git push origin main`，推完 CI 会在 GitHub Actions 上跑。
-  7. 回复里给出整理前 dev 的旧 tip hash 和 wip 标签名。
+  1. 先按"收工前"清单更新文档、`tools\build.cmd --test` 全绿，在 dev 上提交（整理时改的东西也要先进 dev，main 只从 dev 搬内容）。
+  2. `git fetch origin`；origin/main 有本地没有的提交（比如在网页上改过）就先 `git switch main && git merge --ff-only origin/main`，再在 dev 上 `git merge main`。
+  3. 把 dev 的内容搬到 main 上，按仓库格式提交：`git switch main && git restore --source=dev --staged --worktree :/`（dev 删掉的文件也会删），然后 `git commit -F build/COMMIT_MSG.txt`（`<area>: <summary>` + 正文 + 测试结果 + Co-Authored-By 行；消息用 Write 工具写，别走 Bash heredoc）。
+     - 一次迭代含几个独立主题时，restore 之后先 `git reset`，按文件分组 add、分几条提交。
+     - 几个主题改的是同一批文件时，按某个 wip 提交的状态切开：先 `--source=<那个 wip>` 提交一条，再 `--source=dev` 提交下一条。切开的每个状态先在 `git worktree` 里跑一遍 `tools\build.cmd --test`。
+     - 提交完 `git diff dev main` 必须为空。
+  4. `git switch dev && git merge -s ours -m "Merge main <新提交> into dev" main`：两边内容相同，这个合并只是在 dev 上记下这批 wip 压进了 main 的哪几条。
+  5. `git push origin main`，推完 CI 会在 GitHub Actions 上跑。
+  6. 回复里给出 main 的新提交。
 
-  远端：`origin` = https://github.com/nyxel-lang/nyxel（公开仓库），只推 `main`，dev 和 `wip/*` 标签都不推（`git push origin main` 默认不带标签，别加 `--tags`）。已推送的历史不重写、不 force push（main 上有 ruleset 禁止 force push 和删除）。不用 `rebase -i`（工具不支持交互）。main 的根提交是一个空提交，方便第一次 `reset --soft main`。
+  dev 的历史不重写：所有 wip 提交一直留在 dev 上，`git log --first-parent dev` 按顺序看，中间的 `Merge main ... into dev` 是每次整理合并的分界。main 每条提交都在 dev 的历史里，所以 dev 可以直接 `git merge main`，不用 rebase。
+
+  远端：`origin` = https://github.com/nyxel-lang/nyxel（公开仓库），只推 `main`，dev 不推。已推送的历史不重写、不 force push（main 上有 ruleset 禁止 force push 和删除）。不用 `rebase -i`（工具不支持交互）。
 
 ## 工具坑
 
