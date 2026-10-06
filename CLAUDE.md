@@ -41,7 +41,8 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
 - 一键：`cmd //c 'tools\build.cmd --test'`（Git Bash 里这样调）。`--release` 走 Release，`--pack` 输出 NuGet 包到 build/packages。
 - dotnet 一律用 `"/c/Program Files/dotnet/dotnet.exe"` 全路径：PATH 上的 dotnet 可能是没有 SDK 的纯运行时。
 - VSCode 扩展试用：`cmd //c 'tools\vscode-dev.cmd'`，开一个加载了 tools/vscode-nyxel 的新窗口并打开 samples/（会在用户屏幕上弹窗）。
-- CLI 冒烟：`"/c/Program Files/dotnet/dotnet.exe" build/dotnet/bin/Nyxel.Cli/debug/nyxel.dll --version`。
+- CLI 冒烟：`"/c/Program Files/dotnet/dotnet.exe" build/dotnet/bin/Nyxel.Cli/debug/nyxel.dll --version`；检查语法：同一个 dll 加 `parse [--tree] samples/*/*.nyxel`。
+- 语法树快照（tests/Nyxel.Compiler.Tests/Syntax/Snapshots）：树的形状有意改变后，`NYXEL_UPDATE_SNAPSHOTS=1` 跑一次测试重新生成，看 diff 再提交。
 - 提交（参照 EnginePlayground）：开发都在 `dev` 分支上。每轮改动结束就在 dev 上提交一次（`git add -A` + commit，标题 `wip: <这轮做了什么>`，不要求能编过），方便用户逐次看 diff；提交前看一眼 `git status`。main 只在用户说"整理合并"时动：
   1. 先按"收工前"清单更新文档、`tools\build.cmd --test` 全绿。
   2. `git fetch origin`；origin/main 有本地没有的提交（比如在网页上改过）就先 `git switch main && git merge --ff-only origin/main`。main 若有新提交，dev 先 `git rebase main`。
@@ -59,7 +60,7 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
 - Bash 工具每次调用后工作目录会被重置回仓库根，`cd` 不跨调用保留。
 - 本机 dotnet 和 Roslyn 的输出是中文（跟随 UI 语言）：`dotnet test` 的结果行是“已通过! - 失败: 0，通过: N”，grep 用“通过 / 失败”。代码里包装 Roslyn 诊断消息用 `GetMessage(CultureInfo.InvariantCulture)`。
 - 生成 C# 时的 `#line` 规则（结束列包含、列偏移、绝对路径、嵌入源码用原始字节）见 docs/design/debug-mapping.md，不照做列号会错。
-- 文本里出现“反斜杠 + u + 四位十六进制”这种 Unicode 转义时，生成内容时就会被解码成字符本身。文档里描述这类转义用文字，写完回读确认。
+- 文本里出现“反斜杠 + u + 四位十六进制”这种 Unicode 转义时，生成内容时就会被解码成字符本身。文档里描述这类转义用文字，写完回读确认。C# 代码里要这类字符时写成 `(char)0xFEFF`，不写字符字面量的转义（Write 工具写 Lexer 时真的把 BOM 写进了源码）。
 
 ## 环境
 

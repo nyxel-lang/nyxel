@@ -13,6 +13,8 @@
 
 - [language-reference.md](design/language-reference.md) 语言参考（草稿）：已定的语法和语义，随讨论补全
 - [architecture-overview.md](design/architecture-overview.md) 编译流水线、各组件职责与依赖方向
+- [syntax-tree.md](design/syntax-tree.md) Lexer、Parser 和语法树：无损的树、trivia 归属、行规则怎么实现、优先级和泛型歧义、错误恢复、测试与快照
+- [diagnostics.md](design/diagnostics.md) 诊断的格式和全部错误码（`NYX` 加四位数字）
 - [debug-mapping.md](design/debug-mapping.md) 生成的 C# 怎么用 `#line` 把断点、堆栈、诊断映射回 .nyxel：指令形式、生成规则、实测行为
 - [coding-conventions.md](design/coding-conventions.md) 编码规范、文档与提交流程
 
@@ -38,5 +40,6 @@
 | [0016](decisions/0016-async-await-launch.md) | 协程：`async func` + `await`（能等任何 .NET 可等待对象，恢复在主线程）；调用必须写 `await` 或 `launch`；`launch obj.M()` 绑定 `obj`，销毁后自动停止（`finally` 照常执行，`catch` 接不住）；热重载停止所有协程 |
 | [0017](decisions/0017-events-and-state-machines.md) | 事件 `event Died(slime: Slime)` + `emit`；`+=` / `-=` 订阅，绑定“执行谁的代码”，销毁或热重载时自动移除；方法可当函数值；状态机不加语法（enum + match + 协程） |
 | [0018](decisions/0018-npm-scope.md) | npm scope 用 `@nyxel-lang`（`@nyxel` 被别人注册了），取代 ADR-0001 的这一项 |
+| [0019](decisions/0019-syntax-details-for-parser.md) | 运算符一律放行首（括号里也一样）；修饰符顺序固定；区间优先级比算术低、比比较高；错误码 `NYX` 加四位数字 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

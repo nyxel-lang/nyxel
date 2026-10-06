@@ -17,7 +17,9 @@
 普通 .NET 程序集（引用 Nyxel.Runtime），可被宿主加载、被 C# 引用
 ```
 
-诊断从前端报出：错误码稳定、用 Nyxel 术语、位置指向 .nyxel。`--emit-cs` 输出降级后的 C#，用于查看和快照测试。
+诊断从前端报出：错误码稳定、用 Nyxel 术语、位置指向 .nyxel（格式和错误码见 diagnostics.md）。`--emit-cs` 输出降级后的 C#，用于查看和快照测试。
+
+各阶段的设计：语法见 syntax-tree.md；调试映射见 debug-mapping.md；语义分析和降级在 M2 写。
 
 ## 组件
 
