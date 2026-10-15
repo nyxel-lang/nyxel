@@ -1,6 +1,6 @@
 # ADR-0015: out / ref 参数、using、protected
 
-- 状态：已接受
+- 状态：已接受（2026-10-08 修订）
 - 日期：2026-10-02
 
 ## 背景
@@ -47,7 +47,7 @@
    ```
    - 只能用于实现了 `IDisposable` 的类型。值在所在块结束时释放，多个按声明的相反顺序；`return`、`break`、异常离开时也一样。值为 `null` 时跳过。
    - `using` 自己引入名字，不写 `let`，和 `for x in`、`catch e: T`、`case Burn(amount)` 一样。名字不能重新赋值（资源不应该中途换成别的）。需要时可以写类型：`using stream: FileStream = ...`。`out let x` 保留 `let`，是因为 `out` 后面也可以写已有的变量，要区分；`using` 没有“用已有变量”的写法。
-   - `using` 在 Nyxel 里只有这一种用法：导入是 `import`，没有块形式的 `using (...) { }`，也没有 `defer`。要更早释放就拆成函数；和 `IDisposable` 无关的清理用 `try` / `finally`（ADR-0014）。
+   - `using` 在 Nyxel 里只有这一种用法：导入是 `import`，没有块形式的 `using (...) { }`，也没有 `defer`。要更早释放，就把用到资源的语句放进 `eval` 块（块结束时释放，ADR-0025）或拆成函数；和 `IDisposable` 无关的清理用 `try` / `finally`（ADR-0014）。
    - 翻译：C# 的 `using var x = ...;`。
 4. **可见性加 `protected`**（只有子类能访问），含义同 C#。
    - 重写时可见性必须和基类一致（C# 的规则）：基类是 `protected virtual` 就写 `protected override`。写错时诊断给出应写的修饰。
@@ -66,3 +66,7 @@
 - `TryXxx` 加 `if not ... { return }` 的写法和 `?? return` 一样，都能让后面的代码拿到非空的值。编译器要实现 .NET 可空标注里和 `out` 有关的那几种。
 - C# 习惯的 `using var x = ...`、`using (...) { }`、文件开头的 `using System` 都会得到编译错误和对应的写法（去掉 `var`、`using x = ...`、`import System`）。
 - 待定：异步资源，写法会是 `await using conn = ...`。
+
+## 修订记录
+
+- 2026-10-08：要更早释放资源时也可以用 `eval` 块（决策 3），见 ADR-0025。

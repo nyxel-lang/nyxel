@@ -73,7 +73,7 @@
 
 ## 后果
 
-- 取代（这些 ADR 已合进 main，不改原文）：ADR-0009 决策 5、7 的 `else` 默认分支；ADR-0014 决策 4 的“`catch` 名字必须写”（名字仍必须写，但可以是 `_`）；ADR-0019 决策 2 修饰符顺序里成员上的 `private`；ADR-0011 决策 3 访问器只有块体。ADR-0025 决策 3 的 `match` 例外和决策 4 的分支内容直接改原文。
+- 改了以下已合进 main 的内容（原文都已改成最新，见各自的修订记录）：ADR-0009 决策 5、7 和 ADR-0024 决策 3、8 的 `else` 默认分支；ADR-0014 决策 4 的“`catch` 名字必须写”（名字仍必须写，但可以是 `_`）；ADR-0019 决策 2 修饰符顺序里成员上的 `private`；ADR-0011 决策 2 访问器只有块体。ADR-0025 决策 3 的 `match` 例外和决策 4 的分支内容直接改原文。
 - 语法树：`_` 是 `UnderscoreToken`；`case _` 是 `DiscardPatternSyntax`；`out _` 是 `DiscardExpressionSyntax`；解构、case 数据、`catch` 的名字位置上 `_` 就放在名字记号的位置；`AccessorDeclarationSyntax` 增加 `ExpressionBody`。
 - 新错误码 NYX1193–1197；NYX1123 的消息改成按用法说明。见 design/diagnostics.md。
 - 待定：`for _ in 区间`；`_` 当 lambda 参数（`func(_) = 0`）。

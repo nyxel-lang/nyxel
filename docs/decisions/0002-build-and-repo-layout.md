@@ -17,7 +17,7 @@
 - **测试**用 xUnit 2.9.3（和 EnginePlayground 同版本，本机已缓存）。
 - **一键构建**：`tools\build.cmd [--release] [--test] [--pack]`。CI（GitHub Actions）在 ubuntu 和 windows 上跑 restore → format 检查 → build → test → pack。
 - **.nyxelproj** 走 MSBuild 项目 SDK：`<Project Sdk="Nyxel.Sdk">`，Nyxel.Sdk 包只含 `Sdk/Sdk.props` 和 `Sdk/Sdk.targets`，在 .NET SDK 之上加 Nyxel 编译目标（和 F# 的 .fsproj 同一思路）。
-- **开发流程**与 EnginePlayground 一致：dev 分支每轮一个 wip 提交，用户说"整理合并"时整理进 master（CLAUDE.md "提交"）。
+- **开发流程**与 EnginePlayground 一致：dev 分支每轮一个 wip 提交，用户说"整理合并"时整理进 main（AGENTS.md "提交"）。
 
 ## 备选方案
 

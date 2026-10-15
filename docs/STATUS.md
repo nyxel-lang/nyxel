@@ -1,19 +1,20 @@
 # 当前状态
 
 > 每次收工**覆盖**本文件，保持一屏以内。历史在 [progress/](progress/)，计划在 [roadmap.md](roadmap.md)。
-> 最后更新：2026-10-15
+> 最后更新：2026-10-16
 
 ## 在哪
 
 - 里程碑：**M1 语言基础设计 + 语法分析**。语法分析已完成，剩下高亮的分词快照测试，以及各节“待定”的逐轮讨论。日志在 [progress/M1.md](progress/M1.md)。开发在 `dev` 分支上做，每轮提交一次 wip；用户说"整理合并"时再整理进 main 并推到 GitHub（AGENTS.md "提交"）。
 - GitHub：https://github.com/nyxel-lang/nyxel，2026-10-05 起公开，只推 `main`。名字占位全部完成（brand.md）。
-- 语言设计：ADR-0004 到 0027，汇总在 design/language-reference.md。还没合进 main 的三个：
+- 语言设计：ADR-0004 到 0027，汇总在 design/language-reference.md。最近一批（2026-10-15 合进 main）：
   - ADR-0025（用户提议）：`eval { ... give 值 }`；`if` / `try` 当值用时分支写 `->`，当语句用时写 `{ }`。
   - ADR-0026（整体 review）：`case _` 默认分支；`_` 是保留记号；成员上不写 `private`；`get = 表达式`。
   - ADR-0027（第 5 轮第一批“创建对象”）：创建时设置成员 `new T(...) with (X = 1)`（也用来设 C# 的 `init` 访问器和 `required`）；Nyxel 暂不声明只能在创建时设置的成员；调用其他 init 写 `init super(...)` / `init super.名字(...)` / `init self(...)` / `init self.名字(...)`（用户提议，取代 ADR-0013 的 `super.init(...)`）。
+- 文档流程（2026-10-16 合进 main）：ADR-0028，ADR 保持最新。被推翻的决定直接改写原文（所有写过它的 ADR，例子也改），原来的做法挪进备选方案，文末“修订记录”记日期和讨论在哪；历史看 git（规则在 AGENTS.md）。已有的都改成了最新（12 个改写了决定，另外几个只改引用和说法）。项目说明 2026-10-15 改名 AGENTS.md，CLAUDE.md 只剩一行导入。
 - 错误码：`NYX1xxx` / `NYX2xxx` 段内按添加顺序编号，下一个是 NYX1201（design/diagnostics.md）。
 - 语法分析：Lexer、Parser、无损语法树、带 `NYX` 错误码的诊断（design/syntax-tree.md、design/diagnostics.md）。`nyxel parse [--tree] <文件>` 检查语法、打印语法树。samples/ 有 11 个样例。
-- 最近一次全绿：2026-10-15，`tools\build.cmd --test`，8 + 582 个测试；`dotnet format --verify-no-changes` 通过。
+- 最近一次全绿：2026-10-16，`tools\build.cmd --test`，8 + 582 个测试；`dotnet format --verify-no-changes` 通过。
 
 ## 下一步
 

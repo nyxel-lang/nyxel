@@ -1,6 +1,6 @@
 # ADR-0010: 循环、区间、运算符与其余模式
 
-- 状态：已接受
+- 状态：已接受（2026-10-06 修订）
 - 日期：2026-10-02
 
 ## 背景
@@ -25,7 +25,7 @@
    - 比较：`case < 10`（`<` `<=` `>` `>=`）。
    - 区间：`case 10..<50`、`case 1...3`。
    - 组合：`case 1 or 2`、`case > 0 and < 10`、`case not null`，和逻辑运算符是同一套单词。
-   - 附加条件：`case Burn(seconds) when seconds > 3`，`when` 的含义同 C#。
+   - 附加条件：`case Burn(_, seconds) when seconds > 3`，`when` 的含义同 C#。
 7. **类型检查与收窄**：
    - `x is Enemy` 得到 bool，同 C#；`x is not Enemy` 是它的否定。
    - 被检查的如果是局部变量或参数，它会被收窄（和 ADR-0009 的空值收窄是同一条规则）：`if other is Enemy { ... }` 的块里、`if other is not Enemy { return }` 之后、`match other { case is Enemy -> ... }` 的分支里，`other` 当作 `Enemy`。
@@ -44,3 +44,7 @@
 - 写 C# 习惯的 Agent 会写出 `&&`、`!`、`i++`、`foreach`、`0..10`、`is Enemy e`，都会得到编译错误和明确的修改提示。
 - 类型收窄和空值收窄共用一套流分析。
 - 待定：赋值是语句还是表达式（C# 里 `a = b = c` 合法）；带标签的 `break`；区间作为值和切片（`list[0..<3]`）；步长和倒序；遍历时同时拿到下标；`x is 某个 enum case`。
+
+## 修订记录
+
+- 2026-10-06：决策 6 例子里的 case 数据改为按位置取出，见 ADR-0024。

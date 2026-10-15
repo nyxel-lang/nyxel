@@ -9,7 +9,7 @@ ADR-0001 定的 npm scope 是 `@nyxel`。npm 的 scope 就是用户名或组织�
 
 ## 决策
 
-npm scope 改用 `@nyxel-lang`，用户已在 2026-10-05 注册了 npm 用户 `nyxel-lang`。本 ADR 取代 ADR-0001 里“npm scope `@nyxel`”这一项，ADR-0001 的其他内容不变。
+npm scope 改用 `@nyxel-lang`，用户已在 2026-10-05 注册了 npm 用户 `nyxel-lang`。本 ADR 改了 ADR-0001 里“npm scope `@nyxel`”这一项（ADR-0001 已改成最新，见它的修订记录），ADR-0001 的其他内容不变。
 
 ## 备选方案
 

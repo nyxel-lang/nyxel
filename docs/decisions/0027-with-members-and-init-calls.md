@@ -87,7 +87,7 @@
 
 ## 后果
 
-- 取代 ADR-0013 决策 2 的 `super.init(...)` / `self.init(...)` 写法（规则不变）。ADR-0013 已合进 main，不改原文。ADR-0022 留下的“对象初始化器”待定由决策 1 解决。
+- 改了 ADR-0013 决策 2 的写法（`super.init(...)` / `self.init(...)`，规则不变）和 ADR-0008 决策 3 里命名 init 的翻译（构造函数对子类可见）；原文都已改成最新，见各自的修订记录。ADR-0022 留下的“对象初始化器”待定由决策 1 解决。
 - 语法树：`ObjectCreationExpressionSyntax.WithClause`（`WithClauseSyntax`，元素复用 `ArgumentSyntax`）；`InitStatementSyntax`（`init`、`self` / `super`、可选的 `.名字`、实参列表）。`init` 不再能当成员名。
 - 新错误码 NYX1198（`with` 不在 `new` 后面）、NYX1199（`with` 里的一项没写名字）、NYX1200（`super.init(...)` / `self.init(...)`）；NYX1167 的消息按内容给出 `with` 或集合字面量。
 - 留给语义分析（M2）：`init super` / `init self` 只能是 `init` 的第一句、`with` 里的成员能不能设、`required` 是否齐全、命名 init 不继承。

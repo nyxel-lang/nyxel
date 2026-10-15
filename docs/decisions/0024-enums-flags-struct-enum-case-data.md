@@ -1,6 +1,6 @@
 # ADR-0024: 枚举的值和 flags、`x is` 某个 case、`struct enum`、case 的数据同元组
 
-- 状态：已接受
+- 状态：已接受（2026-10-09 修订）
 - 日期：2026-10-06
 
 ## 背景
@@ -53,7 +53,7 @@
    - `flags` 只在紧挨着 `enum` 时是关键字，别处照样能当名字（`let flags = ...`）。
    - Nyxel 的 enum 只有 flags enum 能用 `|`、`&`、`^`、`~`。对普通 enum 用是编译错误，因为结果不是任何一个 case。
    - C# 定义的枚举照 C#，都能位运算。有的引擎忘了标 `[Flags]`。
-   - `match` 一个 flags enum（包括 C# 带 `[Flags]` 的）必须写 `else`：组合出来的值列不全。
+   - `match` 一个 flags enum（包括 C# 带 `[Flags]` 的）必须写 `case _`（ADR-0026）：组合出来的值列不全。
    - C# 那边是 `[Flags] enum`。检查包含用 .NET 的 `HasFlag`。
    - 带数据的 enum 不能是 flags。C# 的 `[Flags]` 写法是编译错误，诊断给出 `flags enum`。
 4. **没有值为 0 的 case 时，数组不能直接创建**。这是 ADR-0023 的规则用在自定义值上：
@@ -108,7 +108,7 @@
    }
    match hit {
        case Burn(_, seconds) when seconds > 3 -> ...
-       else -> {}
+       case _ -> {}
    }
    ```
    - 声明同元组类型：每一项都有名字，用 PascalCase。C# 那边是同名的属性（`hit.Amount`），构造函数的参数是 camelCase。
@@ -152,7 +152,7 @@
 
 ## 后果
 
-- 取代 ADR-0009 的决策 6（按字段名取出 case 的数据、不支持改名）。ADR-0009 已经合进 main，不改原文。
+- 改了已合进 main 的 ADR-0009 决策 6（按字段名取出 case 的数据、不支持改名），以及 ADR-0008 决策 2、4 和 ADR-0010 决策 6 例子里 case 数据的写法；这些原文都已改成最新，见各自的修订记录。
 - 按位置取的代价：
   - 只要后面的数据项时，前面要写 `_`。
   - 给 case 加数据项后，取它数据的 match 都要补一个位置。编译器会逐个报出来，不会悄悄出错。
@@ -164,7 +164,7 @@
     - C# 写法 `[Flags]`、`x is Damage.Burn(a, s)` 的诊断。
   - 语义分析（M2）：
     - case 的值是整数常量，在底层类型的范围内。
-    - 位运算只用于 flags enum；match 一个 flags enum 要有 `else`。
+    - 位运算只用于 flags enum；match 一个 flags enum 要有 `case _`。
     - `is` 后面的名字是类型还是 case。
     - 取 case 数据时名字的个数，顺序相反的警告。
     - 数组元素全零是否合法，加上本 ADR 的两条：没有值为 0 的 case、`struct enum` 的第一个 case。
@@ -175,3 +175,7 @@
     - C# 那边怎么取 `struct enum` 的数据，到时再定。
 - 待定：带数据的 enum 实现接口（`enum Damage : IDescribable`）；在 enum 里写方法（现在用扩展）。
 - 错误码见 design/diagnostics.md。
+
+## 修订记录
+
+- 2026-10-09：默认分支由 `else` 改为 `case _`：flags enum 的 `match` 要有 `case _`（决策 3），决策 8 的例子同样改了，见 ADR-0026。

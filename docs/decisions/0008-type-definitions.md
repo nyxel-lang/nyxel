@@ -1,6 +1,6 @@
 # ADR-0008: 类型定义：class / struct / enum、命名构造、new、self
 
-- 状态：已接受
+- 状态：已接受（2026-10-15 修订）
 - 日期：2026-10-02
 
 ## 背景
@@ -10,15 +10,15 @@
 ## 决策
 
 1. **class、struct、interface 与 C# 相同**：class 是引用类型，struct 是值类型。继承和实现接口写 `class Slime : Behaviour, IDamageable`。`virtual` / `override` / `abstract` / `sealed` 的用词和含义同 C#。接口名按 .NET 惯例以 `I` 开头。类型默认只在本程序集可见，给其他程序集用写 `public`。
-2. **枚举统一用 `enum`，每种情况一行，以 `case` 开头**。case 可以带数据，数据的每一项必须有名字：
+2. **枚举统一用 `enum`，每种情况一行，以 `case` 开头**。case 可以带数据，数据的每一项必须有名字，同元组用 PascalCase（ADR-0024）：
    ```nyxel
    enum Element {
        case Fire
        case Ice
    }
    enum Damage {
-       case Physical(amount: int)
-       case Burn(amount: int, seconds: float)
+       case Physical(Amount: int)
+       case Burn(Amount: int, Seconds: float)
    }
    ```
    所有 case 都不带数据时翻译成 C# 的普通枚举；只要有一个 case 带数据，就翻译成抽象基类 + 每个 case 一个密封子类。带数据的 case 的值是堆上的对象。
@@ -27,8 +27,8 @@
    - **确定初始化检查**：没有默认值的字段，在每个 `init` 结束前都必须赋过值，否则编译错误。`let` 字段只能在声明处或 `init` 里赋值。
    - `init` 不写 `public` 就是私有的（同 C#，与 ADR-0006 一致）。
    - `init` 里的 `self` 是正在构造的对象，不写在参数列表里。
-   - 翻译：不带名字的 `init` 是 C# 构造函数；带名字的 `init` 是一个私有构造函数（带一个隐藏参数，避免和别的构造函数签名冲突），加一个同名的公开静态方法。所以 C# 那边看到的是 `Point.FromPolar(1, 0.5)`。
-4. **创建值一律写 `new`**：`new Slime(maxHp = 30)`、`new Point.FromPolar(radius = 1, angle = 0.5)`、`new Damage.Burn(amount = 12, seconds = 3)`（命名实参的写法见 ADR-0011）、`new List<Enemy>()`。不带数据的 case 是常量，不写 `new`：`Element.Fire`。不带 `new` 的 `名字(...)` 一定是函数调用。
+   - 翻译：不带名字的 `init` 是 C# 构造函数；带名字的 `init` 是一个子类也能调用的构造函数（protected，带一个隐藏参数，避免和别的构造函数签名冲突），加一个同名的公开静态方法。所以 C# 那边看到的是 `Point.FromPolar(1, 0.5)`。
+4. **创建值一律写 `new`**：`new Slime(maxHp = 30)`、`new Point.FromPolar(radius = 1, angle = 0.5)`、`new Damage.Burn(Amount = 12, Seconds = 3)`（命名实参的写法见 ADR-0011）、`new List<Enemy>()`。不带数据的 case 是常量，不写 `new`：`Element.Fire`。不带 `new` 的 `名字(...)` 一定是函数调用。
 5. **成员一律通过接收者访问**：实例成员写 `self.hp`、`self.Die()`；静态成员写 `Slime.AliveCount`、`Slime.Count()`。不带接收者的名字只能是局部变量或参数。私有字段不加前缀。直接写字段名是编译错误，诊断给出 `self.` 或 `类型名.` 的写法。
 6. **实例方法和静态函数靠参数列表区分**：
    - 第一个参数是 `self`（不写类型）的是实例方法，没有 `self` 的是静态函数，不需要 `static` 关键字。
@@ -64,3 +64,8 @@
 - 写在类型外面、参数是 `self: 类型` 的函数天然可以表达扩展方法（对应 C# 的 `this` 参数）。后来扩展定为 `extension` 块（ADR-0014），没有采用这种写法。
 - 后来定了：调用基类 `init`、没有 `init` 时的默认 `init`（ADR-0013）；属性（ADR-0011）；访问 case 数据（ADR-0009）。
 - 待定：简单枚举的底层值和 flags；带数据枚举的值类型版本（避免分配）。
+
+## 修订记录
+
+- 2026-10-06：case 数据的名字改用 PascalCase（决策 2、4 的例子），见 ADR-0024。
+- 2026-10-15：命名 init 背后的构造函数改为对子类可见，子类才能用 `init super.名字(...)` 调用它（决策 3），见 ADR-0027。
