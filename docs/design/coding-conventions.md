@@ -24,4 +24,4 @@
 
 ## 提交信息
 
-`<area>: <summary>`，祈使语气，如 `compiler: parse match expressions`。正文写改了什么、为什么、怎么验证的，末尾 Co-Authored-By 行。area 用项目或目录名的简写：`compiler`、`runtime`、`host`、`sdk`、`cli`、`vscode`、`docs`、`build`。
+`<area>: <summary>`，祈使语气，如 `compiler: parse match expressions`。正文写改了什么、为什么、怎么验证的。不加 Co-Authored-By 行。area 用项目或目录名的简写：`compiler`、`runtime`、`host`、`sdk`、`cli`、`vscode`、`docs`、`build`。

@@ -46,7 +46,7 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
 - 提交（参照 EnginePlayground）：开发都在 `dev` 分支上。每轮改动结束就在 dev 上提交一次（`git add -A` + commit，标题 `wip: <这轮做了什么>`，不要求能编过），方便用户逐次看 diff；提交前看一眼 `git status`。main 只在用户说"整理合并"时动：
   1. 先按"收工前"清单更新文档、`tools\build.cmd --test` 全绿，在 dev 上提交（整理时改的东西也要先进 dev，main 只从 dev 搬内容）。
   2. `git fetch origin`；origin/main 有本地没有的提交（比如在网页上改过）就先 `git switch main && git merge --ff-only origin/main`，再在 dev 上 `git merge main`。
-  3. 把 dev 的内容搬到 main 上，按仓库格式提交：`git switch main && git restore --source=dev --staged --worktree :/`（dev 删掉的文件也会删），然后 `git commit -F build/COMMIT_MSG.txt`（`<area>: <summary>` + 正文 + 测试结果 + Co-Authored-By 行；消息用 Write 工具写，别走 Bash heredoc）。
+  3. 把 dev 的内容搬到 main 上，按仓库格式提交：`git switch main && git restore --source=dev --staged --worktree :/`（dev 删掉的文件也会删），然后 `git commit -F build/COMMIT_MSG.txt`（`<area>: <summary>` + 正文 + 测试结果，不加 Co-Authored-By 行；消息用 Write 工具写，别走 Bash heredoc）。
      - 一次迭代含几个独立主题时，restore 之后先 `git reset`，按文件分组 add、分几条提交。
      - 几个主题改的是同一批文件时，按某个 wip 提交的状态切开：先 `--source=<那个 wip>` 提交一条，再 `--source=dev` 提交下一条。切开的每个状态先在 `git worktree` 里跑一遍 `tools\build.cmd --test`。
      - 提交完 `git diff dev main` 必须为空。
