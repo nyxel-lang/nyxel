@@ -10,7 +10,7 @@ M3 以后是草案，随 M1 的语法讨论细化。
 - [x] 五个产品项目（Compiler / Runtime / Host / Sdk / Cli）可编译，`nyxel --version`
 - [x] tools/build.cmd 一键构建 + 测试 + 打包；GitHub Actions CI（ubuntu + windows，含 format 检查）
 - [x] LICENSE / NOTICE（Apache-2.0）、README（含发音）、CONTRIBUTING、CHANGELOG、Issue / PR 模板
-- [x] 文档体系：CLAUDE.md、STATUS / roadmap / progress / decisions / design；ADR-0001 到 ADR-0003
+- [x] 文档体系：CLAUDE.md（2026-10-15 起内容在 AGENTS.md）、STATUS / roadmap / progress / decisions / design；ADR-0001 到 ADR-0003
 - [x] tools/vscode-nyxel：.nyxel 文件关联（声明式扩展，语法高亮等语法定了再填）
 - [x] git：master + dev 分支（2026-10-05 master 改名 main，推到 GitHub nyxel-lang/nyxel）
 

@@ -5,7 +5,7 @@
 
 ## 在哪
 
-- 里程碑：**M1 语言基础设计 + 语法分析**。语法分析已完成，剩下高亮的分词快照测试，以及各节“待定”的逐轮讨论。日志在 [progress/M1.md](progress/M1.md)。开发在 `dev` 分支上做，每轮提交一次 wip；用户说"整理合并"时再整理进 main 并推到 GitHub（CLAUDE.md "提交"）。
+- 里程碑：**M1 语言基础设计 + 语法分析**。语法分析已完成，剩下高亮的分词快照测试，以及各节“待定”的逐轮讨论。日志在 [progress/M1.md](progress/M1.md)。开发在 `dev` 分支上做，每轮提交一次 wip；用户说"整理合并"时再整理进 main 并推到 GitHub（AGENTS.md "提交"）。
 - GitHub：https://github.com/nyxel-lang/nyxel，2026-10-05 起公开，只推 `main`。名字占位全部完成（brand.md）。
 - 语言设计：ADR-0004 到 0027，汇总在 design/language-reference.md。还没合进 main 的三个：
   - ADR-0025（用户提议）：`eval { ... give 值 }`；`if` / `try` 当值用时分支写 `->`，当语句用时写 `{ }`。
