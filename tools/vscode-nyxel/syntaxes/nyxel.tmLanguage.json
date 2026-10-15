@@ -108,14 +108,15 @@
             "2": { "name": "storage.type.accessor.nyxel" }
           }
         },
-        { "name": "keyword.control.nyxel", "match": "\\b(if|else|match|return|throw|continue|break|for|in|while|when|try|catch|finally|await|launch|emit)\\b" },
+        { "name": "keyword.control.nyxel", "match": "\\b(if|else|match|return|throw|continue|break|for|in|while|when|try|catch|finally|await|launch|emit|eval|give)\\b" },
         { "name": "keyword.operator.word.nyxel", "match": "\\b(and|or|not|is|as)\\b" },
         { "name": "keyword.operator.range.nyxel", "match": "\\.\\.<|\\.\\.\\." },
         { "name": "constant.language.nyxel", "match": "\\b(true|false|null)\\b" },
-        { "name": "keyword.other.new.nyxel", "match": "\\bnew\\b" },
+        { "name": "keyword.other.new.nyxel", "match": "\\b(new|with)\\b" },
         { "name": "keyword.other.namespace.nyxel", "match": "\\b(namespace|import)\\b" },
         { "name": "variable.language.self.nyxel", "match": "\\bself\\b" },
         { "name": "variable.language.super.nyxel", "match": "\\bsuper\\b" },
+        { "name": "variable.language.discard.nyxel", "match": "\\b_\\b" },
         { "name": "storage.modifier.nyxel", "match": "\\bflags(?=[ \\t]+enum\\b)" },
         { "name": "storage.type.nyxel", "match": "\\b(let|var|func|init|property|class|struct|interface|enum|case|extension|event)\\b" },
         { "name": "storage.modifier.nyxel", "match": "\\b(public|private|protected|static|virtual|override|abstract|sealed|out|ref|using|async)\\b" },

@@ -58,6 +58,25 @@ internal static class SyntaxTestHelpers
         }
     }
 
+    /// <summary>
+    /// Every child points back to its parent, and the children's full spans tile the parent's, also where error
+    /// recovery skipped tokens or inserted missing ones.
+    /// </summary>
+    public static void AssertParentsAndSpansConsistent(SyntaxNode root)
+    {
+        foreach (var node in root.DescendantNodesAndSelf().Where(n => n is not SyntaxToken))
+        {
+            var previousEnd = node.FullSpan.Start;
+            foreach (var child in node.GetChildren())
+            {
+                Assert.Same(node, child.Parent);
+                Assert.Equal(previousEnd, child.FullSpan.Start);
+                previousEnd = child.FullSpan.End;
+            }
+            Assert.Equal(node.FullSpan.End, previousEnd);
+        }
+    }
+
     /// <summary>Parses a file and asserts it has no diagnostics.</summary>
     public static SyntaxTree ParseClean(string source)
     {

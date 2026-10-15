@@ -8,8 +8,9 @@
 - 声明以关键字开头，类型写在名字后面：`hp: int`。
 - 语句以换行结束，不写分号。哪些换行不结束语句见“换行与续行”。
 - `if` / `while` 的条件不加括号，后面的块必须有花括号。
-- 花括号只跟在关键字或声明后面。语句位置不能单独写 `{ ... }`；要早点结束作用域就拆成函数（ADR-0020）。
+- 花括号只跟在关键字或声明后面，`{ }` 块本身没有值（ADR-0025）。语句位置不能单独写 `{ ... }`：在自己的作用域里算一个值用 `eval`（见“if 与 eval”），否则拆成函数（ADR-0020）。
 - **冒号后面是类型，等号后面是值**（ADR-0011）：`var hp: int = 100`、`count: int = 1`、`class Slime : Behaviour`、`Spawn(count = 3)`。例外只有插值字符串里的格式说明符 `{speed:F2}`。
+- `_` 单独出现表示“这个位置的值不要”（ADR-0026）：解构 `let (_, max) = ...`、`out _`、取 case 数据 `case Burn(_, seconds)`、默认分支 `case _`、`catch _: T`。它是保留记号，不能当名字和值；`_x`、`x_` 仍是普通名字。待定：`for _ in 0..<n`、lambda 参数写 `_`。
 
 ## 换行与续行（ADR-0013）
 
@@ -40,11 +41,16 @@ if self.IsDead {
 } else {                // else 跟在 } 后面同一行
     self.Move()
 }
+
+// 当值用的 if / try（-> 形式）：下一行以 else、catch、finally 开头时接着上一行
+let speed = if self.IsFrozen -> 0
+    else -> self.BaseSpeed
 ```
 
 - 圆括号、方括号里的换行不结束语句。
-- 下一行以 `.`、`?.` 或二元运算符（`+`、`and`、`or`、`??`、`is`、`==` 等）开头时接着上一行。
+- 下一行以 `.`、`?.`、`with`（ADR-0027）或二元运算符（`+`、`and`、`or`、`??`、`is`、`==` 等）开头时接着上一行。
 - 一行以赋值运算符（`=`、`+=`、`-=` 等）或 `->` 结尾时接着下一行（ADR-0013、ADR-0020）。
+- `->` 形式的 `if` / `try`：下一行以 `else`、`catch` 或 `finally` 开头时接着上一行（ADR-0025）。`match` 的默认分支是 `case _`，所以行首的 `else` 一定属于前面的 `if`（ADR-0026）。
 - 其余换行都结束语句。
 - 运算符一律放在行首，括号里也一样（ADR-0019）：二元运算符和 `.`、`?.` 写在行尾都是编译错误，诊断提示挪到下一行开头。
   ```nyxel
@@ -57,7 +63,7 @@ if self.IsDead {
           offset,
       target)
   ```
-- `{` 必须和前面的内容在同一行；`else` 必须跟在 `}` 后面同一行。
+- `{` 必须和前面的内容在同一行；`{ }` 形式的 `else`、`catch`、`finally` 必须跟在 `}` 后面同一行。
 - 每条语句、每个成员、每个 `case`、每个访问器各占一行；`{` 后面的第一个和 `}` 前面的最后一个可以和括号写在同一行（`get { return self.hp }`、`{ get }`）。
 
 ## 文件结构（ADR-0012）
@@ -242,8 +248,8 @@ for dir in [Dir.Up, Dir.Down] {                    // 马上被遍历：不用�
   - `for (dx, dy) in [(0, 1), (1, 0)]` 的元组马上被解构，也不用写名字。
 - 没有展开（C# 12 的 `[..a, ..b]`）：先创建，再 `AddRange`。
 - 没有字典字面量：先创建，再逐个 `prices["sword"] = 100`。
-- C# 的初始化器 `new List<int> { 1, 2 }`、`new Enemy { Hp = 10 }` 是编译错误。
-- 待定：展开；字典字面量（等 C# 的字典表达式发布）；对象初始化器（和 `init` 访问器一起讨论，见“属性”）。
+- C# 的集合初始化器 `new List<int> { 1, 2 }` 是编译错误。对象初始化器 `new Enemy { Hp = 10 }` 写成 `new Enemy() with (Hp = 10)`，见“创建时设置成员”。
+- 待定：展开；字典字面量（等 C# 的字典表达式发布）。
 
 ## 元组（ADR-0021）
 
@@ -298,7 +304,7 @@ class Slime : Behaviour {
 
 ```nyxel
 class Slime : Behaviour {
-    static var AliveCount: int = 0
+    public static var AliveCount: int = 0
     var hp: int = 30
 
     public func TakeDamage(self, amount: int) {     // 第一个参数是 self：实例方法
@@ -319,7 +325,7 @@ class Slime : Behaviour {
 }
 
 struct Health {
-    var current: int
+    var current: int = 30
 
     public func IsDead(self) -> bool {          // struct 的 self 方法不能修改自己
         return self.current <= 0
@@ -339,7 +345,7 @@ let d = Slime.Distance(a, b)        // 静态函数通过类型名调用
 - `var self` 只能用在 struct 上，表示方法会修改这个值；只写 `self` 的 struct 方法不能修改字段，也不能调用 `var self` 方法。class 方法的 `self` 是引用，总能修改对象的字段，不需要也不允许写 `var self`。
 - `var self` 方法不能在 `let` 的 struct 上调用，也不能在临时副本上调用（属性、索引器、函数调用的结果）：
   ```nyxel
-  let h = new Health(max = 30)
+  let h = new Health()
   h.Damage(amount = 5)                    // 错误：h 是 let
   self.healths[0].Damage(amount = 5)      // 错误：改的是副本，修改会丢失
   var first = self.healths[0]             // 先取出，改完再写回
@@ -438,7 +444,7 @@ let nearest = enemies.MinBy(func(e: Enemy) -> float {
 
 ```nyxel
 func Max<T: IComparable<T>>(a: T, b: T) -> T {
-    return if a.CompareTo(b) >= 0 { a } else { b }
+    return if a.CompareTo(b) >= 0 -> a else -> b
 }
 
 class Pool<T: class and IPoolable> {
@@ -541,7 +547,7 @@ if mask.HasFlag(Layer.Air) { ... }
 - `flags enum`：
   - 每个 case 都写值，通常每个占一个二进制位，用 `|` 组合。检查包含用 .NET 的 `HasFlag`。
   - Nyxel 的 enum 只有 flags enum 能用 `|`、`&`、`^`、`~`；C# 定义的枚举照 C#，都能。
-  - `match` 一个 flags enum（包括 C# 带 `[Flags]` 的）必须写 `else`：组合出来的值列不全。
+  - `match` 一个 flags enum（包括 C# 带 `[Flags]` 的）必须有 `case _`：组合出来的值列不全。
   - C# 那边是 `[Flags] enum`。`flags` 只在 `enum` 前面是关键字，别处照样能当名字。
 - 没有值为 0 的 case 时，数组不能直接创建，要用 `element`（见“数组”）。flags enum 的 0 是“一个都没有”，总能直接创建。
 
@@ -600,12 +606,17 @@ public class Fireball : Projectile {
     public let Radius: float
 
     public init(power: int, radius: float) {
-        super.init(power = power)           // 构造基类部分：必须是第一句
+        init super(power = power)           // 构造基类部分：必须是第一句
         self.Radius = radius
     }
 
     public init Small() {
-        self.init(power = 5, radius = 0.5)  // 委托给本类的另一个 init
+        init self(power = 5, radius = 0.5)  // 委托给本类的另一个 init
+    }
+
+    public init Seeking(target: Entity) {
+        init super.Homing(power = 8, target = target)   // 基类的命名 init
+        self.Radius = 1
     }
 
     public override func Update(self, dt: float) {
@@ -614,34 +625,95 @@ public class Fireball : Projectile {
 }
 ```
 
-- `super.init(...)` 只能是 `init` 的第一句，参数里不能用 `self`。没写时自动调用基类的无参 `init`，基类没有就是编译错误。
-- 本类 `init` 之间委托写 `self.init(...)`，也只能是第一句。
+- 调用其他 init 写 `init` 开头的语句（ADR-0027）：基类的写 `init super(...)`、`init super.名字(...)`，本类的写 `init self(...)`、`init self.名字(...)`。和创建对象对称：`new Projectile.Homing(...)` 创建一个完整的对象，`init super.Homing(...)` 构造自己的基类部分。
+- 只能是 `init` 的第一句，参数里不能用 `self`。没写时自动调用基类的无参 `init`，基类没有就是编译错误。委托给本类 `init` 的不再调用基类的 `init`。
+- `super.init(...)`、`self.init(...)`（Swift 的写法）是编译错误，诊断给出 `init super(...)`。
+- 命名 init 不继承，同不带名字的 init：子类没声明 `Homing` 时，`new Fireball.Homing(...)` 是编译错误。
 - 重写的方法里调用基类方法写 `super.方法名(...)`。
-- C# 那边：`super.init(...)` 是 `: base(...)`，`self.init(...)` 是 `: this(...)`，`super.Update` 是 `base.Update`。
-- 待定：调用基类的命名 `init`。
+- C# 那边：`init super(...)` 是 `: base(...)`，`init self(...)` 是 `: this(...)`，`super.Update` 是 `base.Update`。命名 init 背后的构造函数对子类可见（protected），`init super.Homing(...)` 也是 `: base(...)`。
 
 ### new
 
 - 创建值一律写 `new`：`new Type(...)`、`new Type.Name(...)`（命名 init 或带数据的 case）、`new List<Enemy>()`。
 - 不带 `new` 的 `名字(...)` 一定是函数调用。
 
-## if 表达式（ADR-0007）
+### 创建时设置成员（ADR-0027）
 
 ```nyxel
-let label = if self.hp > 0 { "alive" } else { "dead" }
+world.Commands.Add(entity, new Spin() with (
+    Axis = Vector3.Normalize(axis),
+    Speed = 0.3 + rng.NextSingle() * 1.7))
 
-let speed = if self.IsFrozen {
-    0
-} else if self.IsHasted {
-    self.BaseSpeed * 2
-} else {
-    self.BaseSpeed
-}
+let psi = new ProcessStartInfo(fileName = "git")
+    with (Arguments = "status", RedirectStandardOutput = true)
 ```
 
-- `if` 和 `match` 可以作为表达式：分支块里最后一个表达式是该分支的值；当表达式用时必须有 `else`。
+- `new 类型(实参) with (成员 = 值, ...)`：`()` 里是 init 的实参，`with ()` 里是构造完以后要设的成员。先执行 init，再按书写顺序赋值，同 C# 的对象初始化器 `new Spin() { Axis = ..., Speed = ... }`。
+- 能设的：外面能访问的 `var` 字段、有 `set` 的属性、C# 的 `init` 访问器。`let` 字段和只读属性不能设。
+- C# 类型的 `required` 成员必须写在 `with` 里，漏了是编译错误，诊断列出缺哪些。
+- 每一项写 `名字 = 值`，同带名字的元组值。
+- `with` 只能跟在 `new 类型(...)` 后面（`()` 不能省）。下一行以 `with` 开头时接着上一行，同 `.`。
+- 没有 C# 的嵌套初始化器（`new A { B = { X = 1 } }`）和集合初始化器（用集合字面量）。C# 的 `new Enemy { Hp = 10 }` 是编译错误，诊断给出 `with` 的写法。
+- Nyxel 自己没有“只能在创建时设置”的成员（C# 的 `init` 访问器、`required`）：创建后不能改用 `let` 字段加 `init` 参数，必须给值由确定初始化检查保证。
+- 待定：`with` 用在已有的值上（复制一份再改几个成员，同 C# 的 `with` 表达式）；Nyxel 自己声明只能在创建时设置的成员。
+
+## if 与 eval（ADR-0007、ADR-0025）
+
+```nyxel
+let label = if self.hp > 0 -> "alive" else -> "dead"
+
+let speed = if self.IsFrozen -> 0
+    else if self.IsHasted -> self.BaseSpeed * 2
+    else -> self.BaseSpeed
+
+if self.hp <= 0 {                   // 当语句用：分支写 { }
+    self.Die()
+} else {
+    self.Regenerate()
+}
+
+let damage = eval {                 // 先执行几条语句，再给出值
+    if self.isInvincible {
+        give 0
+    }
+    let reduced = hit.Amount - self.armor
+    give if reduced > 0 -> reduced else -> 0
+}   // reduced 只在块里可见
+```
+
+- `{ }` 块本身没有值。用语句算出一个值只有 `eval` 加 `give` 这一种写法。
+- `if` 当语句用时分支写 `{ 语句 }`；当值用时分支写 `-> 值`，必须有 `else`。看到 `if ... ->` 就知道它在产生值（`match` 的分支两种用法都写 `->`，是不是值看它写在哪）。
+  - 写反是编译错误：`{ }` 形式写在要值的地方，或者 `->` 形式单独当语句。同一个 `if` 的分支也不能两种混用。
+  - 当值用时，每个分支是一个表达式或一条离开语句：`return`、`throw`、`break`、`continue`，`eval` 里还有 `give`（同 `??` 右边）。要先执行语句，就用 `eval`。
+  - 最后一个分支一直延伸到表达式结束，同 C# 的 `?:`：`if c -> a else -> b + 1` 的 else 分支是 `b + 1`。所以 `->` 形式的 `if` / `try` 当运算数，或者直接写在另一个 `if` / `try` 的分支里时要加括号（`else if` 连写不算）：`(if hasBonus -> 2 else -> 1) * base`、`if a -> (if b -> 1 else -> 2) else -> 3`。`=` 后面、参数、`return` 后面、`match` 分支里不用加。
 - 没有 `?:` 三元运算符。
 - 函数体必须用 `return` 返回值。
+
+### eval 块（ADR-0025）
+
+```nyxel
+let text = eval {
+    using stream = File.OpenRead(path)
+    using reader = new StreamReader(stream)
+    give reader.ReadToEnd()
+}   // 文件在这里就关了
+
+let target = eval {
+    let candidates = self.Scan()
+    if candidates.Count == 0 {
+        give null
+    }
+    give candidates.MinBy(func(e) = e.Hp)
+} ?? return                         // 函数的出口留在顶层
+```
+
+- `eval { ... }` 是表达式，块里用 `give 值` 给出它的值。块里声明的名字（包括 `using`）只在块里可见；`using` 的资源在块结束时释放。
+- 每条路径都以 `give` 或 `throw` 结束，走到块末尾还没给值是编译错误。最后一句不能是没有 `give` 的表达式（不像 Rust、Kotlin）。
+- `give` 交给离它最近的 `eval`，可以穿过中间的 `if`、`match`、`try`、循环，但不能穿过 lambda。`eval` 外面写 `give` 是编译错误。`??` 右边也能写：`let t = self.Find() ?? give null`。
+- 块里不能 `return`；`break` / `continue` 只能用于块里的循环，不能离开块。要在块里决定结束函数，就让块给出 `null`，在外面写 `?? return`。块里定义的 lambda 有自己的 `return`；`throw`、`await` 照常可用。
+- `eval` 只能写在要值的地方，单独当一条语句是编译错误。
+- 块的类型是所有 `give` 的值的共同类型，同 `if` 的各分支；有期望的类型（`let x: T = eval { }`）时按期望的类型。
+- 翻译成 C#：先声明一个变量，块翻译成 C# 的块，每个 `give` 是赋值加 `goto` 到块后面。不是 lambda，不分配。
 
 ## match（ADR-0009、ADR-0024）
 
@@ -656,17 +728,28 @@ match hit {
     case Burn(_, seconds) -> {      // 按位置取出，不要的写 _
         self.StartBurning(seconds)
     }
-    case Physical -> {}             // 不需要数据时不写括号
-    else -> {}
+    case Physical -> self.hits += 1 // 当语句用：一条简单语句可以直接写
+    case Heal -> return             // 离开语句也是
+}
+
+let scale = match self.size {
+    case Small -> 0.5
+    case Huge -> eval {             // 当值用：要先执行语句就写 eval
+        self.PlayRumble()
+        give 2.0
+    }
+    case _ -> 1.0                   // 默认分支
 }
 ```
 
-- 每个分支一行，以 `case` 开头；默认分支 `else`。分支用 `->`（Nyxel 没有 `=>`）。
-- 分支右边是一个表达式或一个块；当表达式用时，块的值是最后一个表达式。
+- 每个分支一行，以 `case` 开头。默认分支写 `case _`，`_` 匹配其余任何值（ADR-0026）；`else` 只属于 `if`，写在 `match` 里是编译错误。分支用 `->`（Nyxel 没有 `=>`）。
+- `->` 右边（ADR-0025、ADR-0026）：
+  - 当值用时是一个表达式或一条离开语句（`return`、`throw`、`break`、`continue`，`eval` 里还有 `give`）。写 `{ }` 块是编译错误，要先执行语句就写 `-> eval { ... give 值 }`。
+  - 当语句用时是一条简单语句或一个 `{ }` 块。简单语句指一行写完、不带块的语句：调用、`await`、`launch`、赋值（含 `+=`、`??=`）、`emit`、离开语句。`let`、`using`、循环、`if` / `try` 语句要写进块。
 - case 的数据按位置取出，同元组的解构（ADR-0024）：
   - 名字个数和数据项一样，`_` 丢弃不要的；名字自己起，成为分支里的局部变量。
   - 名字和数据项名是同一组（不分大小写）、顺序却不同时给警告：多半是写反了。
-- 必须覆盖所有情况（当语句用也一样）：enum 列全所有 case 或写 `else`；flags enum 和其他类型必须有 `else`。“其余不处理”写 `else -> {}`。
+- 必须覆盖所有情况（当语句用也一样）：enum 列全所有 case 或写 `case _`；flags enum 和其他类型必须有 `case _`。“其余不处理”写 `case _ -> {}`。
 - 模式（ADR-0010）：
   - 常量 `case 0`、`case "boss"`、`case null`；
   - 比较 `case < 10`；区间 `case 10..<50`、`case 1...3`；
@@ -700,7 +783,7 @@ class Turret : Behaviour {
 - `T` 一定有值，`T?` 可能为 `null`，违反是编译错误。值类型 `int?` 同 C#。
 - C# 程序集的可空标注照单全收；没有标注的程序集，返回值和字段当作 `T?`，参数可以接受 `null`。
 - 检查后自动收窄：只对局部变量和参数；字段、属性、调用结果先存进局部变量。
-- `?.`、`??` 同 C#；`??` 右边可以是 `return`、`throw`、`continue`、`break`。
+- `?.`、`??` 同 C#；`??` 右边可以是 `return`、`throw`、`continue`、`break`，`eval` 里还可以是 `give`（ADR-0025）。
 - 和 `null` 比较只看引用是不是空的（ADR-0023）：`x == null` 是 C# 的 `x is null`，不调用类型重载的 `==`。所以 `== null`、`!= null`、`?.`、`??`、`case null`、收窄的意思都一样。两个值之间的 `a == b` 照常调用重载。“已销毁”这类状态用引擎提供的属性或方法查（`world.IsAlive(entity)`），不借用 null。
 - `x ??= value`（ADR-0023）：`x` 是 null 时才赋值，同 C#，是语句。局部变量和参数之后当作非空；字段不收窄。
   ```nyxel
@@ -843,13 +926,17 @@ try {
     self.loading = false
 }
 
-let config = try { Config.Load(path) } catch e: IOException { Config.Default }
+let config = try -> Config.Load(path) catch e: IOException -> Config.Default
+
+let level = try -> Level.Load(name)
+    catch e: FileNotFoundException -> return
+    finally { self.loading = false }
 ```
 
-- 用 .NET 的异常。`catch 名字: 类型`，名字必须写；捕获所有异常写 `catch e: Exception`。`when` 过滤同 C#。
+- 用 .NET 的异常。`catch 名字: 类型`，名字必须写；用不到异常对象时写 `catch _: IOException`（ADR-0026）；捕获所有异常写 `catch e: Exception`。`when` 过滤同 C#。
 - 被前面的 `catch` 完全覆盖、永远到不了的 `catch` 是编译错误。`try` 后面至少有一个 `catch` 或 `finally`。
-- `} catch`、`} finally` 跟在 `}` 后面同一行。
-- `try` 可以当表达式，规则同 `if` / `match`：每个分支最后一个表达式是值，或者以 `return` / `throw` 离开；`finally` 不产生值。
+- `{ }` 形式的 `} catch`、`} finally` 跟在 `}` 后面同一行。
+- `try` 当语句用时分支写 `{ }`；当值用时分支写 `->`，规则同 `if`（ADR-0025）：每个分支是一个表达式或一条离开语句，`catch`、`finally` 可以写在下一行开头；`finally` 不产生值，照旧写 `finally { 语句 }`。
 - `throw 异常对象` 是语句。在 `catch e` 里 `throw e` 重新抛出同一个异常，保留原来的调用栈（翻译成 C# 的 `throw;`）。
 - `finally` 里不能 `return`。
 - 待定：文档注释里写会抛哪些异常的约定。
@@ -866,7 +953,7 @@ func ReadSave(self, path: string) -> string {
 
 - `using 名字 = 值`：值必须实现 `IDisposable`，在所在块结束时调用它的 `Dispose()`。多个按声明的相反顺序释放；`return`、`break`、异常离开时也一样。值为 `null` 时跳过。
 - `using` 自己引入名字，不写 `let`（同 `for x in`、`catch e: T`）。名字不能重新赋值。需要时可以写类型：`using stream: FileStream = ...`。
-- `using` 只有这一种用法：导入是 `import`，没有块形式的 `using (...) { }`，没有 `defer`。要更早释放就拆成函数；和 `IDisposable` 无关的清理用 `try` / `finally`。
+- `using` 只有这一种用法：导入是 `import`，没有块形式的 `using (...) { }`，没有 `defer`。要更早释放，就把用到资源的语句放进 `eval` 块（块结束时释放，ADR-0025）或拆成函数；和 `IDisposable` 无关的清理用 `try` / `finally`。
 - 待定：`await using`（`IAsyncDisposable`）。
 
 ## 协程（ADR-0016）
@@ -908,9 +995,7 @@ let level = await job                   // 之后再等结果
 class Player : Behaviour {
     var hp: int = 100                       // 字段
 
-    public property IsDead: bool {          // 计算属性
-        get { return self.hp <= 0 }
-    }
+    public property IsDead: bool { get = self.hp <= 0 }     // 计算属性：getter 可以写表达式体
 
     public property Hp: int {
         get { return self.hp }
@@ -929,10 +1014,12 @@ interface IDamageable {
 ```
 
 - `property` 声明属性；`var` / `let` 只声明字段。
-- 访问器要么都带函数体（计算属性），要么都不带（自动属性，初始值写在类型后面）。每个访问器一行，可以单独加可见性。
+- 访问器要么都带函数体（计算属性），要么都不带（自动属性，初始值写在类型后面）。每个访问器一行，可以单独加可见性（`private set`，这是 `private` 唯一能出现的位置）。
+- getter 的函数体可以是块，也可以是 `= 表达式`，同函数（ADR-0026）。setter 的体是语句，只能写块。
 - setter 的新值在括号里命名：`set(value)`。访问器里 `self` 隐式可用。静态属性写 `static property`。
 - 默认用字段；实现接口的属性、对外只读对内可写、值需要计算时用属性。
-- 待定：只能在构造时设置的访问器（C# 的 `init`），以及 C# 设置它们用的对象初始化器 `new T { X = 1 }`；索引器；`field` 关键字。
+- C# 的 `init` 访问器（只能在创建时设置）用 `with` 设，见“创建时设置成员”（ADR-0027）；Nyxel 自己暂不能声明。
+- 待定：索引器；`field` 关键字。
 
 ## 事件（ADR-0017）
 
@@ -986,11 +1073,11 @@ match self.state {
 
 ## 可见性（ADR-0006、ADR-0008）
 
-- 成员默认私有；公开写 `public`，只给子类用写 `protected`（ADR-0015），含义与 C# 相同。struct 的成员不能是 `protected`。
+- 成员默认私有；公开写 `public`，只给子类用写 `protected`（ADR-0015），含义与 C# 相同。struct 的成员不能是 `protected`。成员上写 `private` 是编译错误（ADR-0026）：它只出现在访问器上（`private set`）。
 - 类型默认只在本程序集可见；给其他程序集用写 `public`。
 - 重写时可见性必须和基类一致：基类是 `protected virtual` 就写 `protected override`。
 - 没有 `internal`，也没有 C# 的 `protected internal`、`private protected`。
-- 修饰符的顺序固定（ADR-0019）：可见性（`public` / `protected` / `private`）→ `static` → `abstract` / `sealed` / `virtual` → `override` → `async`。顺序不对、重复都是编译错误，诊断给出正确的写法：`public static var`、`protected override func`、`public override async func`、`sealed override`。
+- 修饰符的顺序固定（ADR-0019）：可见性（`public` / `protected`；访问器上还有 `private`）→ `static` → `abstract` / `sealed` / `virtual` → `override` → `async`。顺序不对、重复都是编译错误，诊断给出正确的写法：`public static var`、`protected override func`、`public override async func`、`sealed override`。
 
 ## 命名（ADR-0006）
 

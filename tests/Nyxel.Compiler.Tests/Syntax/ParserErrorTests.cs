@@ -75,7 +75,14 @@ public class ParserErrorTests
     [InlineData("func F(self: C) { }", "NYX1119 2:12")]
     [InlineData("class D { }", "NYX1114 2:1")]
     [InlineData("let x = 1", "NYX1115 2:5")]
+    [InlineData("private var x: int = 0", "NYX1196 2:1")]
+    [InlineData("private static func F() { }", "NYX1196 2:1")]
+    [InlineData("property P: int {\n    set(value) = x\n}", "NYX1197 3:16")]
     public void MemberErrors(string member, string expected) => AssertFileErrors("class C {\n" + member + "\n}\n", expected);
+
+    [Fact]
+    public void PrivateIsOnlyWrittenOnAccessors() =>
+        AssertFileErrors("class C {\n    public property P: int = 0 {\n        get\n        private set\n    }\n}\n");
 
     [Fact]
     public void ModifierOrderMessageListsAllModifiers()
@@ -132,13 +139,107 @@ public class ParserErrorTests
     [InlineData("for i in 0..<1..<2 {\n}", "NYX1121 3:15")]
     [InlineData("if a = b {\n}", "NYX1122 3:6")]
     [InlineData("a = b = c", "NYX1122 3:7")]
-    [InlineData("match x {\n    case 1 -> return\n}", "NYX1123 4:15")]
-    [InlineData("match x {\n    case 1 -> self.a = 2\n}", "NYX1123 4:22")]
+    [InlineData("match x {\n    case 1 -> let a = 2\n}", "NYX1123 4:15")]
+    [InlineData("match x {\n    case 1 -> for i in xs {\n    }\n}", "NYX1123 4:15")]
+    [InlineData("let y = match x {\n    case 1 -> emit self.E()\n}", "NYX1123 4:15")]
+    [InlineData("let y = match x {\n    case 1 -> self.a = 2\n}", "NYX1122 4:22")]
+    [InlineData("match x {\n    case 1 -> 0\n    else -> 1\n}", "NYX1193 5:5")]
+    [InlineData("let _ = 1", "NYX1194 3:5")]
+    [InlineData("for _ in xs {\n}", "NYX1194 3:5")]
+    [InlineData("let a = _", "NYX1195 3:9")]
+    [InlineData("_ = F()", "NYX1195 3:1")]
+    [InlineData("F(_)", "NYX1195 3:3")]
     [InlineData("let a =\nlet b = 1", "NYX1101 3:8")]
     [InlineData("F(a, b\nlet c = 1", "NYX1101 3:7")]
     [InlineData("let a = 1 # 2", "NYX1001 3:11")]
     [InlineData("let s = \"abc\nlet t = 1", "NYX1002 3:9")]
     public void StatementErrors(string statements, string expected) => AssertStatementErrors(statements, expected);
+
+    // eval, give and the branches of if / match / try (ADR-0025) ---------------------------------------------------
+
+    [Theory]
+    [InlineData("eval {\n    give 1\n}", "NYX1182 3:1")]
+    [InlineData("give 1", "NYX1183 3:1")]
+    [InlineData("let a = b ?? give 0", "NYX1183 3:14")]
+    [InlineData("let a = eval {\n    let f = func() {\n        give 1\n    }\n    give 2\n}", "NYX1183 5:9")]
+    [InlineData("let a = eval {\n    if b {\n        return\n    }\n    give 1\n}", "NYX1184 5:9")]
+    [InlineData("let a = eval {\n    let t = b ?? return\n    give t\n}", "NYX1184 4:18")]
+    [InlineData("for x in xs {\n    let a = eval {\n        if x {\n            break\n        }\n        give 1\n    }\n}", "NYX1185 6:13")]
+    [InlineData("while a {\n    let b = eval {\n        give c ?? continue\n    }\n}", "NYX1185 5:19")]
+    [InlineData("let a = eval {\n    let b = 1\n    b + 1\n}", "NYX1186 5:5")]
+    [InlineData("let a = eval { }", "NYX1186 3:9")]
+    [InlineData("let a = if b { 1 } else { 2 }", "NYX1187 3:9")]
+    [InlineData("let a = try { F() } catch e: E { 0 }", "NYX1187 3:9")]
+    [InlineData("let a = if b -> { 1 } else -> 2", "NYX1187 3:17")]
+    [InlineData("if a -> F() else -> G()", "NYX1188 3:1")]
+    [InlineData("try -> F() catch e: E -> 0", "NYX1188 3:1")]
+    [InlineData("if a {\n} else -> 1", "NYX1189 4:8")]
+    [InlineData("if a {\n} else if b -> 1 else -> 2", "NYX1189 4:13")]
+    [InlineData("let a = if b -> 1 else { 2 }", "NYX1189 3:24")]
+    [InlineData("let a = try -> F() catch e: E { 0 }", "NYX1189 3:31")]
+    [InlineData("try {\n} catch e: E -> 0", "NYX1189 4:14")]
+    [InlineData("let a = match b {\n    case 1 -> {\n        F()\n    }\n    case _ -> 0\n}", "NYX1190 4:15")]
+    [InlineData("let a = 1 + if b -> 1 else -> 2", "NYX1191 3:13")]
+    [InlineData("let a = b ?? if c -> 1 else -> 2", "NYX1191 3:14")]
+    [InlineData("let a = if b -> if c -> 1 else -> 2 else -> 3", "NYX1191 3:17")]
+    [InlineData("let a = try -> if c -> 1 else -> 2 catch e: E -> 0", "NYX1191 3:16")]
+    [InlineData("let a = if b -> 1", "NYX1192 3:9")]
+    // Only the first error: no "needs an else" or "needs a catch" after a missing condition or value.
+    [InlineData("let a = if\nlet b = 1", "NYX1101 3:11")]
+    [InlineData("let a = try ->\nlet b = 1", "NYX1101 3:15")]
+    [InlineData("match a {\n    case 1 -> if b {\n        F()\n    }\n    case _ -> {}\n}", "NYX1123 4:15")]
+    public void EvalAndBranchErrors(string statements, params string[] expected) => AssertStatementErrors(statements, expected);
+
+    [Theory]
+    [InlineData("let a = if b { 1 } else { 2 }", "When 'if' gives a value, its branches are written with '->', as in 'if condition -> a else -> b'. To run statements first, use 'eval { ... give value }'.")]
+    [InlineData("if a -> F() else -> G()", "This 'if' gives a value that is not used; as a statement, write its branches in braces: 'if condition { ... }'.")]
+    [InlineData("let a = eval {\n    let b = 1\n    b + 1\n}", "End an 'eval' block with 'give': write 'give b + 1'.")]
+    [InlineData("let a = b ? c : d", "Nyxel has no '?:'; write 'if condition -> a else -> b'.")]
+    public void EvalAndBranchMessages(string statements, string message) =>
+        Assert.Equal(message, SyntaxTree.Parse(InMethod(statements)).Diagnostics.Single().Message);
+
+    // with (...) and init super / init self (ADR-0027) -------------------------------------------------------------
+
+    [Theory]
+    [InlineData("let a = self.pos with (Y = 0)", "NYX1198 3:18")]
+    [InlineData("let a = F()\n    with (Y = 0)", "NYX1198 4:5")]
+    [InlineData("let a = new Spin() with (Speed = 1) with (Axis = b)", "NYX1198 3:37")]
+    [InlineData("let a = new Spin() with (2, Speed = 3)", "NYX1199 3:26")]
+    [InlineData("let a = new Spin() with\n    (Speed = 3)", "NYX1103 3:20")]
+    [InlineData("init super", "NYX1101 3:11")]
+    [InlineData("init (power = 3)", "NYX1101 3:6")]
+    [InlineData("init super.\n    Homing()", "NYX1103 3:11")]
+    // In the head of a block, a '{' after 'new T()' is the block; inside brackets it can only be an initializer.
+    [InlineData("if F(new A() { X = 1 }) {\n}", "NYX1167 3:14")]
+    public void WithAndInitErrors(string statements, params string[] expected) => AssertStatementErrors(statements, expected);
+
+    [Fact]
+    public void WithKeepsTheValueBeingCreated()
+    {
+        var tree = SyntaxTree.Parse(InMethod("let a = new Spin() with (2, Speed = 3)"));
+        var creation = (ObjectCreationExpressionSyntax)((LocalDeclarationStatementSyntax)Body(tree).Statements.Single()).Initializer!.Value;
+        Assert.Equal(["2", "Speed = 3"], creation.WithClause!.Members.Select(m => m.ToString()));
+        AssertParentsAndSpansConsistent(tree.Root);
+    }
+
+    [Theory]
+    [InlineData("let a = if b { 1 } else { 2 }\nlet c = 3")]
+    [InlineData("if a {\n} else -> 1\nlet c = 3")]
+    [InlineData("if a {\n} else if b -> 1 else -> 2\nlet c = 3")]
+    [InlineData("let a = if b -> 1 else { 2 }\nlet c = 3")]
+    [InlineData("let a = if b -> { 1 } else -> 2\nlet c = 3")]
+    [InlineData("let a = try -> F() catch e: E { 0 }\nlet c = 3")]
+    [InlineData("try {\n} catch e: E -> 0\nlet c = 3")]
+    public void BranchRecoveryKeepsTheTreeWhole(string statements)
+    {
+        // The wrong form is skipped or wrapped; the tree still covers the text and the next statement parses.
+        var source = InMethod(statements);
+        var tree = SyntaxTree.Parse(source);
+        Assert.Single(tree.Diagnostics);
+        Assert.Equal(source, tree.Root.ToFullString());
+        AssertParentsAndSpansConsistent(tree.Root);
+        Assert.IsType<LocalDeclarationStatementSyntax>(Body(tree).Statements[^1]);
+    }
 
     // Tuples (ADR-0021) -------------------------------------------------------------------------------------------
 
@@ -163,7 +264,7 @@ public class ParserErrorTests
     [InlineData("let a: List<int> = [..<3]", "NYX1127 3:21")]
     [InlineData("for i in (0..<n).Reverse() {\n}", "NYX1128 3:18")]
     [InlineData("for i in 2... {\n}", "NYX1129 3:11")]
-    [InlineData("match x {\n    case ..<10 -> 1\n    else -> 2\n}", "NYX1129 4:10")]
+    [InlineData("match x {\n    case ..<10 -> 1\n    case _ -> 2\n}", "NYX1129 4:10")]
     [InlineData("let a = items[...]", "NYX1129 3:15")]
     [InlineData("let a = items[1..<]", "NYX1170 3:16")]
     [InlineData("for i in a..<b..<c {\n}", "NYX1121 3:15")]
@@ -213,7 +314,7 @@ public class ParserErrorTests
     [InlineData("for row in rows {\n    break outer\n}", "NYX1169 4:11")]
     [InlineData("while a {\n    continue outer\n}", "NYX1169 4:14")]
     [InlineData("for i in 0..10 {\n}", "NYX1013 3:11")]
-    [InlineData("match x {\n    case 1..5 -> 0\n    else -> 1\n}", "NYX1013 4:11")]
+    [InlineData("match x {\n    case 1..5 -> 0\n    case _ -> 1\n}", "NYX1013 4:11")]
     [InlineData("let a = items[..3]", "NYX1013 3:15")]
     [InlineData("let a = items[1..]", "NYX1170 3:16")]
     [InlineData("let a = items[^1]", "NYX1171 3:15")]
@@ -225,6 +326,8 @@ public class ParserErrorTests
     [InlineData("let a: int[,,,] = x", "NYX1174 3:11")]
     [InlineData("let a = new int[1, 2, 3, 4]", "NYX1174 3:9")]
     [InlineData("if hit is Damage.Burn(var a, var s) {\n}", "NYX1180 3:22")]
+    [InlineData("super.init(power = 3)", "NYX1200 3:7")]
+    [InlineData("self.init.Small()", "NYX1200 3:6")]
     public void CSharpHabits(string statements, params string[] expected) => AssertStatementErrors(statements, expected);
 
     [Theory]
@@ -245,6 +348,10 @@ public class ParserErrorTests
     [InlineData("for i in (0..<n).Reverse() {\n}", "'Reverse' can't be used on a range; in 'for', a range can be followed by 'Reversed()' and 'StepBy(n)'.")]
     [InlineData("let r = 0..<10", "A range is not a value; write it in 'for', in 'case', or in a slice such as 'items[1..<3]'.")]
     [InlineData("if hit is Damage.Burn(var a, var s) {\n}", "'is' only checks which case a value is; take out the data with 'match', as in 'case Burn(amount, seconds) -> ...'.")]
+    [InlineData("let a = new Enemy(level = 2) { Hp = 3 }", "Nyxel has no initializers in braces after 'new'; set members after the init with 'with', as in 'new Enemy(level = 2) with (Hp = ...)'.")]
+    [InlineData("let a = new List<int> { 1, 2 }", "Nyxel has no initializers in braces after 'new'; list the elements in a collection literal such as '[1, 2]'.")]
+    [InlineData("super.init(power = 3)", "Another init is called with 'init super(...)', or 'init super.Name(...)' for a named one; it is the first statement of an init.")]
+    [InlineData("self.init()", "Another init is called with 'init self(...)', or 'init self.Name(...)' for a named one; it is the first statement of an init.")]
     public void CSharpHabitMessagesShowTheNyxelSpelling(string statements, string message) =>
         Assert.Equal(message, SyntaxTree.Parse(InMethod(statements)).Diagnostics.Single().Message);
 

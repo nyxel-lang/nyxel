@@ -26,6 +26,10 @@ internal sealed partial class Parser
     private int _bracketDepth;
     private bool _lineBreakAllowed = true;
 
+    // The bracket depth of the head expression being parsed (an 'if' condition and the like, followed by a block), or
+    // -1. A '{' after 'new T()' at that depth starts the block rather than a C# initializer (ParseHeadExpression).
+    private int _headBracketDepth = -1;
+
     private Parser(ImmutableArray<SyntaxToken> tokens, DiagnosticBag diagnostics)
     {
         _tokens = tokens;
@@ -142,7 +146,20 @@ internal sealed partial class Parser
         return Missing(kind);
     }
 
-    private SyntaxToken ExpectIdentifier() => Expect(SyntaxKind.IdentifierToken);
+    /// <summary>A name. A '_' here is reported (ADR-0026: it is not a name) and taken in the name's place.</summary>
+    private SyntaxToken ExpectIdentifier()
+    {
+        if (Current.Kind == SyntaxKind.UnderscoreToken && !AtLineBreak)
+        {
+            Report(DiagnosticDescriptors.DiscardAsName, Current.Span);
+            return NextToken();
+        }
+        return Expect(SyntaxKind.IdentifierToken);
+    }
+
+    /// <summary>A name, or '_' where the value is not needed (ADR-0026): deconstruction, case fields, <c>catch</c>.</summary>
+    private SyntaxToken ExpectIdentifierOrDiscard() =>
+        Current.Kind == SyntaxKind.UnderscoreToken && !AtLineBreak ? NextToken() : Expect(SyntaxKind.IdentifierToken);
 
     private SyntaxToken Missing(SyntaxKind kind)
     {
@@ -295,14 +312,15 @@ internal sealed partial class Parser
 
     /// <summary>
     /// A '}' or a statement keyword at the start of a line inside brackets: most likely a ')' or ']' was forgotten.
-    /// Ending the list there keeps the error to one line.
+    /// Ending the list there keeps the error to one line. An <c>if</c> or <c>try</c> with '-&gt;' is a value, which
+    /// may well start a line of an argument list.
     /// </summary>
     private bool LooksLikeLineAfterMissingClose() =>
         Current.Kind == SyntaxKind.CloseBraceToken
-        || (Current.HasLeadingLineBreak && IsStatementKeyword(Current.Kind));
+        || (Current.HasLeadingLineBreak && (IsStatementKeyword(Current.Kind) || IsBranchingStatementAhead()));
 
     private static bool IsStatementKeyword(SyntaxKind kind) => kind is SyntaxKind.LetKeyword or SyntaxKind.VarKeyword
-        or SyntaxKind.IfKeyword or SyntaxKind.WhileKeyword or SyntaxKind.ForKeyword or SyntaxKind.ReturnKeyword
+        or SyntaxKind.WhileKeyword or SyntaxKind.ForKeyword or SyntaxKind.ReturnKeyword or SyntaxKind.GiveKeyword
         or SyntaxKind.ThrowKeyword or SyntaxKind.BreakKeyword or SyntaxKind.ContinueKeyword or SyntaxKind.EmitKeyword
         or SyntaxKind.UsingKeyword or SyntaxKind.FuncKeyword or SyntaxKind.PropertyKeyword or SyntaxKind.InitKeyword
         or SyntaxKind.EventKeyword or SyntaxKind.ClassKeyword or SyntaxKind.StructKeyword or SyntaxKind.EnumKeyword

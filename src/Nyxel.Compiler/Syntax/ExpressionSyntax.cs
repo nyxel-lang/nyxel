@@ -340,6 +340,24 @@ public sealed class NameEqualsSyntax : SyntaxNode
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Name, EqualsToken);
 }
 
+/// <summary>
+/// The <c>_</c> of <c>out _</c>: the value is not needed (ADR-0026). Also what a '_' written as a value is read
+/// into after being reported.
+/// </summary>
+public sealed class DiscardExpressionSyntax : ExpressionSyntax
+{
+    internal DiscardExpressionSyntax(SyntaxToken underscoreToken)
+        : base(SyntaxKind.DiscardExpression)
+    {
+        UnderscoreToken = underscoreToken;
+        AdoptChildren();
+    }
+
+    public SyntaxToken UnderscoreToken { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(UnderscoreToken);
+}
+
 /// <summary>The <c>let x</c> / <c>var x: int</c> of <c>out let x</c>.</summary>
 public sealed class DeclarationExpressionSyntax : ExpressionSyntax
 {
@@ -361,15 +379,19 @@ public sealed class DeclarationExpressionSyntax : ExpressionSyntax
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Keyword, Identifier, TypeAnnotation);
 }
 
-/// <summary><c>new Type(args)</c>; also named inits and data cases: <c>new Damage.Burn(Amount = 3)</c> (ADR-0008).</summary>
+/// <summary>
+/// <c>new Type(args)</c>; also named inits and data cases: <c>new Damage.Burn(Amount = 3)</c> (ADR-0008); members set
+/// right after: <c>new Spin() with (Speed = 2)</c> (ADR-0027).
+/// </summary>
 public sealed class ObjectCreationExpressionSyntax : ExpressionSyntax
 {
-    internal ObjectCreationExpressionSyntax(SyntaxToken newKeyword, TypeSyntax type, ArgumentListSyntax argumentList)
+    internal ObjectCreationExpressionSyntax(SyntaxToken newKeyword, TypeSyntax type, ArgumentListSyntax argumentList, WithClauseSyntax? withClause)
         : base(SyntaxKind.ObjectCreationExpression)
     {
         NewKeyword = newKeyword;
         Type = type;
         ArgumentList = argumentList;
+        WithClause = withClause;
         AdoptChildren();
     }
 
@@ -379,7 +401,36 @@ public sealed class ObjectCreationExpressionSyntax : ExpressionSyntax
 
     public ArgumentListSyntax ArgumentList { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(NewKeyword, Type, ArgumentList);
+    public WithClauseSyntax? WithClause { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(NewKeyword, Type, ArgumentList, WithClause);
+}
+
+/// <summary>
+/// <c>with (Axis = a, Speed = 2)</c> after <c>new Type(args)</c>: members set after the init, in order (ADR-0027).
+/// The items are arguments with a name, as in a tuple with names.
+/// </summary>
+public sealed class WithClauseSyntax : SyntaxNode
+{
+    internal WithClauseSyntax(SyntaxToken withKeyword, SyntaxToken openParenToken, SeparatedSyntaxList<ArgumentSyntax> members, SyntaxToken closeParenToken)
+        : base(SyntaxKind.WithClause)
+    {
+        WithKeyword = withKeyword;
+        OpenParenToken = openParenToken;
+        Members = members;
+        CloseParenToken = closeParenToken;
+        AdoptChildren();
+    }
+
+    public SyntaxToken WithKeyword { get; }
+
+    public SyntaxToken OpenParenToken { get; }
+
+    public SeparatedSyntaxList<ArgumentSyntax> Members { get; }
+
+    public SyntaxToken CloseParenToken { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(WithKeyword, OpenParenToken, Members, CloseParenToken);
 }
 
 /// <summary><c>func(e) = e.Hp &gt; 0</c>, <c>func(e: Enemy) -&gt; float { ... }</c>, <c>async func() { }</c> (ADR-0012).</summary>
@@ -419,16 +470,52 @@ public sealed class LambdaExpressionSyntax : ExpressionSyntax
         Children(AsyncKeyword, FuncKeyword, ParameterList, ReturnType, Body, ExpressionBody);
 }
 
-/// <summary><c>if condition { } else { }</c>, a statement or an expression (ADR-0007).</summary>
+/// <summary>
+/// <c>eval { ... give value }</c> (ADR-0025): statements in a scope of their own that give one value. Where
+/// <c>give</c>, <c>return</c>, <c>break</c> and <c>continue</c> may stand is checked on the finished tree.
+/// </summary>
+public sealed class EvalExpressionSyntax : ExpressionSyntax
+{
+    internal EvalExpressionSyntax(SyntaxToken evalKeyword, BlockSyntax block)
+        : base(SyntaxKind.EvalExpression)
+    {
+        EvalKeyword = evalKeyword;
+        Block = block;
+        AdoptChildren();
+    }
+
+    public SyntaxToken EvalKeyword { get; }
+
+    public BlockSyntax Block { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(EvalKeyword, Block);
+}
+
+/// <summary>
+/// <c>if condition -&gt; value else -&gt; value</c>, an <c>if</c> used as a value (ADR-0025); the statement with
+/// blocks is <see cref="IfStatementSyntax"/>. A value is an expression or a leave such as <c>return</c>
+/// (<see cref="JumpExpressionSyntax"/>). For <c>else if</c>, <see cref="ElseArrowToken"/> is null and
+/// <see cref="ElseValue"/> is the next <see cref="IfExpressionSyntax"/>.
+/// </summary>
 public sealed class IfExpressionSyntax : ExpressionSyntax
 {
-    internal IfExpressionSyntax(SyntaxToken ifKeyword, ExpressionSyntax condition, BlockSyntax block, ElseClauseSyntax? elseClause)
+    internal IfExpressionSyntax(
+        SyntaxToken ifKeyword,
+        ExpressionSyntax condition,
+        SyntaxToken arrowToken,
+        ExpressionSyntax value,
+        SyntaxToken elseKeyword,
+        SyntaxToken? elseArrowToken,
+        ExpressionSyntax elseValue)
         : base(SyntaxKind.IfExpression)
     {
         IfKeyword = ifKeyword;
         Condition = condition;
-        Block = block;
-        ElseClause = elseClause;
+        ArrowToken = arrowToken;
+        Value = value;
+        ElseKeyword = elseKeyword;
+        ElseArrowToken = elseArrowToken;
+        ElseValue = elseValue;
         AdoptChildren();
     }
 
@@ -436,32 +523,21 @@ public sealed class IfExpressionSyntax : ExpressionSyntax
 
     public ExpressionSyntax Condition { get; }
 
-    public BlockSyntax Block { get; }
+    public SyntaxToken ArrowToken { get; }
 
-    public ElseClauseSyntax? ElseClause { get; }
-
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(IfKeyword, Condition, Block, ElseClause);
-}
-
-public sealed class ElseClauseSyntax : SyntaxNode
-{
-    internal ElseClauseSyntax(SyntaxToken elseKeyword, SyntaxNode body)
-        : base(SyntaxKind.ElseClause)
-    {
-        ElseKeyword = elseKeyword;
-        Body = body;
-        AdoptChildren();
-    }
+    public ExpressionSyntax Value { get; }
 
     public SyntaxToken ElseKeyword { get; }
 
-    /// <summary>A <see cref="BlockSyntax"/>, or an <see cref="IfExpressionSyntax"/> for <c>else if</c>.</summary>
-    public SyntaxNode Body { get; }
+    public SyntaxToken? ElseArrowToken { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(ElseKeyword, Body);
+    public ExpressionSyntax ElseValue { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() =>
+        Children(IfKeyword, Condition, ArrowToken, Value, ElseKeyword, ElseArrowToken, ElseValue);
 }
 
-/// <summary><c>match value { case ... -&gt; ... }</c> (ADR-0009).</summary>
+/// <summary><c>match value { case ... -&gt; ... }</c> (ADR-0009), a statement or a value; as a statement it is wrapped in an <see cref="ExpressionStatementSyntax"/>.</summary>
 public sealed class MatchExpressionSyntax : ExpressionSyntax
 {
     internal MatchExpressionSyntax(
@@ -496,7 +572,7 @@ public sealed class MatchExpressionSyntax : ExpressionSyntax
 /// <summary><c>case pattern when condition -&gt; body</c> or <c>else -&gt; body</c>.</summary>
 public sealed class MatchArmSyntax : SyntaxNode
 {
-    internal MatchArmSyntax(SyntaxToken keyword, PatternSyntax? pattern, WhenClauseSyntax? whenClause, SyntaxToken arrowToken, SyntaxNode body)
+    internal MatchArmSyntax(SyntaxToken keyword, PatternSyntax pattern, WhenClauseSyntax? whenClause, SyntaxToken arrowToken, SyntaxNode body)
         : base(SyntaxKind.MatchArm)
     {
         Keyword = keyword;
@@ -507,16 +583,21 @@ public sealed class MatchArmSyntax : SyntaxNode
         AdoptChildren();
     }
 
-    /// <summary><c>case</c>, or <c>else</c> for the default arm (which has no pattern).</summary>
+    /// <summary><c>case</c>. C#'s and Kotlin's <c>else</c> is reported and kept here, with a missing <c>_</c> as the pattern.</summary>
     public SyntaxToken Keyword { get; }
 
-    public PatternSyntax? Pattern { get; }
+    /// <summary>The pattern; <c>case _</c> is a <see cref="DiscardPatternSyntax"/> (ADR-0026).</summary>
+    public PatternSyntax Pattern { get; }
 
     public WhenClauseSyntax? WhenClause { get; }
 
     public SyntaxToken ArrowToken { get; }
 
-    /// <summary>An <see cref="ExpressionSyntax"/> or a <see cref="BlockSyntax"/>.</summary>
+    /// <summary>
+    /// An <see cref="ExpressionSyntax"/> (a leave such as <c>return</c> is a <see cref="JumpExpressionSyntax"/>). A
+    /// match used as a statement may also have a <see cref="BlockSyntax"/>, an <see cref="AssignmentStatementSyntax"/>
+    /// or an <see cref="EmitStatementSyntax"/> (ADR-0025, ADR-0026).
+    /// </summary>
     public SyntaxNode Body { get; }
 
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Keyword, Pattern, WhenClause, ArrowToken, Body);
@@ -540,14 +621,23 @@ public sealed class WhenClauseSyntax : SyntaxNode
     public override IEnumerable<SyntaxNode> GetChildren() => Children(WhenKeyword, Condition);
 }
 
-/// <summary><c>try { } catch e: T { } finally { }</c>, a statement or an expression (ADR-0014).</summary>
+/// <summary>
+/// <c>try -&gt; value catch e: T -&gt; value finally { }</c>, a <c>try</c> used as a value (ADR-0025); the
+/// statement with blocks is <see cref="TryStatementSyntax"/>. <c>finally</c> gives no value and keeps its block.
+/// </summary>
 public sealed class TryExpressionSyntax : ExpressionSyntax
 {
-    internal TryExpressionSyntax(SyntaxToken tryKeyword, BlockSyntax block, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally)
+    internal TryExpressionSyntax(
+        SyntaxToken tryKeyword,
+        SyntaxToken arrowToken,
+        ExpressionSyntax value,
+        SyntaxList<CatchArrowClauseSyntax> catches,
+        FinallyClauseSyntax? @finally)
         : base(SyntaxKind.TryExpression)
     {
         TryKeyword = tryKeyword;
-        Block = block;
+        ArrowToken = arrowToken;
+        Value = value;
         Catches = catches;
         Finally = @finally;
         AdoptChildren();
@@ -555,31 +645,35 @@ public sealed class TryExpressionSyntax : ExpressionSyntax
 
     public SyntaxToken TryKeyword { get; }
 
-    public BlockSyntax Block { get; }
+    public SyntaxToken ArrowToken { get; }
 
-    public SyntaxList<CatchClauseSyntax> Catches { get; }
+    public ExpressionSyntax Value { get; }
+
+    public SyntaxList<CatchArrowClauseSyntax> Catches { get; }
 
     public FinallyClauseSyntax? Finally { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(TryKeyword, Block, Catches, Finally);
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(TryKeyword, ArrowToken, Value, Catches, Finally);
 }
 
-/// <summary><c>catch e: IOException when e.HResult == 32 { }</c>.</summary>
-public sealed class CatchClauseSyntax : SyntaxNode
+/// <summary><c>catch e: IOException when e.HResult == 32 -&gt; value</c> of a <see cref="TryExpressionSyntax"/>.</summary>
+public sealed class CatchArrowClauseSyntax : SyntaxNode
 {
-    internal CatchClauseSyntax(
+    internal CatchArrowClauseSyntax(
         SyntaxToken catchKeyword,
         SyntaxToken identifier,
         TypeAnnotationSyntax typeAnnotation,
         WhenClauseSyntax? filter,
-        BlockSyntax block)
-        : base(SyntaxKind.CatchClause)
+        SyntaxToken arrowToken,
+        ExpressionSyntax value)
+        : base(SyntaxKind.CatchArrowClause)
     {
         CatchKeyword = catchKeyword;
         Identifier = identifier;
         TypeAnnotation = typeAnnotation;
         Filter = filter;
-        Block = block;
+        ArrowToken = arrowToken;
+        Value = value;
         AdoptChildren();
     }
 
@@ -591,31 +685,17 @@ public sealed class CatchClauseSyntax : SyntaxNode
 
     public WhenClauseSyntax? Filter { get; }
 
-    public BlockSyntax Block { get; }
+    public SyntaxToken ArrowToken { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(CatchKeyword, Identifier, TypeAnnotation, Filter, Block);
-}
+    public ExpressionSyntax Value { get; }
 
-public sealed class FinallyClauseSyntax : SyntaxNode
-{
-    internal FinallyClauseSyntax(SyntaxToken finallyKeyword, BlockSyntax block)
-        : base(SyntaxKind.FinallyClause)
-    {
-        FinallyKeyword = finallyKeyword;
-        Block = block;
-        AdoptChildren();
-    }
-
-    public SyntaxToken FinallyKeyword { get; }
-
-    public BlockSyntax Block { get; }
-
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(FinallyKeyword, Block);
+    public override IEnumerable<SyntaxNode> GetChildren() =>
+        Children(CatchKeyword, Identifier, TypeAnnotation, Filter, ArrowToken, Value);
 }
 
 /// <summary>
-/// <c>return</c> / <c>throw</c> / <c>break</c> / <c>continue</c> on the right of <c>??</c> (ADR-0009); the only
-/// place they are expressions.
+/// <c>return</c> / <c>throw</c> / <c>break</c> / <c>continue</c> / <c>give</c> where they stand in place of a
+/// value: on the right of <c>??</c> (ADR-0009) and as a branch of <c>if</c>, <c>match</c> or <c>try</c> (ADR-0025).
 /// </summary>
 public sealed class JumpExpressionSyntax : ExpressionSyntax
 {

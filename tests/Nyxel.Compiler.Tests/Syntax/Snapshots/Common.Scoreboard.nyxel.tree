@@ -155,38 +155,37 @@ CompilationUnit 1:1-41:1
           CloseParenToken ")"
       Block 16:60-21:6
         OpenBraceToken "{"
-        ExpressionStatement 17:9-19:10
-          IfExpression 17:9-19:10
-            IfKeyword "if"
-            EqualsExpression 17:12-17:34
-              SimpleMemberAccessExpression 17:12-17:29
-                SimpleMemberAccessExpression 17:12-17:23
-                  SelfExpression 17:12-17:16
-                    SelfKeyword "self"
-                  DotToken "."
-                  IdentifierName 17:17-17:23
-                    IdentifierToken "scores"
+        IfStatement 17:9-19:10
+          IfKeyword "if"
+          EqualsExpression 17:12-17:34
+            SimpleMemberAccessExpression 17:12-17:29
+              SimpleMemberAccessExpression 17:12-17:23
+                SelfExpression 17:12-17:16
+                  SelfKeyword "self"
                 DotToken "."
-                IdentifierName 17:24-17:29
-                  IdentifierToken "Count"
-              EqualsEqualsToken "=="
-              NumericLiteralExpression 17:33-17:34
-                NumericLiteralToken "0"
-            Block 17:35-19:10
-              OpenBraceToken "{"
-              ReturnStatement 18:13-18:26
-                ReturnKeyword "return"
-                TupleExpression 18:20-18:26
-                  OpenParenToken "("
-                  Argument 18:21-18:22
-                    NumericLiteralExpression 18:21-18:22
-                      NumericLiteralToken "0"
-                  CommaToken ","
-                  Argument 18:24-18:25
-                    NumericLiteralExpression 18:24-18:25
-                      NumericLiteralToken "0"
-                  CloseParenToken ")"
-              CloseBraceToken "}"
+                IdentifierName 17:17-17:23
+                  IdentifierToken "scores"
+              DotToken "."
+              IdentifierName 17:24-17:29
+                IdentifierToken "Count"
+            EqualsEqualsToken "=="
+            NumericLiteralExpression 17:33-17:34
+              NumericLiteralToken "0"
+          Block 17:35-19:10
+            OpenBraceToken "{"
+            ReturnStatement 18:13-18:26
+              ReturnKeyword "return"
+              TupleExpression 18:20-18:26
+                OpenParenToken "("
+                Argument 18:21-18:22
+                  NumericLiteralExpression 18:21-18:22
+                    NumericLiteralToken "0"
+                CommaToken ","
+                Argument 18:24-18:25
+                  NumericLiteralExpression 18:24-18:25
+                    NumericLiteralToken "0"
+                CloseParenToken ")"
+            CloseBraceToken "}"
         ReturnStatement 20:9-20:68
           ReturnKeyword "return"
           TupleExpression 20:16-20:68

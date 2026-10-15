@@ -58,24 +58,19 @@ CompilationUnit 1:1-36:1
         CloseParenToken ")"
       Block 10:44-13:6
         OpenBraceToken "{"
-        ExpressionStatement 11:9-11:34
-          InvocationExpression 11:9-11:34
-            SimpleMemberAccessExpression 11:9-11:19
-              SuperExpression 11:9-11:14
-                SuperKeyword "super"
-              DotToken "."
-              IdentifierName 11:15-11:19
-                InitKeyword "init"
-            ArgumentList 11:19-11:34
-              OpenParenToken "("
-              Argument 11:20-11:33
-                NameEquals 11:20-11:27
-                  IdentifierName 11:20-11:25
-                    IdentifierToken "power"
-                  EqualsToken "="
-                IdentifierName 11:28-11:33
+        InitStatement 11:9-11:34
+          InitKeyword "init"
+          SuperKeyword "super"
+          ArgumentList 11:19-11:34
+            OpenParenToken "("
+            Argument 11:20-11:33
+              NameEquals 11:20-11:27
+                IdentifierName 11:20-11:25
                   IdentifierToken "power"
-              CloseParenToken ")"
+                EqualsToken "="
+              IdentifierName 11:28-11:33
+                IdentifierToken "power"
+            CloseParenToken ")"
         AssignmentStatement 12:9-12:34
           SimpleMemberAccessExpression 12:9-12:25
             SelfExpression 12:9-12:13
@@ -96,32 +91,27 @@ CompilationUnit 1:1-36:1
         CloseParenToken ")"
       Block 16:25-18:6
         OpenBraceToken "{"
-        ExpressionStatement 17:9-17:43
-          InvocationExpression 17:9-17:43
-            SimpleMemberAccessExpression 17:9-17:18
-              SelfExpression 17:9-17:13
-                SelfKeyword "self"
-              DotToken "."
-              IdentifierName 17:14-17:18
-                InitKeyword "init"
-            ArgumentList 17:18-17:43
-              OpenParenToken "("
-              Argument 17:19-17:28
-                NameEquals 17:19-17:26
-                  IdentifierName 17:19-17:24
-                    IdentifierToken "power"
-                  EqualsToken "="
-                NumericLiteralExpression 17:27-17:28
-                  NumericLiteralToken "5"
-              CommaToken ","
-              Argument 17:30-17:42
-                NameEquals 17:30-17:38
-                  IdentifierName 17:30-17:36
-                    IdentifierToken "radius"
-                  EqualsToken "="
-                NumericLiteralExpression 17:39-17:42
-                  NumericLiteralToken "0.5"
-              CloseParenToken ")"
+        InitStatement 17:9-17:43
+          InitKeyword "init"
+          SelfKeyword "self"
+          ArgumentList 17:18-17:43
+            OpenParenToken "("
+            Argument 17:19-17:28
+              NameEquals 17:19-17:26
+                IdentifierName 17:19-17:24
+                  IdentifierToken "power"
+                EqualsToken "="
+              NumericLiteralExpression 17:27-17:28
+                NumericLiteralToken "5"
+            CommaToken ","
+            Argument 17:30-17:42
+              NameEquals 17:30-17:38
+                IdentifierName 17:30-17:36
+                  IdentifierToken "radius"
+                EqualsToken "="
+              NumericLiteralExpression 17:39-17:42
+                NumericLiteralToken "0.5"
+            CloseParenToken ")"
         CloseBraceToken "}"
     PropertyDeclaration 20:5-22:6
       PublicKeyword "public"
@@ -236,7 +226,7 @@ CompilationUnit 1:1-36:1
               Argument 32:13-32:32
                 NameEquals 32:13-32:21
                   IdentifierName 32:13-32:19
-                    IdentifierToken "amount"
+                    IdentifierToken "Amount"
                   EqualsToken "="
                 SimpleMemberAccessExpression 32:22-32:32
                   SelfExpression 32:22-32:26
@@ -248,7 +238,7 @@ CompilationUnit 1:1-36:1
               Argument 33:13-33:43
                 NameEquals 33:13-33:22
                   IdentifierName 33:13-33:20
-                    IdentifierToken "seconds"
+                    IdentifierToken "Seconds"
                   EqualsToken "="
                 AddExpression 33:23-33:43
                   NumericLiteralExpression 33:23-33:24

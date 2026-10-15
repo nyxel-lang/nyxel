@@ -1,8 +1,8 @@
 namespace Nyxel.Compiler.Syntax;
 
 /// <summary>
-/// A statement. <c>if</c>, <c>match</c> and <c>try</c> are expressions (ADR-0007, ADR-0014); used as statements
-/// they are wrapped in an <see cref="ExpressionStatementSyntax"/>.
+/// A statement. <c>if</c> and <c>try</c> with blocks are statements; with <c>-&gt;</c> they are values
+/// (ADR-0025). <c>match</c> is both and, used as a statement, is wrapped in an <see cref="ExpressionStatementSyntax"/>.
 /// </summary>
 public abstract class StatementSyntax : SyntaxNode
 {
@@ -277,6 +277,173 @@ public sealed class JumpStatementSyntax : StatementSyntax
     public SyntaxToken Keyword { get; }
 
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Keyword);
+}
+
+/// <summary><c>give value</c>: the value of the enclosing <c>eval</c> block (ADR-0025).</summary>
+public sealed class GiveStatementSyntax : StatementSyntax
+{
+    internal GiveStatementSyntax(SyntaxToken giveKeyword, ExpressionSyntax expression)
+        : base(SyntaxKind.GiveStatement)
+    {
+        GiveKeyword = giveKeyword;
+        Expression = expression;
+        AdoptChildren();
+    }
+
+    public SyntaxToken GiveKeyword { get; }
+
+    public ExpressionSyntax Expression { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(GiveKeyword, Expression);
+}
+
+/// <summary><c>if condition { } else { }</c> (ADR-0007); the <c>if</c> that gives a value is <see cref="IfExpressionSyntax"/> (ADR-0025).</summary>
+public sealed class IfStatementSyntax : StatementSyntax
+{
+    internal IfStatementSyntax(SyntaxToken ifKeyword, ExpressionSyntax condition, BlockSyntax block, ElseClauseSyntax? elseClause)
+        : base(SyntaxKind.IfStatement)
+    {
+        IfKeyword = ifKeyword;
+        Condition = condition;
+        Block = block;
+        ElseClause = elseClause;
+        AdoptChildren();
+    }
+
+    public SyntaxToken IfKeyword { get; }
+
+    public ExpressionSyntax Condition { get; }
+
+    public BlockSyntax Block { get; }
+
+    public ElseClauseSyntax? ElseClause { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(IfKeyword, Condition, Block, ElseClause);
+}
+
+public sealed class ElseClauseSyntax : SyntaxNode
+{
+    internal ElseClauseSyntax(SyntaxToken elseKeyword, StatementSyntax body)
+        : base(SyntaxKind.ElseClause)
+    {
+        ElseKeyword = elseKeyword;
+        Body = body;
+        AdoptChildren();
+    }
+
+    public SyntaxToken ElseKeyword { get; }
+
+    /// <summary>A <see cref="BlockSyntax"/>, or an <see cref="IfStatementSyntax"/> for <c>else if</c>.</summary>
+    public StatementSyntax Body { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(ElseKeyword, Body);
+}
+
+/// <summary><c>try { } catch e: T { } finally { }</c> (ADR-0014); the <c>try</c> that gives a value is <see cref="TryExpressionSyntax"/> (ADR-0025).</summary>
+public sealed class TryStatementSyntax : StatementSyntax
+{
+    internal TryStatementSyntax(SyntaxToken tryKeyword, BlockSyntax block, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally)
+        : base(SyntaxKind.TryStatement)
+    {
+        TryKeyword = tryKeyword;
+        Block = block;
+        Catches = catches;
+        Finally = @finally;
+        AdoptChildren();
+    }
+
+    public SyntaxToken TryKeyword { get; }
+
+    public BlockSyntax Block { get; }
+
+    public SyntaxList<CatchClauseSyntax> Catches { get; }
+
+    public FinallyClauseSyntax? Finally { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(TryKeyword, Block, Catches, Finally);
+}
+
+/// <summary><c>catch e: IOException when e.HResult == 32 { }</c>.</summary>
+public sealed class CatchClauseSyntax : SyntaxNode
+{
+    internal CatchClauseSyntax(
+        SyntaxToken catchKeyword,
+        SyntaxToken identifier,
+        TypeAnnotationSyntax typeAnnotation,
+        WhenClauseSyntax? filter,
+        BlockSyntax block)
+        : base(SyntaxKind.CatchClause)
+    {
+        CatchKeyword = catchKeyword;
+        Identifier = identifier;
+        TypeAnnotation = typeAnnotation;
+        Filter = filter;
+        Block = block;
+        AdoptChildren();
+    }
+
+    public SyntaxToken CatchKeyword { get; }
+
+    public SyntaxToken Identifier { get; }
+
+    public TypeAnnotationSyntax TypeAnnotation { get; }
+
+    public WhenClauseSyntax? Filter { get; }
+
+    public BlockSyntax Block { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(CatchKeyword, Identifier, TypeAnnotation, Filter, Block);
+}
+
+/// <summary><c>finally { }</c> of a <see cref="TryStatementSyntax"/> or a <see cref="TryExpressionSyntax"/>.</summary>
+public sealed class FinallyClauseSyntax : SyntaxNode
+{
+    internal FinallyClauseSyntax(SyntaxToken finallyKeyword, BlockSyntax block)
+        : base(SyntaxKind.FinallyClause)
+    {
+        FinallyKeyword = finallyKeyword;
+        Block = block;
+        AdoptChildren();
+    }
+
+    public SyntaxToken FinallyKeyword { get; }
+
+    public BlockSyntax Block { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(FinallyKeyword, Block);
+}
+
+/// <summary>
+/// <c>init super(args)</c>, <c>init super.Homing(args)</c>, <c>init self(args)</c>, <c>init self.Small()</c>: the
+/// base part, or another init of the same type, built first (ADR-0027). That it is the first statement of an init is
+/// checked during binding.
+/// </summary>
+public sealed class InitStatementSyntax : StatementSyntax
+{
+    internal InitStatementSyntax(SyntaxToken initKeyword, SyntaxToken receiver, SyntaxToken? dotToken, SyntaxToken? name, ArgumentListSyntax argumentList)
+        : base(SyntaxKind.InitStatement)
+    {
+        InitKeyword = initKeyword;
+        Receiver = receiver;
+        DotToken = dotToken;
+        Name = name;
+        ArgumentList = argumentList;
+        AdoptChildren();
+    }
+
+    public SyntaxToken InitKeyword { get; }
+
+    /// <summary><c>super</c> or <c>self</c>.</summary>
+    public SyntaxToken Receiver { get; }
+
+    public SyntaxToken? DotToken { get; }
+
+    /// <summary>The name of a named init; null for the init without a name.</summary>
+    public SyntaxToken? Name { get; }
+
+    public ArgumentListSyntax ArgumentList { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(InitKeyword, Receiver, DotToken, Name, ArgumentList);
 }
 
 /// <summary><c>emit self.Died(slime = self)</c> (ADR-0017). The expression is checked to be an event call during binding.</summary>

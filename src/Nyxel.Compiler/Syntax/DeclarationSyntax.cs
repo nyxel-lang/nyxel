@@ -387,8 +387,9 @@ public sealed class AccessorListSyntax : SyntaxNode
 }
 
 /// <summary>
-/// <c>get</c> or <c>set(value)</c>, with an optional visibility and an optional body. <c>get</c> and <c>set</c>
-/// are identifier tokens: they are keywords only here.
+/// <c>get</c> or <c>set(value)</c>, with an optional visibility and an optional body: a block, or for a getter
+/// <c>= expression</c> as for functions (ADR-0026). <c>get</c> and <c>set</c> are identifier tokens: they are
+/// keywords only here.
 /// </summary>
 public sealed class AccessorDeclarationSyntax : SyntaxNode
 {
@@ -397,13 +398,15 @@ public sealed class AccessorDeclarationSyntax : SyntaxNode
         SyntaxList<SyntaxToken> modifiers,
         SyntaxToken keyword,
         SetterParameterSyntax? parameter,
-        BlockSyntax? body)
+        BlockSyntax? body,
+        ExpressionBodySyntax? expressionBody)
         : base(kind)
     {
         Modifiers = modifiers;
         Keyword = keyword;
         Parameter = parameter;
         Body = body;
+        ExpressionBody = expressionBody;
         AdoptChildren();
     }
 
@@ -415,7 +418,9 @@ public sealed class AccessorDeclarationSyntax : SyntaxNode
 
     public BlockSyntax? Body { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(Modifiers, Keyword, Parameter, Body);
+    public ExpressionBodySyntax? ExpressionBody { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(Modifiers, Keyword, Parameter, Body, ExpressionBody);
 }
 
 /// <summary>The <c>(value)</c> of <c>set(value)</c>.</summary>

@@ -138,7 +138,7 @@ public static class DiagnosticDescriptors
         Error("NYX1122", "Assignment is a statement and has no value; did you mean '=='?");
 
     public static readonly DiagnosticDescriptor MatchArmStatement =
-        Error("NYX1123", "The right side of '->' is an expression or a block; put the {0} in braces: '-> {{ ... }}'.");
+        Error("NYX1123", "A {0} can't follow '->' directly; {1}.");
 
     public static readonly DiagnosticDescriptor TupleElementName =
         Error("NYX1124", "Give each tuple element a name, as in '(Min: int, Max: int)'.");
@@ -173,6 +173,60 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor StructEnumWithoutData =
         Error("NYX1179", "'struct enum' is for enums whose cases carry data; an enum without data is already a value type, so write 'enum'.");
 
+    public static readonly DiagnosticDescriptor EvalStatement =
+        Error("NYX1182", "An 'eval' block gives a value and can't stand on its own; use the value, as in 'let x = eval {{ ... }}'. To end a scope early, move the statements into a function of their own.");
+
+    public static readonly DiagnosticDescriptor GiveOutsideEval =
+        Error("NYX1183", "'give' gives the value of an 'eval' block; it can only be used inside one, and not from inside a lambda.");
+
+    public static readonly DiagnosticDescriptor ReturnInEval =
+        Error("NYX1184", "An 'eval' block can't 'return'; give its value with 'give'. To leave the function, give null and write '?? return' after the block.");
+
+    public static readonly DiagnosticDescriptor JumpOutOfEval =
+        Error("NYX1185", "'{0}' can't leave an 'eval' block; inside one it can only be used for a loop in the same block.");
+
+    public static readonly DiagnosticDescriptor EvalWithoutGive =
+        Error("NYX1186", "End an 'eval' block with 'give': write 'give {0}'.");
+
+    public static readonly DiagnosticDescriptor BlockBranchesAsValue =
+        Error("NYX1187", "When '{0}' gives a value, its branches are written with '->', as in '{1}'. To run statements first, use 'eval {{ ... give value }}'.");
+
+    public static readonly DiagnosticDescriptor ArrowBranchesAsStatement =
+        Error("NYX1188", "This '{0}' gives a value that is not used; as a statement, write its branches in braces: '{1}'.");
+
+    public static readonly DiagnosticDescriptor MixedBranches =
+        Error("NYX1189", "Write the branches of one '{0}' the same way: all with '->' when it gives a value, all in braces when it is a statement.");
+
+    public static readonly DiagnosticDescriptor MatchBlockArmAsValue =
+        Error("NYX1190", "When 'match' gives a value, each arm is one expression; to run statements first, write '-> eval {{ ... give value }}'.");
+
+    public static readonly DiagnosticDescriptor ArrowBranchesNeedParentheses =
+        Error("NYX1191", "Put this '{0}' in parentheses; as an operand or inside another branch it is not clear where it ends.");
+
+    public static readonly DiagnosticDescriptor IfValueWithoutElse =
+        Error("NYX1192", "An 'if' that gives a value needs an 'else': 'if condition -> a else -> b'.");
+
+    public static readonly DiagnosticDescriptor MatchElse =
+        Error("NYX1193", "Write 'case _' for the default arm of a 'match'; 'else' belongs to 'if' only.");
+
+    public static readonly DiagnosticDescriptor DiscardAsName =
+        Error("NYX1194", "'_' can't be a name; it marks a value that is not needed, as in 'let (_, max) = ...', 'out _' or 'case _'.");
+
+    public static readonly DiagnosticDescriptor DiscardAsValue =
+        Error("NYX1195", "'_' is not a value; it marks a value that is not needed, as in 'out _' or 'case _'.");
+
+    public static readonly DiagnosticDescriptor PrivateMember =
+        Error("NYX1196", "Remove 'private': members are private unless marked 'public' or 'protected'. 'private' is only written on an accessor, as in 'private set'.");
+
+    public static readonly DiagnosticDescriptor SetterExpressionBody =
+        Error("NYX1197", "A setter has no expression body; write 'set(value) {{ ... }}'.");
+
+    public static readonly DiagnosticDescriptor WithNotAfterNew =
+        Error("NYX1198", "'with (...)' sets members of a value being created and only follows 'new Type(...)'; to change an existing value, assign to its members.");
+
+    public static readonly DiagnosticDescriptor WithMemberName =
+        Error("NYX1199", "Each item in 'with (...)' names the member it sets: 'Member = value'.");
+
     // Habits from C# and other languages, each with the Nyxel way to write it.
 
     public static readonly DiagnosticDescriptor SymbolicLogicalOperator =
@@ -197,7 +251,7 @@ public static class DiagnosticDescriptors
         Error("NYX1156", "'is' does not introduce a name: a checked local variable or parameter is narrowed in place. Remove '{0}'.");
 
     public static readonly DiagnosticDescriptor Ternary =
-        Error("NYX1157", "Nyxel has no '?:'; write 'if condition {{ a }} else {{ b }}'.");
+        Error("NYX1157", "Nyxel has no '?:'; write 'if condition -> a else -> b'.");
 
     public static readonly DiagnosticDescriptor ForceUnwrap =
         Error("NYX1158", "Nyxel has no '!' to assert a value is not null; write '?? throw new InvalidOperationException(\"why\")'.");
@@ -224,10 +278,10 @@ public static class DiagnosticDescriptors
         Error("NYX1165", "Write 'new {0}<{1}>({2})' instead of 'new {1}[{2}]'.");
 
     public static readonly DiagnosticDescriptor StandaloneBlock =
-        Error("NYX1166", "A block can't stand on its own; to end a scope or release a 'using' early, move the statements into a function of their own.");
+        Error("NYX1166", "A block can't stand on its own. To compute a value in a scope of its own, write 'let x = eval {{ ... give value }}'; otherwise move the statements into a function of their own.");
 
     public static readonly DiagnosticDescriptor Initializer =
-        Error("NYX1167", "Nyxel has no initializers in braces after 'new'; list the elements in a collection literal such as '[1, 2]', or set the fields after creating the value.");
+        Error("NYX1167", "Nyxel has no initializers in braces after 'new'; {0}.");
 
     public static readonly DiagnosticDescriptor TupleElementOrder =
         Error("NYX1168", "Write '{0}: {1}' instead of '{1} {0}'.");
@@ -255,6 +309,9 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor FlagsAttribute =
         Error("NYX1181", "Write 'flags enum' instead of '[Flags]'.");
+
+    public static readonly DiagnosticDescriptor InitCallAsMember =
+        Error("NYX1200", "Another init is called with 'init {0}(...)', or 'init {0}.Name(...)' for a named one; it is the first statement of an init.");
 
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);

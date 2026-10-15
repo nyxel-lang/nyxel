@@ -56,9 +56,9 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 |---|---|---|
 | `NYX1101` | 缺了某个记号、表达式、类型或声明 | `F(a, b` 换行后没有 `)` |
 | `NYX1102` | 不该出现的记号 | lambda 参数里的 `self`、前面没有 `if` 的 `else` |
-| `NYX1103` | 运算符（含 `.`、`?.`）写在行尾，括号里也一样（ADR-0019） | `a +` 换行 `b` |
+| `NYX1103` | 运算符（含 `.`、`?.`、`with`）写在行尾，括号里也一样（ADR-0019、ADR-0027） | `a +` 换行 `b` |
 | `NYX1104` | `{` 不在前面内容的同一行（ADR-0013） | `if a` 换行 `{` |
-| `NYX1105` | `else` / `catch` / `finally` 不在 `}` 的同一行 | `}` 换行 `else {` |
+| `NYX1105` | `{ }` 形式的 `else` / `catch` / `finally` 不在 `}` 的同一行（`->` 形式可以写在下一行开头，ADR-0025） | `}` 换行 `else {` |
 | `NYX1106` | 一行写了两条语句、两个成员、两个分支或两个访问器 | `let a = 1 let b = 2` |
 | `NYX1107` | 一行以不能续行的记号开头（ADR-0013 的续行规则） | `let a` 换行 `= 1` |
 | `NYX1108` | 修饰符顺序不对，消息给出正确顺序（ADR-0019） | `static public` |
@@ -76,7 +76,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1120` | `try` 后面没有 `catch` 也没有 `finally`（ADR-0014） | |
 | `NYX1121` | 区间连写（ADR-0019） | `0..<1..<2` |
 | `NYX1122` | 在要值的地方赋值（ADR-0011） | `if a = b`、`a = b = c` |
-| `NYX1123` | `->` 右边直接写语句，没有花括号（ADR-0009） | `case 1 -> return` |
+| `NYX1123` | `match` 分支 `->` 右边直接写 `let`、`using`、循环、`if` / `try` 语句（ADR-0025：当语句用时简单语句和块可以直接写），或当值用时写了 `emit` 等语句；消息按用法说明 | `case 1 -> let a = 2` |
 | `NYX1124` | 元组类型的元素没有名字（ADR-0021），每个元组报一次 | `(int, int)` 写成 `(Min: int, Max: int)` |
 | `NYX1125` | 元组、解构只有一个元素 | `(A: int)`、`let (a) = x` |
 | `NYX1126` | 解构里写了类型或嵌套的括号（ADR-0021 只接受名字） | `let (a: int, b) = x`、`let ((a, b), c) = x` |
@@ -88,6 +88,22 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1177` | 有的 case 写了值、有的没写，每个没写的报一次 | `case A = 1` 之后的 `case B` |
 | `NYX1178` | flags enum 的 case 没写值，每个报一次 | `flags enum E { case A }` |
 | `NYX1179` | `struct enum` 没有带数据的 case | `struct enum E { case A }` 写成 `enum E` |
+| `NYX1182` | `eval` 块单独当语句（ADR-0025） | `eval { ... }` 写成 `let x = eval { ... }` |
+| `NYX1183` | `eval` 外面的 `give`，包括 `eval` 里的 lambda 里的 | 顶层的 `give 1`、`b ?? give 0` |
+| `NYX1184` | `eval` 块里的 `return`（lambda 里的不算） | 让块给出 `null`，在块后面写 `?? return` |
+| `NYX1185` | `eval` 块里的 `break` / `continue` 要离开块（块里自己的循环不算） | `for` 里的 `eval { if a { break } ... }` |
+| `NYX1186` | `eval` 块是空的，或者最后一句是没有 `give` 的表达式（其他走到末尾的路径在语义分析查） | `eval { ...; r * 2 }` 写成 `give r * 2` |
+| `NYX1188` | `->` 形式的 `if` / `try` 单独当语句 | `if a -> F() else -> G()` 写成 `if a { F() } else { G() }` |
+| `NYX1189` | 同一个 `if` / `try` 的分支两种形式混用 | `if a { } else -> 1`、`if b -> 1 else { 2 }` |
+| `NYX1190` | 当值用的 `match` 有 `{ }` 块分支 | `case 1 -> { ... }` 写成 `case 1 -> eval { ... give 值 }` |
+| `NYX1191` | `->` 形式的 `if` / `try` 当运算数，或直接写在另一个 `if` / `try` 的分支里（`else if` 不算） | `1 + if b -> 1 else -> 2`、`if a -> if b -> 1 else -> 2 else -> 3`，加括号 |
+| `NYX1192` | `->` 形式的 `if` 没有 `else` | `if b -> 1` |
+| `NYX1194` | `_` 用作名字（ADR-0026：它是保留记号） | `let _ = 1`、`for _ in xs` |
+| `NYX1195` | `_` 用作值 | `let a = _`、`F(_)`；只有 `out _` 可以 |
+| `NYX1196` | 成员上写了 `private`（ADR-0026：默认就是私有，只有访问器写 `private set`） | `private var x: int = 0` |
+| `NYX1197` | setter 写了表达式体（ADR-0026：只有 getter 能写 `get = 表达式`） | `set(value) = x` |
+| `NYX1198` | `with (...)` 不在 `new 类型(...)` 后面（ADR-0027：复制已有的值再改几个成员还是待定） | `self.pos with (Y = 0)` |
+| `NYX1199` | `with (...)` 里的一项没写成员名 | `new Spin() with (2)` 写成 `with (Speed = 2)` |
 
 ### 其他语言的写法
 
@@ -102,7 +118,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1154` | `(int)x` | `x as int`（ADR-0014） |
 | `NYX1155` | `F(count: 3)`、`(Min: 1, Max: 2)` | `F(count = 3)`、`(Min = 1, Max = 2)`（ADR-0011、0021） |
 | `NYX1156` | `x is Enemy e` | `x is Enemy`，`x` 自己被收窄（ADR-0010） |
-| `NYX1157` | `a ? b : c` | `if a { b } else { c }`（ADR-0007） |
+| `NYX1157` | `a ? b : c` | `if a -> b else -> c`（ADR-0007、0025） |
 | `NYX1158` | `x!` | `x ?? throw new 异常("原因")`（ADR-0009） |
 | `NYX1159` | `using var r = ...` | `using r = ...`（ADR-0015） |
 | `NYX1160` | `using (...) { }` | `using r = ...`，在所在块结束时释放（ADR-0015） |
@@ -111,8 +127,8 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1163` | `case 1, 2` | `case 1 or 2`（ADR-0010） |
 | `NYX1164` | `int[]`、`int[,]` | `array<int>`、`array2d<int>`（ADR-0020、0022） |
 | `NYX1165` | `new Enemy[10]`、`new Tile[w, h]` | `new array<Enemy>(10)`、`new array2d<Tile>(w, h)`（ADR-0020、0022） |
-| `NYX1166` | 语句位置单独的 `{ ... }` | 拆成函数（ADR-0020） |
-| `NYX1167` | `new T { ... }`、`new int[] { 1, 2 }` 这类初始化器 | 集合字面量 `[1, 2]`，或创建后再给字段赋值（ADR-0022） |
+| `NYX1166` | 语句位置单独的 `{ ... }` | 算一个值用 `let x = eval { ... give 值 }`（ADR-0025），否则拆成函数（ADR-0020） |
+| `NYX1167` | `new T { X = 1 }`、`new List<int> { 1, 2 }`、`new int[] { 1, 2 }` 这类初始化器 | 设成员写 `new T() with (X = 1)`（ADR-0027），带元素创建用集合字面量 `[1, 2]`（ADR-0022）；消息按花括号里的内容给出其中一种 |
 | `NYX1168` | 元组类型 `(int Min, int Max)` | `(Min: int, Max: int)`（ADR-0021） |
 | `NYX1169` | 循环标签 `outer: for`、`break outer`、`continue outer` | 拆成函数，用 `return` 跳出（ADR-0021） |
 | `NYX1170` | 切片到末尾 `name[1..]`（也报 `name[1..<]`） | `name[1...]`（ADR-0022） |
@@ -122,7 +138,10 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1174` | 超过三维的数组 `int[,,,]`、`new int[1, 2, 3, 4]` | 最多 `array3d<T>`（ADR-0022） |
 | `NYX1180` | `x is Damage.Burn(var a, var s)` | `x is Damage.Burn` 只判断；取数据写 `match`（ADR-0024） |
 | `NYX1181` | enum 上面的 `[Flags]` | `flags enum`（ADR-0024） |
+| `NYX1187` | 当值用的 `if` / `try` 写 `{ }` 分支（Rust、Kotlin），或 `->` 后面写 `{ }` | `if c -> a else -> b`、`try -> a catch e: E -> b`；要先执行语句用 `eval`（ADR-0025） |
+| `NYX1193` | `match` 的默认分支写 `else`（Kotlin） | `case _ -> ...`（ADR-0026） |
+| `NYX1200` | `super.init(...)`、`self.init(...)`（Swift，也是 ADR-0013 的旧写法），包括 `super.init.Name(...)` | `init super(...)`、`init self(...)`、`init super.Name(...)`（ADR-0027） |
 
 ## 不在语法阶段报的
 
-语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）等。区间能写在哪里（`NYX1127`–`NYX1129`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。
+语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。

@@ -9,6 +9,21 @@ public abstract class PatternSyntax : SyntaxNode
     }
 }
 
+/// <summary><c>case _</c>: the default arm, matching whatever the arms before it did not (ADR-0026).</summary>
+public sealed class DiscardPatternSyntax : PatternSyntax
+{
+    internal DiscardPatternSyntax(SyntaxToken underscoreToken)
+        : base(SyntaxKind.DiscardPattern)
+    {
+        UnderscoreToken = underscoreToken;
+        AdoptChildren();
+    }
+
+    public SyntaxToken UnderscoreToken { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(UnderscoreToken);
+}
+
 /// <summary>A constant: <c>0</c>, <c>"boss"</c>, <c>null</c>, <c>Element.Fire</c>.</summary>
 public sealed class ConstantPatternSyntax : PatternSyntax
 {
@@ -104,8 +119,9 @@ public sealed class CasePatternSyntax : PatternSyntax
 }
 
 /// <summary>
-/// The <c>(amount, seconds)</c> of a case pattern: one name per field in order, each becoming a local variable;
-/// <c>_</c> discards a field.
+/// The <c>(amount, seconds)</c> of a case pattern: one name per field in order, each becoming a local variable.
+/// A field that is not needed is <c>_</c>: an <see cref="IdentifierNameSyntax"/> whose token is the
+/// <see cref="SyntaxKind.UnderscoreToken"/> (ADR-0026).
 /// </summary>
 public sealed class CaseFieldListSyntax : SyntaxNode
 {

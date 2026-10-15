@@ -91,6 +91,7 @@ internal sealed partial class Parser
 
         var unit = new CompilationUnitSyntax(@namespace, MakeList(imports), MakeList(members), NextToken());
         CheckRanges(unit);
+        CheckEvalBlocks(unit);
         return unit;
     }
 
@@ -115,6 +116,11 @@ internal sealed partial class Parser
         SkipFlagsAttribute();
         var first = Current;
         var modifiers = ParseModifiers();
+        // Members are private by default; 'private' is only written on accessors (ADR-0026).
+        if (modifiers.FirstOrDefault(m => m.Kind == SyntaxKind.PrivateKeyword) is { } privateKeyword)
+        {
+            Report(DiagnosticDescriptors.PrivateMember, privateKeyword.Span);
+        }
         MemberDeclarationSyntax? member = Current.Kind switch
         {
             _ when modifiers.Count > 0 && AtLineBreak => null,
@@ -496,9 +502,14 @@ internal sealed partial class Parser
             var openParen = NextToken();
             parameter = new SetterParameterSyntax(openParen, ExpectIdentifier(), Expect(SyntaxKind.CloseParenToken));
         }
-        var body = Current.Kind == SyntaxKind.OpenBraceToken ? ParseBlock() : null;
+        // A block, or '= expression' as for a function (ADR-0026); a setter's body is a statement, so only a block.
+        var (body, expressionBody) = ParseFunctionBody(required: false);
+        if (isSet && expressionBody != null)
+        {
+            Report(DiagnosticDescriptors.SetterExpressionBody, expressionBody.EqualsToken.Span);
+        }
         return new AccessorDeclarationSyntax(
-            isGet ? SyntaxKind.GetAccessorDeclaration : SyntaxKind.SetAccessorDeclaration, modifiers, keyword, parameter, body);
+            isGet ? SyntaxKind.GetAccessorDeclaration : SyntaxKind.SetAccessorDeclaration, modifiers, keyword, parameter, body, expressionBody);
     }
 
     private EventDeclarationSyntax ParseEventDeclaration(SyntaxList<SyntaxToken> modifiers)

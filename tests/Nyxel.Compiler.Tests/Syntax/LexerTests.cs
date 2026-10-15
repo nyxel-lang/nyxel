@@ -42,11 +42,17 @@ public class LexerTests
     [InlineData("set")]
     [InlineData("from")]
     [InlineData("value")]
-    [InlineData("_")]
+    [InlineData("_x")]
+    [InlineData("x_")]
+    [InlineData("__")]
     [InlineData("élan")]
     [InlineData("名字")]
     public void ContextualWordsAndUnicodeAreIdentifiers(string text) =>
         Assert.Equal(SyntaxKind.IdentifierToken, Assert.Single(Lex(text)).Kind);
+
+    [Fact]
+    public void UnderscoreOnItsOwnIsAToken() =>
+        Assert.Equal([SyntaxKind.UnderscoreToken, SyntaxKind.CommaToken, SyntaxKind.IdentifierToken], Kinds("_, _a"));
 
     [Fact]
     public void OperatorsAreLexedLongestFirst()

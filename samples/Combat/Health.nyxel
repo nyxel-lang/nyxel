@@ -18,18 +18,12 @@ public struct Health {
         self.current = 0
     }
 
-    public property Current: int {
-        get { return self.current }
-    }
+    public property Current: int { get = self.current }
 
-    public property IsDead: bool {
-        get { return self.current <= 0 }
-    }
+    public property IsDead: bool { get = self.current <= 0 }
 
     /// 剩余比例，0 到 1。
-    public property Percent: float {
-        get { return self.current as float / self.Max }
-    }
+    public property Percent: float { get = self.current as float / self.Max }
 
     // var self：struct 的方法修改自己时要写（class 的方法不用，见 Spawner.SpawnWave）。
     /// 应用一次伤害，返回生命值的实际变化（负数是掉血）。

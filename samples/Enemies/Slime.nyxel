@@ -18,13 +18,9 @@ public class Slime : Behaviour, IDamageable {
     /// 被消灭时触发，在从场景里移除之前。
     public event Died(slime: Slime)
 
-    public property IsDead: bool {
-        get { return self.health.IsDead }
-    }
+    public property IsDead: bool { get = self.health.IsDead }
 
-    public property IsChasing: bool {
-        get { return self.state is SlimeState.Chasing }   // 只问是哪个 case，不取数据
-    }
+    public property IsChasing: bool { get = self.state is SlimeState.Chasing }   // 只问是哪个 case，不取数据
 
     public override func Update(self, dt: float) {
         if self.IsDead {

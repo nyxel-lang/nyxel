@@ -18,15 +18,20 @@ internal sealed partial class Parser
         return expression;
     }
 
-    private ExpressionSyntax ParseExpressionCore() => ParseBinaryExpression(0);
+    /// <summary>A whole expression, as opposed to an operand (see <see cref="ParseBranchingValue"/>).</summary>
+    private ExpressionSyntax ParseExpressionCore()
+    {
+        _expressionStart = _position;
+        return ParseBinaryExpression(0);
+    }
 
     private ExpressionSyntax MissingExpression() => new IdentifierNameSyntax(Missing(SyntaxKind.IdentifierToken));
 
-    private static bool CanStartExpression(SyntaxKind kind) => kind is SyntaxKind.IdentifierToken
+    private static bool CanStartExpression(SyntaxKind kind) => kind is SyntaxKind.IdentifierToken or SyntaxKind.UnderscoreToken
         or SyntaxKind.NumericLiteralToken or SyntaxKind.StringLiteralToken or SyntaxKind.CharacterLiteralToken
         or SyntaxKind.InterpolatedStringStartToken or SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword or SyntaxKind.NullKeyword or SyntaxKind.SelfKeyword
         or SyntaxKind.SuperKeyword or SyntaxKind.OpenParenToken or SyntaxKind.OpenBracketToken or SyntaxKind.NewKeyword or SyntaxKind.FuncKeyword
-        or SyntaxKind.AsyncKeyword or SyntaxKind.IfKeyword or SyntaxKind.MatchKeyword or SyntaxKind.TryKeyword
+        or SyntaxKind.AsyncKeyword or SyntaxKind.IfKeyword or SyntaxKind.MatchKeyword or SyntaxKind.TryKeyword or SyntaxKind.EvalKeyword
         or SyntaxKind.MinusToken or SyntaxKind.PlusToken or SyntaxKind.TildeToken or SyntaxKind.NotKeyword
         or SyntaxKind.ExclamationToken or SyntaxKind.AwaitKeyword or SyntaxKind.LaunchKeyword
         or SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken or SyntaxKind.CaretToken
@@ -100,33 +105,11 @@ internal sealed partial class Parser
         }
     }
 
-    /// <summary>The right of '??': a value (right-associative), or return / throw / break / continue (ADR-0009).</summary>
-    private ExpressionSyntax ParseCoalesceRight(int precedence)
-    {
-        var kind = Current.Kind switch
-        {
-            SyntaxKind.ReturnKeyword => SyntaxKind.ReturnExpression,
-            SyntaxKind.ThrowKeyword => SyntaxKind.ThrowExpression,
-            SyntaxKind.BreakKeyword => SyntaxKind.BreakExpression,
-            SyntaxKind.ContinueKeyword => SyntaxKind.ContinueExpression,
-            _ => SyntaxKind.None,
-        };
-        if (kind == SyntaxKind.None || AtLineBreak)
-        {
-            return ParseBinaryExpression(precedence - 1);
-        }
-        var keyword = NextToken();
-        ExpressionSyntax? value = null;
-        if (kind == SyntaxKind.ThrowExpression)
-        {
-            value = ParseExpressionCore();
-        }
-        else if (kind == SyntaxKind.ReturnExpression && !AtStatementEnd && CanStartExpression(Current.Kind))
-        {
-            value = ParseExpressionCore();
-        }
-        return new JumpExpressionSyntax(kind, keyword, value);
-    }
+    /// <summary>
+    /// The right of '??': a value (right-associative), or return / throw / break / continue / give (ADR-0009,
+    /// ADR-0025).
+    /// </summary>
+    private ExpressionSyntax ParseCoalesceRight(int precedence) => TryParseLeave() ?? ParseBinaryExpression(precedence - 1);
 
     /// <summary>
     /// The end after a range operator, or null when nothing that can start one follows (<c>name[1...]</c>). Which
@@ -200,9 +183,21 @@ internal sealed partial class Parser
                         var kind = operatorToken.Kind == SyntaxKind.DotToken
                             ? SyntaxKind.SimpleMemberAccessExpression
                             : SyntaxKind.ConditionalMemberAccessExpression;
+                        if (Current.Kind == SyntaxKind.InitKeyword && !AtLineBreak)
+                        {
+                            // super.init(...), self.init(...): Swift's form and ADR-0013's; now 'init super(...)' (ADR-0027).
+                            var receiver = expression.Kind == SyntaxKind.SelfExpression ? "self" : "super";
+                            Report(DiagnosticDescriptors.InitCallAsMember, Current.Span, receiver);
+                        }
                         expression = new MemberAccessExpressionSyntax(kind, expression, operatorToken, ParseMemberName());
                         break;
                     }
+                case SyntaxKind.WithKeyword:
+                    // 'with (...)' only follows 'new T(...)' (ADR-0027); a line starting with 'with' continues the line
+                    // above, so this one is reported even on a new line.
+                    Report(DiagnosticDescriptors.WithNotAfterNew, Current.Span);
+                    SkipNode(ParseWithClause());
+                    break;
                 case SyntaxKind.OpenParenToken when !AtLineBreak:
                     expression = new InvocationExpressionSyntax(expression, ParseArgumentList(SyntaxKind.ArgumentList));
                     break;
@@ -233,7 +228,10 @@ internal sealed partial class Parser
         }
     }
 
-    /// <summary>The name after '.': an identifier (maybe generic), or <c>init</c> in <c>super.init</c> / <c>self.init</c>.</summary>
+    /// <summary>
+    /// The name after '.': an identifier (maybe generic). <c>init</c> in Swift's <c>super.init(...)</c> is reported by
+    /// the caller and taken as the name.
+    /// </summary>
     private SimpleNameSyntax ParseMemberName()
     {
         if (Current.Kind == SyntaxKind.IdentifierToken && !AtLineBreak)
@@ -279,6 +277,10 @@ internal sealed partial class Parser
                 return new InstanceExpressionSyntax(SyntaxKind.SuperExpression, NextToken());
             case SyntaxKind.IdentifierToken:
                 return ParseSimpleNameInExpression();
+            case SyntaxKind.UnderscoreToken:
+                // Only 'out _' wants it, and ParseArgument takes that one before coming here (ADR-0026).
+                Report(DiagnosticDescriptors.DiscardAsValue, Current.Span);
+                return new DiscardExpressionSyntax(NextToken());
             case SyntaxKind.OpenParenToken:
                 return ParseParenthesizedExpression();
             case SyntaxKind.OpenBracketToken:
@@ -288,12 +290,12 @@ internal sealed partial class Parser
             case SyntaxKind.FuncKeyword:
             case SyntaxKind.AsyncKeyword when Peek(1).Kind == SyntaxKind.FuncKeyword:
                 return ParseLambda();
-            case SyntaxKind.IfKeyword:
-                return ParseIfExpression();
+            case SyntaxKind.EvalKeyword:
+                return new EvalExpressionSyntax(NextToken(), ParseBlock());
+            case SyntaxKind.IfKeyword or SyntaxKind.TryKeyword:
+                return ParseBranchingValue();
             case SyntaxKind.MatchKeyword:
                 return ParseMatchExpression();
-            case SyntaxKind.TryKeyword:
-                return ParseTryExpression();
             case var kind when SyntaxFacts.IsPredefinedType(kind):
                 return new PredefinedTypeSyntax(NextToken());
             case var kind when SyntaxFacts.IsArrayKeyword(kind):
@@ -506,20 +508,75 @@ internal sealed partial class Parser
         else
         {
             // An initializer right after the type (new List<int> { 1 }) is reported below instead.
-            if (!At(SyntaxKind.OpenBraceToken))
+            if (!AtInitializerBrace)
             {
                 ReportExpected("'('");
             }
-            arguments = new ArgumentListSyntax(
-                SyntaxKind.ArgumentList, Missing(SyntaxKind.OpenParenToken), SeparatedSyntaxList<ArgumentSyntax>.Empty, Missing(SyntaxKind.CloseParenToken));
+            arguments = MissingArgumentList();
         }
-        if (At(SyntaxKind.OpenBraceToken))
+        if (AtInitializerBrace)
         {
             // new Enemy() { Hp = 3 }, new int[] { 1, 2 } -- C#'s initializers.
-            Report(DiagnosticDescriptors.Initializer, Current.Span);
+            var initArguments = arguments.OpenToken.IsMissing ? "()" : arguments.ToString();
+            var advice = Peek(1).Kind == SyntaxKind.IdentifierToken && Peek(2).Kind == SyntaxKind.EqualsToken
+                ? $"set members after the init with 'with', as in 'new {type}{initArguments} with ({Peek(1).Text} = ...)'"
+                : CollectionInitializerAdvice;
+            Report(DiagnosticDescriptors.Initializer, Current.Span, advice);
             SkipBalanced();
         }
-        return new ObjectCreationExpressionSyntax(newKeyword, type, arguments);
+        // A line starting with 'with' continues the line above (ADR-0027).
+        var withClause = Current.Kind == SyntaxKind.WithKeyword ? ParseWithClause() : null;
+        return new ObjectCreationExpressionSyntax(newKeyword, type, arguments, withClause);
+    }
+
+    private const string CollectionInitializerAdvice = "list the elements in a collection literal such as '[1, 2]'";
+
+    /// <summary>
+    /// A '{' after <c>new T(...)</c> that can only be C#'s initializer. In the head of an <c>if</c>, <c>while</c>,
+    /// <c>for</c> or <c>match</c> it starts the block: <c>if pos == new Vector3(0, 0, 0) {</c>.
+    /// </summary>
+    private bool AtInitializerBrace => At(SyntaxKind.OpenBraceToken) && _headBracketDepth != _bracketDepth;
+
+    private ArgumentListSyntax MissingArgumentList() => new(
+        SyntaxKind.ArgumentList, Missing(SyntaxKind.OpenParenToken), SeparatedSyntaxList<ArgumentSyntax>.Empty, Missing(SyntaxKind.CloseParenToken));
+
+    /// <summary><c>with (Axis = a, Speed = 2)</c> (ADR-0027). Each item names a member, as in a tuple with names.</summary>
+    private WithClauseSyntax ParseWithClause()
+    {
+        var withKeyword = NextToken();
+        // Like an operator, 'with' starts a line rather than ending one (ADR-0019).
+        CheckOperatorAtLineEnd(withKeyword);
+        var open = Expect(SyntaxKind.OpenParenToken);
+        if (open.IsMissing)
+        {
+            return new WithClauseSyntax(withKeyword, open, SeparatedSyntaxList<ArgumentSyntax>.Empty, Missing(SyntaxKind.CloseParenToken));
+        }
+        _bracketDepth++;
+        var members = ParseSeparatedList(SyntaxKind.CloseParenToken, _ =>
+        {
+            var nameEquals = TryParseNameEquals();
+            if (nameEquals is null)
+            {
+                Report(DiagnosticDescriptors.WithMemberName, Current.Span);
+            }
+            return new ArgumentSyntax(nameEquals, null, ParseExpression());
+        });
+        var close = Expect(SyntaxKind.CloseParenToken);
+        _bracketDepth--;
+        return new WithClauseSyntax(withKeyword, open, members, close);
+    }
+
+    /// <summary>
+    /// An expression followed by a block: the condition of <c>if</c> / <c>while</c>, the collection of <c>for</c>,
+    /// the value of <c>match</c>, a <c>when</c> filter. A '{' after <c>new T()</c> here is the block.
+    /// </summary>
+    private ExpressionSyntax ParseHeadExpression()
+    {
+        var saved = _headBracketDepth;
+        _headBracketDepth = _bracketDepth;
+        var expression = ParseExpression();
+        _headBracketDepth = saved;
+        return expression;
     }
 
     /// <summary>
@@ -537,7 +594,7 @@ internal sealed partial class Parser
         return new ArgumentListSyntax(kind, open, arguments, close);
     }
 
-    /// <summary><c>value</c>, <c>name = value</c>, <c>out let x</c>, <c>ref self.velocity</c>.</summary>
+    /// <summary><c>value</c>, <c>name = value</c>, <c>out let x</c>, <c>out _</c>, <c>ref self.velocity</c>.</summary>
     private ArgumentSyntax ParseArgument()
     {
         var nameEquals = TryParseNameEquals();
@@ -548,6 +605,10 @@ internal sealed partial class Parser
             var keyword = NextToken();
             var identifier = ExpectIdentifier();
             expression = new DeclarationExpressionSyntax(keyword, identifier, TryParseTypeAnnotation());
+        }
+        else if (refKind?.Kind == SyntaxKind.OutKeyword && Current.Kind == SyntaxKind.UnderscoreToken && !AtLineBreak)
+        {
+            expression = new DiscardExpressionSyntax(NextToken());
         }
         else
         {
@@ -638,169 +699,6 @@ internal sealed partial class Parser
         return new LambdaExpressionSyntax(asyncKeyword, funcKeyword, parameters, returnType, body, expressionBody);
     }
 
-    // if / match / try -----------------------------------------------------------------------------------------
-
-    private IfExpressionSyntax ParseIfExpression()
-    {
-        var ifKeyword = NextToken();
-        var condition = ParseExpression();
-        var block = ParseBlock();
-        ElseClauseSyntax? elseClause = null;
-        if (Current.Kind == SyntaxKind.ElseKeyword)
-        {
-            // Nothing can start a line with 'else', so one on the next line still belongs here; it is reported.
-            ReportIfOnNextLine();
-            var elseKeyword = NextToken();
-            SyntaxNode body = Current.Kind == SyntaxKind.IfKeyword && !Current.HasLeadingLineBreak
-                ? ParseIfExpression()
-                : ParseBlock();
-            elseClause = new ElseClauseSyntax(elseKeyword, body);
-        }
-        return new IfExpressionSyntax(ifKeyword, condition, block, elseClause);
-    }
-
-    /// <summary><c>else</c>, <c>catch</c> and <c>finally</c> go on the line of the '}' before them (ADR-0013).</summary>
-    private void ReportIfOnNextLine()
-    {
-        if (Current.HasLeadingLineBreak)
-        {
-            Report(DiagnosticDescriptors.KeywordOnNextLine, Current.Span, Current.Text);
-        }
-    }
-
-    private MatchExpressionSyntax ParseMatchExpression()
-    {
-        var matchKeyword = NextToken();
-        var expression = ParseExpression();
-        var open = ExpectOpenBrace();
-        var saved = _bracketDepth;
-        _bracketDepth = 0;
-        var arms = new List<MatchArmSyntax>();
-        if (!open.IsMissing)
-        {
-            while (Current.Kind is not (SyntaxKind.CloseBraceToken or SyntaxKind.EndOfFileToken))
-            {
-                var start = _position;
-                var errors = ErrorCount;
-                AllowLineBreak();
-                if (Current.Kind is SyntaxKind.CaseKeyword or SyntaxKind.ElseKeyword)
-                {
-                    arms.Add(ParseMatchArm());
-                }
-                else
-                {
-                    ReportExpected("'case' or 'else'", atLineStart: true);
-                    SkipToEndOfLine();
-                }
-                ExpectEndOfStatement(errors, "case");
-                if (_position == start)
-                {
-                    SkipCurrentToken();
-                }
-            }
-        }
-        var close = ExpectCloseBrace(open);
-        _bracketDepth = saved;
-        return new MatchExpressionSyntax(matchKeyword, expression, open, MakeList(arms), close);
-    }
-
-    private MatchArmSyntax ParseMatchArm()
-    {
-        var keyword = NextToken();
-        PatternSyntax? pattern = null;
-        if (keyword.Kind == SyntaxKind.CaseKeyword)
-        {
-            pattern = ParsePattern();
-            while (At(SyntaxKind.CommaToken))
-            {
-                // case 1, 2 -- C#'s list; read it as 'or'.
-                Report(DiagnosticDescriptors.PatternComma, Current.Span);
-                SkipCurrentToken();
-                pattern = new BinaryPatternSyntax(SyntaxKind.OrPattern, pattern, Missing(SyntaxKind.OrKeyword), ParsePattern());
-            }
-        }
-        var whenClause = At(SyntaxKind.WhenKeyword) ? ParseWhenClause() : null;
-        SyntaxToken arrow;
-        if (At(SyntaxKind.EqualsGreaterThanToken))
-        {
-            Report(DiagnosticDescriptors.FatArrow, Current.Span);
-            arrow = NextToken();
-        }
-        else
-        {
-            arrow = Expect(SyntaxKind.MinusGreaterThanToken);
-        }
-        AllowLineBreak();
-        return new MatchArmSyntax(keyword, pattern, whenClause, arrow, ParseMatchArmBody());
-    }
-
-    private WhenClauseSyntax ParseWhenClause()
-    {
-        var whenKeyword = NextToken();
-        return new WhenClauseSyntax(whenKeyword, ParseExpression());
-    }
-
-    /// <summary>
-    /// An expression or a block (ADR-0009). A statement written directly after '-&gt;' is reported and read into a
-    /// block with missing braces, so the rest of the match still parses.
-    /// </summary>
-    private SyntaxNode ParseMatchArmBody()
-    {
-        if (Current.Kind == SyntaxKind.OpenBraceToken)
-        {
-            return ParseBlock();
-        }
-        if (!AtLineBreak && Current.Kind is SyntaxKind.ReturnKeyword or SyntaxKind.ThrowKeyword or SyntaxKind.BreakKeyword
-            or SyntaxKind.ContinueKeyword or SyntaxKind.LetKeyword or SyntaxKind.VarKeyword or SyntaxKind.EmitKeyword
-            or SyntaxKind.UsingKeyword or SyntaxKind.WhileKeyword or SyntaxKind.ForKeyword)
-        {
-            Report(DiagnosticDescriptors.MatchArmStatement, Current.Span, $"'{Current.Text}' statement");
-            var open = Missing(SyntaxKind.OpenBraceToken);
-            var statement = ParseStatement();
-            List<StatementSyntax> statements = statement == null ? [] : [statement];
-            return new BlockSyntax(open, MakeList(statements), Missing(SyntaxKind.CloseBraceToken));
-        }
-        var expression = ParseExpressionCore();
-        if (TryEatAssignmentOperator() is { } operatorToken)
-        {
-            Report(DiagnosticDescriptors.MatchArmStatement, operatorToken.Span, "assignment");
-            AllowLineBreak();
-            var assignment = new AssignmentStatementSyntax(expression, operatorToken, ParseExpressionCore());
-            return new BlockSyntax(
-                SyntaxToken.Missing(SyntaxKind.OpenBraceToken, expression.Span.Start), MakeList<StatementSyntax>([assignment]), Missing(SyntaxKind.CloseBraceToken));
-        }
-        return expression;
-    }
-
-    private TryExpressionSyntax ParseTryExpression()
-    {
-        var tryKeyword = NextToken();
-        var block = ParseBlock();
-        var catches = new List<CatchClauseSyntax>();
-        while (Current.Kind == SyntaxKind.CatchKeyword)
-        {
-            ReportIfOnNextLine();
-            var catchKeyword = NextToken();
-            var identifier = ExpectIdentifier();
-            var typeAnnotation = TryParseTypeAnnotation()
-                ?? new TypeAnnotationSyntax(Expect(SyntaxKind.ColonToken), new IdentifierNameSyntax(Missing(SyntaxKind.IdentifierToken)));
-            var filter = At(SyntaxKind.WhenKeyword) ? ParseWhenClause() : null;
-            catches.Add(new CatchClauseSyntax(catchKeyword, identifier, typeAnnotation, filter, ParseBlock()));
-        }
-        FinallyClauseSyntax? @finally = null;
-        if (Current.Kind == SyntaxKind.FinallyKeyword)
-        {
-            ReportIfOnNextLine();
-            var finallyKeyword = NextToken();
-            @finally = new FinallyClauseSyntax(finallyKeyword, ParseBlock());
-        }
-        if (catches.Count == 0 && @finally == null)
-        {
-            Report(DiagnosticDescriptors.TryWithoutHandler, tryKeyword.Span);
-        }
-        return new TryExpressionSyntax(tryKeyword, block, MakeList(catches), @finally);
-    }
-
     // Patterns (ADR-0009, ADR-0010): or < and < not < primary, the same order as the logical operators. -------------
 
     private PatternSyntax ParsePattern() => ParseOrPattern();
@@ -849,8 +747,8 @@ internal sealed partial class Parser
     }
 
     /// <summary>
-    /// <c>is T</c>; <c>&lt; 10</c>; a bare name, maybe with fields (an enum case); otherwise a constant or a range
-    /// whose bounds are expressions above the range operators in precedence.
+    /// <c>_</c>; <c>is T</c>; <c>&lt; 10</c>; a bare name, maybe with fields (an enum case); otherwise a constant or
+    /// a range whose bounds are expressions above the range operators in precedence.
     /// </summary>
     private PatternSyntax ParsePrimaryPattern()
     {
@@ -865,6 +763,10 @@ internal sealed partial class Parser
             var operatorToken = NextToken();
             return new RelationalPatternSyntax(operatorToken, ParseBinaryExpression(SyntaxFacts.RangePrecedence));
         }
+        if (Current.Kind == SyntaxKind.UnderscoreToken && !AtLineBreak)
+        {
+            return new DiscardPatternSyntax(NextToken());
+        }
         if (Current.Kind == SyntaxKind.IdentifierToken && !AtLineBreak
             && Peek(1).Kind is not (SyntaxKind.DotToken or SyntaxKind.QuestionDotToken) && !SyntaxFacts.IsRangeOperator(Peek(1).Kind))
         {
@@ -874,7 +776,7 @@ internal sealed partial class Parser
             {
                 var open = NextToken();
                 _bracketDepth++;
-                var names = ParseSeparatedList(SyntaxKind.CloseParenToken, _ => new IdentifierNameSyntax(ExpectIdentifier()));
+                var names = ParseSeparatedList(SyntaxKind.CloseParenToken, _ => new IdentifierNameSyntax(ExpectIdentifierOrDiscard()));
                 var close = Expect(SyntaxKind.CloseParenToken);
                 _bracketDepth--;
                 fields = new CaseFieldListSyntax(open, names, close);

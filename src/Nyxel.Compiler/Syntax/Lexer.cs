@@ -470,7 +470,8 @@ internal sealed class Lexer
             _position++;
         }
         var text = _text.ToString(TextSpan.FromBounds(start, _position));
-        return (SyntaxFacts.GetKeywordKind(text), null);
+        // '_' on its own is a reserved token (ADR-0026); '_x' and 'x_' are ordinary names.
+        return text == "_" ? (SyntaxKind.UnderscoreToken, null) : (SyntaxFacts.GetKeywordKind(text), null);
     }
 
     // Numbers --------------------------------------------------------------------------------------------------

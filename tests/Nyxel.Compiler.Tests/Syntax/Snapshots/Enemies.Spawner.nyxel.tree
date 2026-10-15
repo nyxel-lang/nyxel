@@ -750,21 +750,20 @@ CompilationUnit 1:1-79:1
         CloseParenToken ")"
       Block 70:64-77:6
         OpenBraceToken "{"
-        ExpressionStatement 71:9-73:10
-          IfExpression 71:9-73:10
-            IfKeyword "if"
-            IsExpression 71:12-71:35
-              IdentifierName 71:12-71:17
-                IdentifierToken "other"
-              IsKeyword "is"
-              NotKeyword "not"
-              IdentifierName 71:25-71:35
-                IdentifierToken "Projectile"
-            Block 71:36-73:10
-              OpenBraceToken "{"
-              ReturnStatement 72:13-72:19
-                ReturnKeyword "return"
-              CloseBraceToken "}"
+        IfStatement 71:9-73:10
+          IfKeyword "if"
+          IsExpression 71:12-71:35
+            IdentifierName 71:12-71:17
+              IdentifierToken "other"
+            IsKeyword "is"
+            NotKeyword "not"
+            IdentifierName 71:25-71:35
+              IdentifierToken "Projectile"
+          Block 71:36-73:10
+            OpenBraceToken "{"
+            ReturnStatement 72:13-72:19
+              ReturnKeyword "return"
+            CloseBraceToken "}"
         LocalDeclarationStatement 75:9-75:70
           LetKeyword "let"
           IdentifierToken "target"

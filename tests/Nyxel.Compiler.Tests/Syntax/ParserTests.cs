@@ -92,23 +92,35 @@ public class ParserTests
     [InlineData("self.target?.Name ?? \"nobody\"", "(CoalesceExpression (ConditionalMemberAccessExpression (SimpleMemberAccessExpression self . target) ?. Name) ?? \"nobody\")")]
     [InlineData("self.healths[0]", "(ElementAccessExpression (SimpleMemberAccessExpression self . healths) (BracketedArgumentList [ (Argument 0) ]))")]
     [InlineData("int.TryParse(text, out let n)", "(InvocationExpression (SimpleMemberAccessExpression int . TryParse) (ArgumentList ( (Argument text) , (Argument out (DeclarationExpression let n)) )))")]
-    [InlineData("F(out let n: int, out _, ref self.v)", "(InvocationExpression F (ArgumentList ( (Argument out (DeclarationExpression let n (TypeAnnotation : int))) , (Argument out _) , (Argument ref (SimpleMemberAccessExpression self . v)) )))")]
+    [InlineData("F(out let n: int, out _, ref self.v)", "(InvocationExpression F (ArgumentList ( (Argument out (DeclarationExpression let n (TypeAnnotation : int))) , (Argument out (DiscardExpression _)) , (Argument ref (SimpleMemberAccessExpression self . v)) )))")]
     [InlineData("Damp(velocity = ref self.v)", "(InvocationExpression Damp (ArgumentList ( (Argument (NameEquals velocity =) ref (SimpleMemberAccessExpression self . v)) )))")]
     [InlineData("new Damage.Burn(Amount = 3)", "(ObjectCreationExpression new (QualifiedName Damage . Burn) (ArgumentList ( (Argument (NameEquals Amount =) 3) )))")]
     [InlineData("(a + b).Length()", "(InvocationExpression (SimpleMemberAccessExpression (ParenthesizedExpression ( (AddExpression a + b) )) . Length) (ArgumentList ( )))")]
     [InlineData("await launch self.Load()", "(AwaitExpression await (LaunchExpression launch (InvocationExpression (SimpleMemberAccessExpression self . Load) (ArgumentList ( )))))")]
     public void PostfixAndPrimary(string expression, string expected) => Assert.Equal(expected, Expr(expression));
 
-    [Fact]
-    public void SuperInitAndSelfInitUseTheInitKeywordAsAMemberName()
-    {
-        Assert.Equal(
-            "(ExpressionStatement (InvocationExpression (SimpleMemberAccessExpression super . init) (ArgumentList ( (Argument (NameEquals power =) power) ))))",
-            Stmt("super.init(power = power)"));
-        Assert.Equal(
-            "(ExpressionStatement (InvocationExpression (SimpleMemberAccessExpression self . init) (ArgumentList ( ))))",
-            Stmt("self.init()"));
-    }
+    [Theory]
+    [InlineData("init super(power = power)", "(InitStatement init super (ArgumentList ( (Argument (NameEquals power =) power) )))")]
+    [InlineData("init super.Homing(power = 10, target = t)", "(InitStatement init super . Homing (ArgumentList ( (Argument (NameEquals power =) 10) , (Argument (NameEquals target =) t) )))")]
+    [InlineData("init self()", "(InitStatement init self (ArgumentList ( )))")]
+    [InlineData("init self\n    .Small()", "(InitStatement init self . Small (ArgumentList ( )))")]
+    public void InitStatements(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
+
+    [Theory]
+    [InlineData("new Spin() with (Speed = 2)", "(ObjectCreationExpression new Spin (ArgumentList ( )) (WithClause with ( (Argument (NameEquals Speed =) 2) )))")]
+    [InlineData("new P(fileName = f) with (A = 1, B = c.D)", "(ObjectCreationExpression new P (ArgumentList ( (Argument (NameEquals fileName =) f) )) (WithClause with ( (Argument (NameEquals A =) 1) , (Argument (NameEquals B =) (SimpleMemberAccessExpression c . D)) )))")]
+    [InlineData("new Spin() with (\n    Axis = a,\n    Speed = 2)", "(ObjectCreationExpression new Spin (ArgumentList ( )) (WithClause with ( (Argument (NameEquals Axis =) a) , (Argument (NameEquals Speed =) 2) )))")]
+    [InlineData("new P()\n    with (A = 1)", "(ObjectCreationExpression new P (ArgumentList ( )) (WithClause with ( (Argument (NameEquals A =) 1) )))")]
+    public void WithClauses(string expression, string expected) => Assert.Equal(expected, Expr(expression));
+
+    [Theory]
+    [InlineData("if pos == new Vector3(0, 0, 0) {\n}")]
+    [InlineData("while self.next != new Node() {\n}")]
+    [InlineData("for p in new Path() {\n}")]
+    [InlineData("match new Point(1, 2) {\n    case _ -> {}\n}")]
+    [InlineData("try {\n} catch e: E when e.Data == new Info() {\n}")]
+    [InlineData("if xs.Any(func(x) {\n    return x == new P()\n}) {\n}")]
+    public void BraceAfterNewInTheHeadOfABlockIsTheBlock(string statement) => ParseClean(InMethod(statement));
 
     [Theory]
     [InlineData("$\"HP: {self.hp}\"", "(InterpolatedStringExpression $\" (InterpolatedStringText HP: ) (Interpolation { (SimpleMemberAccessExpression self . hp) }) \")")]
@@ -220,34 +232,71 @@ public class ParserTests
         Assert.Equal(2, lambda.Body!.Statements.Count);
     }
 
-    // if / match / try as expressions -----------------------------------------------------------------------------
+    // if / match / try / eval (ADR-0025) ---------------------------------------------------------------------------
 
     [Fact]
     public void IfExpressionWithElseIf() =>
         Assert.Equal(
-            "(IfExpression if (SimpleMemberAccessExpression self . a) (Block { (ExpressionStatement 0) }) (ElseClause else (IfExpression if b (Block { (ExpressionStatement 1) }) (ElseClause else (Block { (ExpressionStatement 2) })))))",
-            Expr("if self.a { 0 } else if b { 1 } else { 2 }"));
+            "(IfExpression if (SimpleMemberAccessExpression self . a) -> 0 else (IfExpression if b -> 1 else -> 2))",
+            Expr("if self.a -> 0 else if b -> 1 else -> 2"));
+
+    [Fact]
+    public void IfStatementWithElseIf() =>
+        Assert.Equal(
+            "(IfStatement if a (Block { (ExpressionStatement (InvocationExpression F (ArgumentList ( )))) }) (ElseClause else (IfStatement if b (Block { }) (ElseClause else (Block { })))))",
+            Stmt("if a {\n    F()\n} else if b {\n} else {\n}"));
+
+    [Theory]
+    // The last branch runs to the end of the expression, as with C#'s '?:'.
+    [InlineData("if c -> a else -> b + 1", "(IfExpression if c -> a else -> (AddExpression b + 1))")]
+    [InlineData("if c -> a else -> b ?? d", "(IfExpression if c -> a else -> (CoalesceExpression b ?? d))")]
+    [InlineData("(if c -> 2 else -> 1) * n", "(MultiplyExpression (ParenthesizedExpression ( (IfExpression if c -> 2 else -> 1) )) * n)")]
+    [InlineData("if a -> (if b -> 1 else -> 2) else -> 3", "(IfExpression if a -> (ParenthesizedExpression ( (IfExpression if b -> 1 else -> 2) )) else -> 3)")]
+    // A branch can be a leave instead of a value.
+    [InlineData("if c -> a else -> return", "(IfExpression if c -> a else -> (ReturnExpression return))")]
+    [InlineData("if c -> return 0 else -> a", "(IfExpression if c -> (ReturnExpression return 0) else -> a)")]
+    [InlineData("if c -> a else -> throw new E()", "(IfExpression if c -> a else -> (ThrowExpression throw (ObjectCreationExpression new E (ArgumentList ( )))))")]
+    public void IfExpressions(string expression, string expected) => Assert.Equal(expected, Expr(expression));
+
+    [Fact]
+    public void ElseCatchAndFinallyAtTheStartOfALineContinueTheValueForm()
+    {
+        Assert.Equal(
+            "(IfExpression if (SimpleMemberAccessExpression self . IsFrozen) -> 0 else (IfExpression if h -> (MultiplyExpression s * 2) else -> s))",
+            Expr("if self.IsFrozen -> 0\n        else if h -> s * 2\n        else -> s"));
+        Assert.Equal(
+            "(TryExpression try -> (InvocationExpression Load (ArgumentList ( ))) (CatchArrowClause catch e (TypeAnnotation : IOException) -> Default) (FinallyClause finally (Block { (AssignmentStatement loading = false) })))",
+            Expr("try -> Load()\n        catch e: IOException -> Default\n        finally { loading = false }"));
+        Assert.Equal("(LocalDeclarationStatement let x (EqualsValueClause = (IfExpression if c -> a else -> b)))", Stmt("let x = if c ->\n    a\n    else ->\n    b"));
+    }
+
+    [Fact]
+    public void ValueFormsStartALineInsideArguments() =>
+        Assert.Equal(
+            "(InvocationExpression Spawn (ArgumentList ( (Argument (IfExpression if boss -> big else -> small)) , (Argument p) )))",
+            Expr("Spawn(\n    if boss -> big else -> small,\n    p)"));
 
     [Fact]
     public void MatchArmsWithPatterns()
     {
-        var match = (MatchExpressionSyntax)ParseExpression("""
+        // A statement, so that arms may be blocks (ADR-0025).
+        var match = (MatchExpressionSyntax)((ExpressionStatementSyntax)ParseStatement("""
             match hit {
-                    case Physical(amount) -> -amount
-                    case Burn(amount, seconds) when seconds > 3 -> {
-                        self.Burn()
-                    }
-                    case Idle -> 0
-                    case 0 or 1 -> 1
-                    case > 0 and < 10 -> 2
-                    case 10..<50 -> 3
-                    case not null -> 4
-                    case is Enemy -> 5
-                    case "boss" -> 6
-                    case Element.Fire -> 7
-                    else -> {}
+                case Physical(amount) -> self.Hit(amount)
+                case Burn(amount, seconds) when seconds > 3 -> {
+                    self.Burn()
                 }
-            """);
+                case Idle -> 0
+                case 0 or 1 -> 1
+                case > 0 and < 10 -> 2
+                case 10..<50 -> 3
+                case not null -> 4
+                case is Enemy -> 5
+                case "boss" -> 6
+                case Element.Fire -> 7
+                case _ -> {}
+            }
+            """)).Expression;
         Assert.Equal(
             [
                 "(CasePattern Physical (CaseFieldList ( amount )))",
@@ -260,18 +309,92 @@ public class ParserTests
                 "(TypePattern is Enemy)",
                 "(ConstantPattern \"boss\")",
                 "(ConstantPattern (SimpleMemberAccessExpression Element . Fire))",
+                "(DiscardPattern _)",
             ],
-            match.Arms.Where(a => a.Pattern != null).Select(a => Compact(a.Pattern!)));
+            match.Arms.Select(a => Compact(a.Pattern)));
         Assert.NotNull(match.Arms[1].WhenClause);
         Assert.IsType<BlockSyntax>(match.Arms[1].Body);
-        Assert.Equal(SyntaxKind.ElseKeyword, match.Arms[^1].Keyword.Kind);
     }
 
     [Fact]
     public void TryExpressionWithCatchFilterAndFinally() =>
         Assert.Equal(
-            "(TryExpression try (Block { (ExpressionStatement (InvocationExpression Load (ArgumentList ( )))) }) (CatchClause catch e (TypeAnnotation : IOException) (WhenClause when (EqualsExpression (SimpleMemberAccessExpression e . HResult) == 32)) (Block { (ExpressionStatement Default) })) (FinallyClause finally (Block { })))",
-            Expr("try { Load() } catch e: IOException when e.HResult == 32 { Default } finally { }"));
+            "(TryExpression try -> (InvocationExpression Load (ArgumentList ( ))) (CatchArrowClause catch e (TypeAnnotation : IOException) (WhenClause when (EqualsExpression (SimpleMemberAccessExpression e . HResult) == 32)) -> Default) (CatchArrowClause catch e (TypeAnnotation : Exception) -> (ReturnExpression return 0)) (FinallyClause finally (Block { })))",
+            Expr("try -> Load() catch e: IOException when e.HResult == 32 -> Default catch e: Exception -> return 0 finally { }"));
+
+    [Fact]
+    public void TryStatement() =>
+        Assert.Equal(
+            "(TryStatement try (Block { (UsingDeclarationStatement using w (EqualsValueClause = (InvocationExpression Open (ArgumentList ( ))))) }) (CatchClause catch e (TypeAnnotation : IOException) (Block { })))",
+            Stmt("try {\n    using w = Open()\n} catch e: IOException {\n}"));
+
+    [Fact]
+    public void EvalBlockGivesItsValue()
+    {
+        Assert.Equal(
+            "(EvalExpression eval (Block { (IfStatement if a (Block { (GiveStatement give 0) })) (LocalDeclarationStatement let r (EqualsValueClause = (SubtractExpression h - b))) (GiveStatement give (MultiplyExpression r * 2)) }))",
+            Expr("eval {\n    if a {\n        give 0\n    }\n    let r = h - b\n    give r * 2\n}"));
+        // 'give' on the right of '??', and the block on the left of '?? return'.
+        Assert.Equal(
+            "(CoalesceExpression (EvalExpression eval (Block { (LocalDeclarationStatement let t (EqualsValueClause = (CoalesceExpression (InvocationExpression Find (ArgumentList ( ))) ?? (GiveExpression give null)))) (GiveStatement give t) })) ?? (ReturnExpression return))",
+            Expr("eval {\n    let t = Find() ?? give null\n    give t\n} ?? return"));
+    }
+
+    [Fact]
+    public void EvalBlockMayUseLoopsLambdasAndAMatchThatGivesInEveryArm() =>
+        ParseClean(InMethod("""
+            let found = eval {
+                for e in enemies {
+                    if e.IsDead {
+                        continue
+                    }
+                    give e
+                }
+                let f = func(x: int) -> int {
+                    return x
+                }
+                match mode {
+                    case Easy -> give null
+                    case _ -> throw new E()
+                }
+            }
+            """));
+
+    [Theory]
+    // In a match used as a statement an arm may be a leave, a block, an assignment or 'emit' (ADR-0025, ADR-0026); in
+    // one used as a value, a leave or an eval.
+    [InlineData("match s {\n    case Dead -> return\n    case Idle -> {\n        self.Wander()\n    }\n}", "(ExpressionStatement (MatchExpression match s { (MatchArm case (CasePattern Dead) -> (ReturnExpression return)) (MatchArm case (CasePattern Idle) -> (Block { (ExpressionStatement (InvocationExpression (SimpleMemberAccessExpression self . Wander) (ArgumentList ( )))) })) }))")]
+    [InlineData("match s {\n    case Hurt -> self.speed = 0\n    case Dead -> self.hp +=\n        1\n    case _ -> emit self.Changed(s = s)\n}", "(ExpressionStatement (MatchExpression match s { (MatchArm case (CasePattern Hurt) -> (AssignmentStatement (SimpleMemberAccessExpression self . speed) = 0)) (MatchArm case (CasePattern Dead) -> (AssignmentStatement (SimpleMemberAccessExpression self . hp) += 1)) (MatchArm case (DiscardPattern _) -> (EmitStatement emit (InvocationExpression (SimpleMemberAccessExpression self . Changed) (ArgumentList ( (Argument (NameEquals s =) s) ))))) }))")]
+    [InlineData("let c = match h {\n    case Burn(a) -> eval {\n        self.Burn()\n        give -a\n    }\n    case _ -> continue\n}", "(LocalDeclarationStatement let c (EqualsValueClause = (MatchExpression match h { (MatchArm case (CasePattern Burn (CaseFieldList ( a ))) -> (EvalExpression eval (Block { (ExpressionStatement (InvocationExpression (SimpleMemberAccessExpression self . Burn) (ArgumentList ( )))) (GiveStatement give (UnaryMinusExpression - a)) }))) (MatchArm case (DiscardPattern _) -> (ContinueExpression continue)) })))")]
+    [InlineData("let c = match h {\n    case Heal(a) -> if a > 100 -> 100 else -> a\n}", "(LocalDeclarationStatement let c (EqualsValueClause = (MatchExpression match h { (MatchArm case (CasePattern Heal (CaseFieldList ( a ))) -> (IfExpression if (GreaterThanExpression a > 100) -> 100 else -> a)) })))")]
+    public void MatchArms(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
+
+    [Fact]
+    public void ElseAtTheStartOfALineInAMatchArmContinuesTheIf()
+    {
+        // The default arm is 'case _' (ADR-0026), so 'else' can only belong to the 'if' in the arm before.
+        var match = (MatchExpressionSyntax)ParseExpression("match x {\n    case 1 -> if b -> 1\n    else -> 2\n    case _ -> 3\n}");
+        Assert.Equal(2, match.Arms.Count);
+        Assert.Equal("(IfExpression if b -> 1 else -> 2)", Compact((SyntaxNode)match.Arms[0].Body));
+    }
+
+    [Fact]
+    public void ElseArmIsReportedAndReadAsTheDefaultArm()
+    {
+        var source = InMethod("let a = match x {\n    case 1 -> 0\n    else -> 1\n}");
+        Assert.Equal(["NYX1193 5:5"], DiagnosticsOf(source));
+        var match = (MatchExpressionSyntax)((LocalDeclarationStatementSyntax)Body(SyntaxTree.Parse(source)).Statements.Single()).Initializer!.Value;
+        var arm = match.Arms[^1];
+        Assert.Equal(SyntaxKind.ElseKeyword, arm.Keyword.Kind);
+        Assert.True(((DiscardPatternSyntax)arm.Pattern).UnderscoreToken.IsMissing);
+    }
+
+    [Theory]
+    [InlineData("let (_, max) = F()", "(DeconstructionDeclarationStatement let (Deconstruction ( _ , max )) (EqualsValueClause = (InvocationExpression F (ArgumentList ( )))))")]
+    [InlineData("for (_, v) in d {\n}", "(ForStatement for (Deconstruction ( _ , v )) in d (Block { }))")]
+    [InlineData("try {\n} catch _: E {\n}", "(TryStatement try (Block { }) (CatchClause catch _ (TypeAnnotation : E) (Block { })))")]
+    [InlineData("let a = try -> F() catch _: E -> 0", "(LocalDeclarationStatement let a (EqualsValueClause = (TryExpression try -> (InvocationExpression F (ArgumentList ( ))) (CatchArrowClause catch _ (TypeAnnotation : E) -> 0))))")]
+    public void DiscardWhereAValueIsNotNeeded(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
 
     [Theory]
     [InlineData("self.FindTarget() ?? return", "(CoalesceExpression (InvocationExpression (SimpleMemberAccessExpression self . FindTarget) (ArgumentList ( ))) ?? (ReturnExpression return))")]
@@ -324,7 +447,7 @@ public class ParserTests
     public void ReturnWithoutValueEndsAtTheLineBreak()
     {
         var body = Body(ParseClean(InMethod("if a {\n    return\n}\nself.Next()")));
-        var ifStatement = (IfExpressionSyntax)((ExpressionStatementSyntax)body.Statements[0]).Expression;
+        var ifStatement = (IfStatementSyntax)body.Statements[0];
         Assert.Null(((ReturnStatementSyntax)ifStatement.Block.Statements[0]).Expression);
         Assert.Equal(2, body.Statements.Count);
     }
@@ -379,6 +502,13 @@ public class ParserTests
         Assert.Equal(
             "(PropertyDeclaration property Hp (TypeAnnotation : int) (AccessorList { (GetAccessorDeclaration get (Block { (ReturnStatement return x) })) (SetAccessorDeclaration set (SetterParameter ( value )) (Block { (AssignmentStatement x = value) })) }))",
             Compact(ParseMember("property Hp: int {\n    get { return x }\n    set(value) { x = value }\n}")));
+        // A getter may have an expression body like a function (ADR-0026).
+        Assert.Equal(
+            "(PropertyDeclaration public property IsDead (TypeAnnotation : bool) (AccessorList { (GetAccessorDeclaration get (ExpressionBody = (LessThanOrEqualExpression (SimpleMemberAccessExpression self . hp) <= 0))) }))",
+            Compact(ParseMember("public property IsDead: bool { get = self.hp <= 0 }")));
+        Assert.Equal(
+            "(PropertyDeclaration property Ratio (TypeAnnotation : float) (AccessorList { (GetAccessorDeclaration get (ExpressionBody = (DivideExpression x / y))) (SetAccessorDeclaration private set (SetterParameter ( value )) (Block { (AssignmentStatement x = value) })) }))",
+            Compact(ParseMember("property Ratio: float {\n    get = x / y\n    private set(value) { x = value }\n}")));
     }
 
     [Fact]
@@ -439,7 +569,7 @@ public class ParserTests
     }
 
     [Theory]
-    [InlineData("if state is AiState.Idle {\n}", "(ExpressionStatement (IfExpression if (IsExpression state is (QualifiedName AiState . Idle)) (Block { })))")]
+    [InlineData("if state is AiState.Idle {\n}", "(IfStatement if (IsExpression state is (QualifiedName AiState . Idle)) (Block { }))")]
     [InlineData("match hit {\n    case Burn(_, seconds) -> seconds\n}", "(ExpressionStatement (MatchExpression match hit { (MatchArm case (CasePattern Burn (CaseFieldList ( _ , seconds ))) -> seconds) }))")]
     public void EnumCasesInConditionsAndPatterns(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
 
@@ -453,19 +583,6 @@ public class ParserTests
     // Tree invariants ---------------------------------------------------------------------------------------------
 
     [Fact]
-    public void ParentsAndSpansAreConsistent()
-    {
-        var tree = ParseClean(File.ReadAllText(Path.Combine(RepoRoot, "samples", "Enemies", "Spawner.nyxel")));
-        foreach (var node in tree.Root.DescendantNodesAndSelf().Where(n => n is not SyntaxToken))
-        {
-            var previousEnd = node.FullSpan.Start;
-            foreach (var child in node.GetChildren())
-            {
-                Assert.Same(node, child.Parent);
-                Assert.Equal(previousEnd, child.FullSpan.Start);
-                previousEnd = child.FullSpan.End;
-            }
-            Assert.Equal(node.FullSpan.End, previousEnd);
-        }
-    }
+    public void ParentsAndSpansAreConsistent() =>
+        AssertParentsAndSpansConsistent(ParseClean(File.ReadAllText(Path.Combine(RepoRoot, "samples", "Enemies", "Spawner.nyxel"))).Root);
 }

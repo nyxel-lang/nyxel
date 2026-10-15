@@ -17,7 +17,9 @@ internal sealed partial class Parser
             return new BlockSyntax(open, SyntaxList<StatementSyntax>.Empty, Missing(SyntaxKind.CloseBraceToken));
         }
         var saved = _bracketDepth;
+        var savedHead = _headBracketDepth;
         _bracketDepth = 0;
+        _headBracketDepth = -1;
         var statements = new List<StatementSyntax>();
         while (Current.Kind is not (SyntaxKind.CloseBraceToken or SyntaxKind.EndOfFileToken))
         {
@@ -33,6 +35,7 @@ internal sealed partial class Parser
         }
         var close = ExpectCloseBrace(open);
         _bracketDepth = saved;
+        _headBracketDepth = savedHead;
         return new BlockSyntax(open, MakeList(statements), close);
     }
 
@@ -40,9 +43,12 @@ internal sealed partial class Parser
     {
         var errors = ErrorCount;
         AllowLineBreak();
+        _statementStart = _position;
         StatementSyntax? statement = Current.Kind switch
         {
             SyntaxKind.LetKeyword or SyntaxKind.VarKeyword => ParseLocalDeclaration(),
+            SyntaxKind.IfKeyword or SyntaxKind.TryKeyword => ParseBranchingStatement(),
+            SyntaxKind.GiveKeyword => new GiveStatementSyntax(NextToken(), ParseExpression()),
             SyntaxKind.UsingKeyword => ParseUsingDeclaration(),
             SyntaxKind.WhileKeyword => ParseWhileStatement(),
             SyntaxKind.ForKeyword => ParseForStatement(),
@@ -51,12 +57,17 @@ internal sealed partial class Parser
             SyntaxKind.BreakKeyword => ParseJumpStatement(SyntaxKind.BreakStatement),
             SyntaxKind.ContinueKeyword => ParseJumpStatement(SyntaxKind.ContinueStatement),
             SyntaxKind.EmitKeyword => new EmitStatementSyntax(NextToken(), ParseExpression()),
+            SyntaxKind.InitKeyword => ParseInitStatement(),
             SyntaxKind.OpenBraceToken => ParseStrayBlock(),
             SyntaxKind.IdentifierToken when Peek(1).Kind == SyntaxKind.ColonToken
                 && Peek(2).Kind is SyntaxKind.ForKeyword or SyntaxKind.WhileKeyword => ParseLabeledLoop(),
             _ when CanStartExpression(Current.Kind) => ParseExpressionOrAssignmentStatement(),
             _ => ReportInvalidStatementStart(),
         };
+        if (statement is ExpressionStatementSyntax { Expression: EvalExpressionSyntax eval })
+        {
+            Report(DiagnosticDescriptors.EvalStatement, eval.EvalKeyword.Span);
+        }
         ExpectEndOfStatement(errors, "statement");
         return statement;
     }
@@ -76,7 +87,10 @@ internal sealed partial class Parser
         return null;
     }
 
-    /// <summary>A '{' where a statement should start. Bare blocks are not part of the language; read it to recover.</summary>
+    /// <summary>
+    /// A '{' where a statement should start. Bare blocks are not part of the language (ADR-0020; a value computed in a
+    /// scope of its own is <c>eval</c>, ADR-0025); read it to recover.
+    /// </summary>
     private BlockSyntax ParseStrayBlock()
     {
         Report(DiagnosticDescriptors.StandaloneBlock, Current.Span);
@@ -125,7 +139,7 @@ internal sealed partial class Parser
         return new UsingDeclarationStatementSyntax(usingKeyword, identifier, typeAnnotation, initializer);
     }
 
-    private WhileStatementSyntax ParseWhileStatement() => new(NextToken(), ParseExpression(), ParseBlock());
+    private WhileStatementSyntax ParseWhileStatement() => new(NextToken(), ParseHeadExpression(), ParseBlock());
 
     private ForStatementSyntax ParseForStatement()
     {
@@ -148,7 +162,7 @@ internal sealed partial class Parser
             identifier = ExpectIdentifier();
         }
         var inKeyword = Expect(SyntaxKind.InKeyword);
-        var collection = ParseExpression();
+        var collection = ParseHeadExpression();
         return new ForStatementSyntax(forKeyword, identifier, deconstruction, inKeyword, collection, ParseBlock());
     }
 
@@ -204,7 +218,7 @@ internal sealed partial class Parser
             SkipBalanced();
             return new IdentifierNameSyntax(Missing(SyntaxKind.IdentifierToken));
         }
-        var name = new IdentifierNameSyntax(ExpectIdentifier());
+        var name = new IdentifierNameSyntax(ExpectIdentifierOrDiscard());
         if (Current.Kind == SyntaxKind.ColonToken)
         {
             Report(DiagnosticDescriptors.DeconstructionElement, Current.Span, "the types come from the value");
@@ -233,6 +247,44 @@ internal sealed partial class Parser
         SkipCurrentToken();
         SkipCurrentToken();
         return Current.Kind == SyntaxKind.ForKeyword ? ParseForStatement() : ParseWhileStatement();
+    }
+
+    /// <summary>
+    /// <c>init super(args)</c>, <c>init super.Homing(args)</c>, <c>init self(args)</c>, <c>init self.Small()</c>
+    /// (ADR-0027). A '.' at the start of a line continues, as everywhere (ADR-0013).
+    /// </summary>
+    private InitStatementSyntax ParseInitStatement()
+    {
+        var initKeyword = NextToken();
+        SyntaxToken receiver;
+        if (Current.Kind is SyntaxKind.SuperKeyword or SyntaxKind.SelfKeyword && !AtLineBreak)
+        {
+            receiver = NextToken();
+        }
+        else
+        {
+            ReportExpected("'super' or 'self'");
+            receiver = Missing(SyntaxKind.SuperKeyword);
+        }
+        SyntaxToken? dot = null;
+        SyntaxToken? name = null;
+        if (Current.Kind == SyntaxKind.DotToken)
+        {
+            dot = NextToken();
+            CheckOperatorAtLineEnd(dot);
+            name = ExpectIdentifier();
+        }
+        ArgumentListSyntax arguments;
+        if (At(SyntaxKind.OpenParenToken))
+        {
+            arguments = ParseArgumentList(SyntaxKind.ArgumentList);
+        }
+        else
+        {
+            ReportExpected("'('");
+            arguments = MissingArgumentList();
+        }
+        return new InitStatementSyntax(initKeyword, receiver, dot, name, arguments);
     }
 
     private ReturnStatementSyntax ParseReturnStatement()
