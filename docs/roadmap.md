@@ -24,7 +24,7 @@ M3 以后是草案，随 M1 的语法讨论细化。
 - [x] 核心语法逐项定稿：声明与类型标注、可变性、函数、控制流与表达式、空值、类型定义（class / struct / 枚举 / 联合）、模式匹配、泛型、命名空间与导入、命名约定、注释与文档注释（ADR-0006 到 0017，十三轮讨论；剩下的细节记在 language-reference 各节的“待定”里）
 - [x] docs/design/language-reference.md 初稿 + samples/ 下的示例脚本（八个文件）
 - [x] 词法分析（Lexer）、语法分析（Parser）、语法树、诊断（带错误码和位置）：design/syntax-tree.md、design/diagnostics.md；实现时碰到的细节定在 ADR-0019（四项）、ADR-0020（七项）
-- [ ] language-reference 各节末尾的“待定”逐轮讨论（分组和顺序见 STATUS，可以和 M2 交错进行）：元组与遍历（ADR-0021）、区间与集合（ADR-0022）、空值细节（ADR-0023）、枚举（ADR-0024）；用户提议的 `eval` 块和 `->` 分支（ADR-0025）；language-reference 整体 review 收紧的几处（ADR-0026）；类型成员第一批：创建时设置成员 `with`、`init super(...)`（ADR-0027）
+- [ ] language-reference 各节末尾的“待定”逐轮讨论（分组和顺序见 STATUS，可以和 M2 交错进行）：元组与遍历（ADR-0021）、区间与集合（ADR-0022）、空值细节（ADR-0023）、枚举（ADR-0024）；用户提议的 `eval` 块和 `->` 分支（ADR-0025）；language-reference 整体 review 收紧的几处（ADR-0026）；类型成员第一批：创建时设置成员 `with`、`init super(...)`（ADR-0027）；第二批：索引器、enum 的成员和接口、不加 `field` 和事件访问器（ADR-0029）
 - [x] VSCode 语法高亮（TextMate 语法，覆盖已定的全部关键字；`tools/vscode-dev.cmd` 试用）。关键字表和 Lexer 的一致性有测试
 - [ ] 高亮的分词快照测试（vscode-textmate 跑 samples，比对快照；要在 CI 里装 node）
 - [x] 验收：samples/ 全部能解析，语法树能打印出来（`nyxel parse --tree`，快照测试）；故意写错的样例给出准确位置和可读的错误（ParserErrorTests）

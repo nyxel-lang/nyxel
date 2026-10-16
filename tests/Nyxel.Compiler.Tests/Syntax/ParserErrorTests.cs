@@ -114,8 +114,12 @@ public class ParserErrorTests
     [Theory]
     [InlineData("enum E : float {\n    case A\n}\n", "NYX1175 1:10")]
     [InlineData("enum E : byte, int {\n    case A\n}\n", "NYX1175 1:16")]
-    [InlineData("enum E : IFoo {\n    case A\n}\n", "NYX1175 1:10")]
+    [InlineData("enum E : IFoo {\n    case A\n}\n", "NYX1209 1:10")]
+    [InlineData("enum E : byte, IFoo {\n    case A\n}\n", "NYX1209 1:16")]
     [InlineData("enum E : int {\n    case A(X: int)\n}\n", "NYX1176 1:10")]
+    [InlineData("struct enum E : byte, IFoo {\n    case A\n}\n", "NYX1176 1:17")]
+    [InlineData("struct enum E : IFoo {\n    case A = 1\n}\n", "NYX1176 2:12")]
+    [InlineData("struct enum E : byte {\n    case A\n}\n", "NYX1179 1:1")]
     [InlineData("enum E {\n    case A(X: int) = 1\n    case B = 2\n}\n", "NYX1176 2:20", "NYX1176 3:12")]
     [InlineData("flags enum E {\n    case A(X: int)\n}\n", "NYX1176 1:1")]
     [InlineData("enum E {\n    case A = 1\n    case B\n    case C\n}\n", "NYX1177 3:10", "NYX1177 4:10")]
@@ -130,6 +134,55 @@ public class ParserErrorTests
     {
         var diagnostic = SyntaxTree.Parse("enum E {\n    case A = 1\n    case B\n}\n").Diagnostics.Single();
         Assert.Equal("Give 'B' a value too; either every case of an enum has a value or none does.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void EnumInterfaceMessageSaysStructEnum()
+    {
+        var diagnostic = SyntaxTree.Parse("enum E : IDescribable {\n    case A\n}\n").Diagnostics.Single();
+        Assert.Equal(
+            "An enum without data is a C# enum, which can't implement interfaces; write 'struct enum' to implement 'IDescribable'.",
+            diagnostic.Message);
+    }
+
+    // Members of enums, indexers, events (ADR-0029) ---------------------------------------------------------------
+
+    [Theory]
+    [InlineData("enum E {\n    func F(self) { }\n    case A\n}\n", "NYX1205 3:5")]
+    [InlineData("enum E {\n    case A\n    Fire\n}\n", "NYX1101 3:5")]
+    [InlineData("enum E {\n    case A\n    var x: int = 0\n}\n", "NYX1206 3:5")]
+    [InlineData("enum E {\n    case A\n    init() { }\n}\n", "NYX1206 3:5")]
+    [InlineData("enum E {\n    case A\n    event Changed()\n}\n", "NYX1206 3:5")]
+    [InlineData("enum E {\n    case A\n    property P: int { get }\n}\n", "NYX1206 3:5")]
+    [InlineData("enum E {\n    case A\n    property P: int = 1 {\n        get = 1\n    }\n}\n", "NYX1206 3:5")]
+    [InlineData("enum E {\n    case A\n    property self[i: int]: int { get = i }\n}\n", "NYX1206 3:5")]
+    [InlineData("enum E {\n    case A\n    public override func ToString(self) -> string = \"\"\n}\n", "NYX1207 3:12")]
+    [InlineData("enum E {\n    case A(X: int)\n    protected func F(self) { }\n}\n", "NYX1207 3:5")]
+    [InlineData("enum E {\n    case A\n    func F(var self) { }\n}\n", "NYX1208 3:12")]
+    public void EnumMemberErrors(string source, params string[] expected) => AssertFileErrors(source, expected);
+
+    [Theory]
+    [InlineData("class C {\n    property self[]: int { get = 0 }\n}\n", "NYX1201 2:18")]
+    [InlineData("class C {\n    property self[i: int]: int = 0 { get }\n}\n", "NYX1202 2:32")]
+    [InlineData("class C {\n    static property self[i: int]: int { get = i }\n}\n", "NYX1202 2:5")]
+    [InlineData("extension List<int> {\n    public property self[i: int, j: int]: int { get = i }\n}\n", "NYX1202 2:5")]
+    [InlineData("class C {\n    property self[i: int = 0]: int { get = i }\n}\n", "NYX1203 2:26")]
+    [InlineData("class C {\n    property self[i: out int]: int { get = 0 }\n}\n", "NYX1203 2:22")]
+    [InlineData("class C {\n    event Died(slime: Slime = null)\n}\n", "NYX1203 2:29")]
+    [InlineData("class C {\n    event Clicked() {\n        add(h) { }\n        remove(h) { }\n    }\n    var x: int = 0\n}\n", "NYX1204 2:21")]
+    [InlineData("property self[i: int]: int { get = i }\n", "NYX1113 1:1")]
+    public void IndexerAndEventErrors(string source, params string[] expected) => AssertFileErrors(source, expected);
+
+    [Theory]
+    [InlineData("enum E {\n    func F(self) { }\n    case A\n}\n")]
+    [InlineData("class C {\n    property self[i: int]: int = 0 { get }\n}\n")]
+    [InlineData("class C {\n    event Clicked() {\n        add(h) { }\n    }\n}\n")]
+    public void SkippedMemberPartsKeepTheTreeWhole(string source)
+    {
+        var tree = SyntaxTree.Parse(source);
+        Assert.Single(tree.Diagnostics);
+        Assert.Equal(source, tree.Root.ToFullString());
+        AssertParentsAndSpansConsistent(tree.Root);
     }
 
     // Statements and expressions ----------------------------------------------------------------------------------

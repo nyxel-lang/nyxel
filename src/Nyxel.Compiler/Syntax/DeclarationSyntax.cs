@@ -117,7 +117,8 @@ public sealed class TypeDeclarationSyntax : MemberDeclarationSyntax
 
 /// <summary>
 /// <c>enum Tile : byte { ... }</c>, <c>flags enum Layer { ... }</c> or <c>struct enum AiState { ... }</c> (ADR-0008,
-/// ADR-0024). The base list holds the underlying type.
+/// ADR-0024). The base list holds the underlying type, or the interfaces of an enum with data or a struct enum
+/// (ADR-0029). Functions and computed properties follow the cases; a case written after them is skipped.
 /// </summary>
 public sealed class EnumDeclarationSyntax : MemberDeclarationSyntax
 {
@@ -129,6 +130,7 @@ public sealed class EnumDeclarationSyntax : MemberDeclarationSyntax
         BaseListSyntax? baseList,
         SyntaxToken openBraceToken,
         SyntaxList<EnumCaseDeclarationSyntax> cases,
+        SyntaxList<MemberDeclarationSyntax> members,
         SyntaxToken closeBraceToken)
         : base(SyntaxKind.EnumDeclaration, modifiers)
     {
@@ -138,6 +140,7 @@ public sealed class EnumDeclarationSyntax : MemberDeclarationSyntax
         BaseList = baseList;
         OpenBraceToken = openBraceToken;
         Cases = cases;
+        Members = members;
         CloseBraceToken = closeBraceToken;
         AdoptChildren();
     }
@@ -159,10 +162,12 @@ public sealed class EnumDeclarationSyntax : MemberDeclarationSyntax
 
     public SyntaxList<EnumCaseDeclarationSyntax> Cases { get; }
 
+    public SyntaxList<MemberDeclarationSyntax> Members { get; }
+
     public SyntaxToken CloseBraceToken { get; }
 
     public override IEnumerable<SyntaxNode> GetChildren() =>
-        Children(Modifiers, KindKeyword, EnumKeyword, Identifier, BaseList, OpenBraceToken, Cases, CloseBraceToken);
+        Children(Modifiers, KindKeyword, EnumKeyword, Identifier, BaseList, OpenBraceToken, Cases, Members, CloseBraceToken);
 }
 
 /// <summary>
@@ -364,6 +369,40 @@ public sealed class PropertyDeclarationSyntax : MemberDeclarationSyntax
 
     public override IEnumerable<SyntaxNode> GetChildren() =>
         Children(Modifiers, PropertyKeyword, Identifier, TypeAnnotation, Initializer, AccessorList);
+}
+
+/// <summary><c>property self[x: int, y: int]: Type { accessors }</c> (ADR-0029): a property with parameters.</summary>
+public sealed class IndexerDeclarationSyntax : MemberDeclarationSyntax
+{
+    internal IndexerDeclarationSyntax(
+        SyntaxList<SyntaxToken> modifiers,
+        SyntaxToken propertyKeyword,
+        SyntaxToken selfKeyword,
+        BracketedParameterListSyntax parameterList,
+        TypeAnnotationSyntax typeAnnotation,
+        AccessorListSyntax accessorList)
+        : base(SyntaxKind.IndexerDeclaration, modifiers)
+    {
+        PropertyKeyword = propertyKeyword;
+        SelfKeyword = selfKeyword;
+        ParameterList = parameterList;
+        TypeAnnotation = typeAnnotation;
+        AccessorList = accessorList;
+        AdoptChildren();
+    }
+
+    public SyntaxToken PropertyKeyword { get; }
+
+    public SyntaxToken SelfKeyword { get; }
+
+    public BracketedParameterListSyntax ParameterList { get; }
+
+    public TypeAnnotationSyntax TypeAnnotation { get; }
+
+    public AccessorListSyntax AccessorList { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() =>
+        Children(Modifiers, PropertyKeyword, SelfKeyword, ParameterList, TypeAnnotation, AccessorList);
 }
 
 public sealed class AccessorListSyntax : SyntaxNode
@@ -620,6 +659,28 @@ public sealed class ParameterListSyntax : SyntaxNode
     public SyntaxToken CloseParenToken { get; }
 
     public override IEnumerable<SyntaxNode> GetChildren() => Children(OpenParenToken, Parameters, CloseParenToken);
+}
+
+/// <summary>An indexer's parameters: <c>[x: int, y: int]</c>.</summary>
+public sealed class BracketedParameterListSyntax : SyntaxNode
+{
+    internal BracketedParameterListSyntax(
+        SyntaxToken openBracketToken, SeparatedSyntaxList<BaseParameterSyntax> parameters, SyntaxToken closeBracketToken)
+        : base(SyntaxKind.BracketedParameterList)
+    {
+        OpenBracketToken = openBracketToken;
+        Parameters = parameters;
+        CloseBracketToken = closeBracketToken;
+        AdoptChildren();
+    }
+
+    public SyntaxToken OpenBracketToken { get; }
+
+    public SeparatedSyntaxList<BaseParameterSyntax> Parameters { get; }
+
+    public SyntaxToken CloseBracketToken { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(OpenBracketToken, Parameters, CloseBracketToken);
 }
 
 public abstract class BaseParameterSyntax : SyntaxNode

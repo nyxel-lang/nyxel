@@ -63,7 +63,7 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
 - Bash heredoc 里的反斜杠会被折叠（连 `<<'EOF'` 也一样），含 `\` 的内容用 Write / Edit 工具写；heredoc 里有不成对的单引号（`C#'s`）时整条命令解析失败。python 补丁脚本用 Write 写成文件再运行。python 补丁里的 `tools\\vscode` 会变成 `\v`（垂直制表符），断言照样通过、悄悄写坏文件；文档里的路径能写正斜杠就写正斜杠。python 补丁用 `read_bytes` / `write_bytes`，`write_text` 在 Windows 上会把 LF 写成 CRLF。
 - .cmd 必须是 CRLF（.gitattributes 已固定），Write 工具写出来是 LF：写完用 `sed -i 's/$/\r/' <file>` 转换，`file <file>` 确认。
 - Bash 工具里的 `cd` 会保留到后面的调用（工作目录跟着变）：要在子目录里跑命令就用 `(cd dir && ...)` 子 shell，或者用绝对路径。
-- 临时探针用 .NET 10 的单文件程序（`dotnet run probe.cs`，`#:package` / `#:project` 引用依赖，放 build/tmp）。同一目录放两个 .cs 时可能跑成另一个文件，每个探针放单独目录。
+- 临时探针用 .NET 10 的单文件程序（`dotnet run probe.cs`，`#:package` / `#:project` 引用依赖，放 build/tmp）。同一目录放两个 .cs 时可能跑成另一个文件，每个探针放单独目录。`#:package` 不写版本：仓库用中央包管理（Directory.Packages.props），写了版本报 NU1008，版本从那里取。
 - 和 C# 相同的语法（字面量、转义等）不凭记忆实现：用 Roslyn（测试项目可以直接引用）做对照测试，见 CSharpLiteralTests。
 - 本机 dotnet 和 Roslyn 的输出是中文（跟随 UI 语言）：`dotnet test` 的结果行是“已通过! - 失败: 0，通过: N”，grep 用“通过 / 失败”。代码里包装 Roslyn 诊断消息用 `GetMessage(CultureInfo.InvariantCulture)`。
 - 生成 C# 时的 `#line` 规则（结束列包含、列偏移、绝对路径、嵌入源码用原始字节）见 docs/design/debug-mapping.md，不照做列号会错。

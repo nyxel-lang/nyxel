@@ -561,6 +561,25 @@ public class ParserTests
     [InlineData("struct enum AiState {\n    case Idle\n    case Chasing(Target: Entity)\n}", "(EnumDeclaration struct enum AiState { (EnumCaseDeclaration case Idle) (EnumCaseDeclaration case Chasing (ParameterList ( (Parameter Target : Entity) ))) })")]
     public void EnumDeclarations(string source, string expected) => Assert.Equal(expected, Compact(ParseClean(source).Root.Members[0]));
 
+    // Members of enums, interfaces of enums, indexers (ADR-0029) ----------------------------------------------------
+
+    [Theory]
+    [InlineData("enum Element {\n    case Fire\n\n    public func Weakness(self) -> Element = Element.Fire\n    public property IsHot: bool { get = true }\n    func Parse(text: string) -> Element? = null\n}", "(EnumDeclaration enum Element { (EnumCaseDeclaration case Fire) (FunctionDeclaration public func Weakness (ParameterList ( (SelfParameter self) )) (ReturnTypeClause -> Element) (ExpressionBody = (SimpleMemberAccessExpression Element . Fire))) (PropertyDeclaration public property IsHot (TypeAnnotation : bool) (AccessorList { (GetAccessorDeclaration get (ExpressionBody = true)) })) (FunctionDeclaration func Parse (ParameterList ( (Parameter text : string) )) (ReturnTypeClause -> (NullableType Element ?)) (ExpressionBody = null)) })")]
+    [InlineData("enum Damage : IDescribable {\n    case Heal(Amount: int)\n}", "(EnumDeclaration enum Damage (BaseList : IDescribable) { (EnumCaseDeclaration case Heal (ParameterList ( (Parameter Amount : int) ))) })")]
+    [InlineData("struct enum Element : IDescribable, IComparable<Element> {\n    case Fire\n}", "(EnumDeclaration struct enum Element (BaseList : IDescribable , (GenericName IComparable (TypeArgumentList < Element >))) { (EnumCaseDeclaration case Fire) })")]
+    public void EnumMembersAndInterfaces(string source, string expected) => Assert.Equal(expected, Compact(ParseClean(source).Root.Members[0]));
+
+    [Theory]
+    [InlineData("public property self[x: int, y: int]: T {\n    get = x\n    private set(value) { }\n}", "(IndexerDeclaration public property self (BracketedParameterList [ (Parameter x : int) , (Parameter y : int) ]) (TypeAnnotation : T) (AccessorList { (GetAccessorDeclaration get (ExpressionBody = x)) (SetAccessorDeclaration private set (SetterParameter ( value )) (Block { })) }))")]
+    [InlineData("property self[index: int]: T { get }", "(IndexerDeclaration property self (BracketedParameterList [ (Parameter index : int) ]) (TypeAnnotation : T) (AccessorList { (GetAccessorDeclaration get) }))")]
+    public void Indexers(string member, string expected) => Assert.Equal(expected, Compact(ParseMember(member)));
+
+    [Fact]
+    public void IndexersAreUsedWithSelfAndBrackets()
+    {
+        Assert.Equal("(AssignmentStatement (ElementAccessExpression self (BracketedArgumentList [ (Argument x) , (Argument 0) ])) = (SimpleMemberAccessExpression Tile . Wall))", Stmt("self[x, 0] = Tile.Wall"));
+    }
+
     [Fact]
     public void FlagsIsAnIdentifierExceptBeforeEnum()
     {

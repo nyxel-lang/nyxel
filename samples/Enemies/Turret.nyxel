@@ -17,6 +17,15 @@ public enum TurretModel : byte {
     case Basic = 1
     case Heavy = 2
     case Laser = 3
+
+    /// 发现目标后要瞄准几秒才开火。
+    public func AimTime(self) -> float {
+        return match self {
+            case Basic -> 1
+            case Heavy -> 1.5
+            case Laser -> 0.2
+        }
+    }
 }
 
 /// 炮塔的状态。struct enum 是值类型：每帧切换状态也不在堆上分配。
@@ -46,7 +55,7 @@ public class Turret : Behaviour {
                 self.state = new TurretState.Aiming(Target = target, Since = self.time)
             }
             case Aiming(target, since) -> {         // 按位置取出，名字自己起
-                if self.time - since >= self.AimTime() {
+                if self.time - since >= self.Model.AimTime() {
                     self.Fire(target)
                     self.state = new TurretState.Reloading(Until = self.time + 2)
                 }
@@ -76,14 +85,6 @@ public class Turret : Behaviour {
 
     func InRange(self, other: Behaviour) -> bool {
         return Vector3.Distance(self.Position, other.Position) <= self.Range
-    }
-
-    func AimTime(self) -> float {
-        return match self.Model {
-            case Basic -> 1
-            case Heavy -> 1.5
-            case Laser -> 0.2
-        }
     }
 
     func Fire(self, target: Behaviour) {

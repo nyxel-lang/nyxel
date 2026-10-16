@@ -10,6 +10,7 @@ internal sealed partial class Parser
         TopLevel,
         Type,
         Extension,
+        Enum,
     }
 
     private enum ParameterContext
@@ -18,6 +19,7 @@ internal sealed partial class Parser
         Lambda,
         EnumCase,
         Event,
+        Indexer,
     }
 
     // File structure (ADR-0012): namespace, imports, declarations, in this order. Misplaced namespaces and imports
@@ -137,7 +139,7 @@ internal sealed partial class Parser
 
         if (member == null)
         {
-            ReportExpected("a declaration", atLineStart: modifiers.Count == 0);
+            ReportExpected(context == MemberContext.Enum ? "'case' or a declaration" : "a declaration", atLineStart: modifiers.Count == 0);
             SkipConsumed(modifiers);
             if (modifiers.Count == 0)
             {
@@ -156,6 +158,7 @@ internal sealed partial class Parser
                 SyntaxKind.FunctionDeclaration => "function",
                 SyntaxKind.InitDeclaration => "init",
                 SyntaxKind.PropertyDeclaration => "property",
+                SyntaxKind.IndexerDeclaration => "indexer",
                 _ => "event",
             };
             Report(DiagnosticDescriptors.TopLevelMember, first.Span, what);
@@ -163,6 +166,10 @@ internal sealed partial class Parser
         else if (context != MemberContext.TopLevel && isType)
         {
             Report(DiagnosticDescriptors.NestedType, first.Span);
+        }
+        else if (context == MemberContext.Extension && member is IndexerDeclarationSyntax)
+        {
+            Report(DiagnosticDescriptors.IndexerNotAllowed, first.Span, "be declared in an extension yet; C# 14 extensions don't support indexers");
         }
         return member;
     }
@@ -299,6 +306,7 @@ internal sealed partial class Parser
         var saved = _bracketDepth;
         _bracketDepth = 0;
         var cases = new List<EnumCaseDeclarationSyntax>();
+        var members = new List<MemberDeclarationSyntax>();
         if (!open.IsMissing)
         {
             while (Current.Kind is not (SyntaxKind.CloseBraceToken or SyntaxKind.EndOfFileToken))
@@ -306,19 +314,30 @@ internal sealed partial class Parser
                 var start = _position;
                 var errors = ErrorCount;
                 AllowLineBreak();
-                if (Current.Kind == SyntaxKind.CaseKeyword)
+                var isCase = Current.Kind == SyntaxKind.CaseKeyword;
+                if (isCase)
                 {
                     var caseKeyword = NextToken();
                     var name = ExpectIdentifier();
                     var parameters = At(SyntaxKind.OpenParenToken) ? ParseParameterList(ParameterContext.EnumCase) : null;
-                    cases.Add(new EnumCaseDeclarationSyntax(caseKeyword, name, parameters, TryParseInitializer()));
+                    var @case = new EnumCaseDeclarationSyntax(caseKeyword, name, parameters, TryParseInitializer());
+                    // The tree keeps the cases first (ADR-0029); a case after the members is reported and skipped.
+                    if (members.Count > 0)
+                    {
+                        Report(DiagnosticDescriptors.EnumCaseAfterMember, @case.Span);
+                        SkipNode(@case);
+                    }
+                    else
+                    {
+                        cases.Add(@case);
+                    }
                 }
-                else
+                else if (ParseMemberDeclaration(MemberContext.Enum) is { } member)
                 {
-                    ReportExpected("'case'", atLineStart: true);
-                    SkipToEndOfLine();
+                    CheckEnumMember(member);
+                    members.Add(member);
                 }
-                ExpectEndOfStatement(errors, "case");
+                ExpectEndOfStatement(errors, isCase ? "case" : "declaration");
                 if (_position == start)
                 {
                     SkipCurrentToken();
@@ -327,38 +346,82 @@ internal sealed partial class Parser
         }
         var close = ExpectCloseBrace(open);
         _bracketDepth = saved;
-        var declaration = new EnumDeclarationSyntax(modifiers, kindKeyword, keyword, identifier, baseList, open, MakeList(cases), close);
+        var declaration = new EnumDeclarationSyntax(
+            modifiers, kindKeyword, keyword, identifier, baseList, open, MakeList(cases), MakeList(members), close);
         CheckEnum(declaration);
         return declaration;
     }
 
     /// <summary>
-    /// The rules of ADR-0024 that the declaration alone shows: only an enum without data has an underlying type,
-    /// case values or 'flags'; its values are all given or none (a flags enum gives all); 'struct enum' has data.
+    /// An enum has functions and computed properties (ADR-0029): its values are its cases, which don't change and
+    /// can't be inherited.
+    /// </summary>
+    private void CheckEnumMember(MemberDeclarationSyntax member)
+    {
+        var storage = member switch
+        {
+            FieldDeclarationSyntax => "fields",
+            InitDeclarationSyntax => "an init",
+            EventDeclarationSyntax => "events",
+            IndexerDeclarationSyntax => "an indexer",
+            PropertyDeclarationSyntax property when property.Initializer != null
+                || property.AccessorList.Accessors.Any(a => a.Body == null && a.ExpressionBody == null) => "auto properties",
+            _ => null,
+        };
+        if (storage != null)
+        {
+            Report(DiagnosticDescriptors.EnumMemberKind, member.Span, storage);
+        }
+        foreach (var modifier in member.Modifiers.Where(m => m.Kind is SyntaxKind.ProtectedKeyword or SyntaxKind.VirtualKeyword
+            or SyntaxKind.AbstractKeyword or SyntaxKind.SealedKeyword or SyntaxKind.OverrideKeyword))
+        {
+            Report(DiagnosticDescriptors.EnumMemberModifier, modifier.Span, modifier.Text);
+        }
+        if (member is FunctionDeclarationSyntax { ParameterList.Parameters: [SelfParameterSyntax { VarKeyword: { } varKeyword }, ..] })
+        {
+            Report(DiagnosticDescriptors.EnumVarSelf, varKeyword.Span);
+        }
+    }
+
+    /// <summary>
+    /// The rules of ADR-0024 and ADR-0029 that the declaration alone shows. A plain enum without data is a C# enum:
+    /// only it has an underlying type, case values or 'flags', and it implements no interfaces. Its values are all
+    /// given or none (a flags enum gives all). A 'struct enum' has data or implements interfaces.
     /// </summary>
     private void CheckEnum(EnumDeclarationSyntax declaration)
     {
         var hasData = declaration.Cases.Any(c => c.ParameterList != null);
-        if (declaration.IsStruct && !hasData)
+        var baseTypes = declaration.BaseList?.Types ?? SeparatedSyntaxList<TypeSyntax>.Empty;
+        // A named type after the colon is an interface; an underlying type is a keyword such as 'byte'.
+        var hasInterfaces = baseTypes.Any(t => t is not PredefinedTypeSyntax);
+        var isCSharpEnum = !hasData && !declaration.IsStruct;
+        if (declaration.IsStruct && !hasData && !hasInterfaces)
         {
             Report(DiagnosticDescriptors.StructEnumWithoutData, declaration.KindKeyword!.Span);
+            isCSharpEnum = true;    // check the rest as the 'enum' it should be
         }
-        if (declaration.BaseList is { } baseList)
+        for (var i = 0; i < baseTypes.Count; i++)
         {
-            for (var i = 0; i < baseList.Types.Count; i++)
+            var type = baseTypes[i];
+            var isIntegerType = type is PredefinedTypeSyntax { Keyword.Kind: var kind } && SyntaxFacts.IsIntegerType(kind);
+            if (!isCSharpEnum)
             {
-                var type = baseList.Types[i];
-                if (hasData)
+                // Other types are interfaces, which semantic analysis checks.
+                if (isIntegerType)
                 {
                     Report(DiagnosticDescriptors.EnumWithDataValues, type.Span, "have an underlying type");
                 }
-                else if (i > 0 || type is not PredefinedTypeSyntax { Keyword.Kind: var kind } || !SyntaxFacts.IsIntegerType(kind))
-                {
-                    Report(DiagnosticDescriptors.EnumUnderlyingType, type.Span);
-                }
+            }
+            else if (type is not PredefinedTypeSyntax)
+            {
+                Report(DiagnosticDescriptors.EnumInterface, type.Span, type.ToString());
+            }
+            else if (i > 0 || !isIntegerType)
+            {
+                Report(DiagnosticDescriptors.EnumUnderlyingType, type.Span);
             }
         }
-        if (hasData)
+        if (!isCSharpEnum)
         {
             if (declaration.IsFlags)
             {
@@ -440,15 +503,55 @@ internal sealed partial class Parser
         return new InitDeclarationSyntax(modifiers, initKeyword, identifier, parameters, ParseBlock());
     }
 
-    private PropertyDeclarationSyntax ParsePropertyDeclaration(SyntaxList<SyntaxToken> modifiers)
+    private MemberDeclarationSyntax ParsePropertyDeclaration(SyntaxList<SyntaxToken> modifiers)
     {
         var propertyKeyword = NextToken();
+        if (At(SyntaxKind.SelfKeyword))
+        {
+            return ParseIndexerDeclaration(modifiers, propertyKeyword);
+        }
         var identifier = ExpectIdentifier();
-        var typeAnnotation = TryParseTypeAnnotation()
-            ?? new TypeAnnotationSyntax(Expect(SyntaxKind.ColonToken), new IdentifierNameSyntax(Missing(SyntaxKind.IdentifierToken)));
+        var typeAnnotation = ExpectTypeAnnotation();
         var initializer = TryParseInitializer();
         var accessors = ParseAccessorList();
         return new PropertyDeclarationSyntax(modifiers, propertyKeyword, identifier, typeAnnotation, initializer, accessors);
+    }
+
+    /// <summary><c>property self[x: int, y: int]: T { accessors }</c> (ADR-0029).</summary>
+    private IndexerDeclarationSyntax ParseIndexerDeclaration(SyntaxList<SyntaxToken> modifiers, SyntaxToken propertyKeyword)
+    {
+        var selfKeyword = NextToken();
+        var parameters = ParseBracketedParameterList();
+        var typeAnnotation = ExpectTypeAnnotation();
+        if (TryParseInitializer() is { } initializer)
+        {
+            Report(DiagnosticDescriptors.IndexerNotAllowed, initializer.Span, "have an initial value; its accessors have bodies");
+            SkipNode(initializer);
+        }
+        var accessors = ParseAccessorList();
+        if (modifiers.FirstOrDefault(m => m.Kind == SyntaxKind.StaticKeyword) is { } staticKeyword)
+        {
+            Report(DiagnosticDescriptors.IndexerNotAllowed, staticKeyword.Span, "be 'static'");
+        }
+        return new IndexerDeclarationSyntax(modifiers, propertyKeyword, selfKeyword, parameters, typeAnnotation, accessors);
+    }
+
+    private BracketedParameterListSyntax ParseBracketedParameterList()
+    {
+        var open = Expect(SyntaxKind.OpenBracketToken);
+        if (open.IsMissing)
+        {
+            return new BracketedParameterListSyntax(open, SeparatedSyntaxList<BaseParameterSyntax>.Empty, Missing(SyntaxKind.CloseBracketToken));
+        }
+        _bracketDepth++;
+        var parameters = ParseSeparatedList(SyntaxKind.CloseBracketToken, index => ParseParameter(ParameterContext.Indexer, index));
+        var close = Expect(SyntaxKind.CloseBracketToken);
+        _bracketDepth--;
+        if (parameters.Count == 0 && !close.IsMissing)
+        {
+            Report(DiagnosticDescriptors.IndexerWithoutParameters, TextSpan.FromBounds(open.Span.Start, close.Span.End));
+        }
+        return new BracketedParameterListSyntax(open, parameters, close);
     }
 
     private AccessorListSyntax ParseAccessorList()
@@ -517,6 +620,12 @@ internal sealed partial class Parser
         var eventKeyword = NextToken();
         var identifier = ExpectIdentifier();
         var parameters = ParseParameterList(ParameterContext.Event);
+        // The 'add' / 'remove' accessors of C# (ADR-0029): reported and skipped whole.
+        if (At(SyntaxKind.OpenBraceToken))
+        {
+            Report(DiagnosticDescriptors.EventAccessors, Current.Span);
+            SkipBalanced();
+        }
         return new EventDeclarationSyntax(modifiers, eventKeyword, identifier, parameters);
     }
 
@@ -585,6 +694,20 @@ internal sealed partial class Parser
             Report(DiagnosticDescriptors.ParameterNeedsType, identifier.Span, identifier.Text);
         }
         var @default = TryParseInitializer();
+        var owner = context switch
+        {
+            ParameterContext.Event => "event",
+            ParameterContext.Indexer => "indexer",
+            _ => null,
+        };
+        if (owner != null && @default != null)
+        {
+            Report(DiagnosticDescriptors.ParameterNotAllowed, @default.Span, owner, "have a default value");
+        }
+        if (context == ParameterContext.Indexer && refKind?.Kind is SyntaxKind.OutKeyword or SyntaxKind.RefKeyword)
+        {
+            Report(DiagnosticDescriptors.ParameterNotAllowed, refKind.Span, owner!, "be 'out' or 'ref'");
+        }
         return new ParameterSyntax(identifier, colon, refKind, type, @default);
     }
 
@@ -639,6 +762,11 @@ internal sealed partial class Parser
     }
 
     // Small clauses shared by declarations ---------------------------------------------------------------------
+
+    /// <summary><c>: Type</c>, which a property and an indexer must have.</summary>
+    private TypeAnnotationSyntax ExpectTypeAnnotation() =>
+        TryParseTypeAnnotation()
+        ?? new TypeAnnotationSyntax(Expect(SyntaxKind.ColonToken), new IdentifierNameSyntax(Missing(SyntaxKind.IdentifierToken)));
 
     private TypeAnnotationSyntax? TryParseTypeAnnotation()
     {

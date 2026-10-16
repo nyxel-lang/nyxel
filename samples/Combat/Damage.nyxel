@@ -1,10 +1,30 @@
 namespace Samples.Combat
 
 /// 一次伤害。每种情况带的数据不同，处理时用 `match` 按位置取出，同元组的解构。
-public enum Damage {
+public enum Damage : IDescribable {
     case Physical(Amount: int)
     case Burn(Amount: int, Seconds: float)
     case Heal(Amount: int)
+
+    /// 对生命值的改变，负数是掉血。
+    public property Change: int {
+        get = match self {
+            case Physical(amount) -> -amount
+            case Burn(amount, _) -> -amount         // 按位置取；不要的 Seconds 写 _
+            case Heal(amount) -> amount
+        }
+    }
+
+    public func Describe(self) -> string = match self {
+        case Physical(amount) -> $"{amount} 点物理伤害"
+        case Burn(amount, seconds) -> $"{seconds} 秒内 {amount} 点灼烧"
+        case Heal(amount) -> $"治疗 {amount}"
+    }
+}
+
+/// 能在界面上显示一句说明的东西。
+public interface IDescribable {
+    func Describe(self) -> string
 }
 
 /// 能受到伤害的东西。

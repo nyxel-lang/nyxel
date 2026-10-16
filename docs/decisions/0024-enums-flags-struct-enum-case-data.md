@@ -1,6 +1,6 @@
 # ADR-0024: 枚举的值和 flags、`x is` 某个 case、`struct enum`、case 的数据同元组
 
-- 状态：已接受（2026-10-09 修订）
+- 状态：已接受（2026-10-16 修订）
 - 日期：2026-10-06
 
 ## 背景
@@ -33,10 +33,10 @@
    ```
    - 都不写时按声明顺序 0、1、2，同 C#。
    - 值是整数常量，可以用运算组合：`1 << 3`、`Layer.Ground | Layer.Water`。引用别的 case 也写类型名（ADR-0008 的静态成员规则）。
-   - 带数据的 enum 不能写值。
+   - 带数据的 enum 和 `struct enum` 不能写值。
 2. **底层类型写在冒号后面，同 C#**：`enum Tile : byte`。
    - 只能是 `byte`、`sbyte`、`short`、`ushort`、`int`、`uint`、`long`、`ulong` 之一，不写是 `int`。
-   - 带数据的 enum 不能写。
+   - 带数据的 enum 和 `struct enum` 不能写，它们冒号后面是接口（ADR-0029）。
 3. **flags 枚举写 `flags enum`，每个 case 都写值**。
    ```nyxel
    flags enum Layer {
@@ -87,7 +87,7 @@
    - 全零的值：
      - 第一个 case 不带数据时，全零就是这个 case（上例是 `Idle`）。可以直接 `new array<AiState>(n)`，引擎不给值创建组件时也是它。
      - 第一个 case 带数据时，同 Nyxel 的 struct，要用 `element`。
-   - 不带数据的 enum 本来就是值类型，写 `struct enum` 是编译错误。
+   - 不带数据的 enum 本来就是值类型，只有要实现接口时才写 `struct enum`（ADR-0029）：它翻译成 C# 的 enum，而 C# 的 enum 不能实现接口。不带数据、也没写接口时写 `struct enum` 是编译错误。
 7. **带数据的 enum，`==` 比内容**：同一个 case、数据逐个相等，就相等。
    - `GetHashCode` 也按内容算，能当字典的键。
    - `enum` 和 `struct enum` 一样。数据创建以后不能改，所以两者只差在性能上，意思相同。
@@ -143,6 +143,7 @@
 
   F# 和本 ADR 一样：联合类型默认是引用类型，标 `[<Struct>]` 变成值类型。
 - **值类型：编译器自动选**。坏处：读的人看不出赋值时是复制还是共用。
+- **不带数据的 enum 写 `struct enum` 一律是编译错误**（原来的决定）：不带数据的 enum 本来就是值类型，写 `struct` 没有意义。2026-10-16 改为实现接口时可以写：C# 的 enum 不能实现接口，用户提出换成 struct 来实现，见 ADR-0029。
 - **`==` 比引用**。坏处：两个内容一样的值不相等；`struct enum` 只能比内容，于是加不加 `struct` 会改变 `==` 的结果。
 - **case 数据：定义处 camelCase，match 按名字取**（ADR-0009 原来的规则，C# 那边转成 PascalCase）。
   - 好处：只取需要的项，顺序无关；给 case 加数据项不影响已有的 match；名字一定和数据项对应。
@@ -160,7 +161,7 @@
 - 分工：
   - Parser：
     - `flags enum`、`struct enum`、底层类型、case 的值。
-    - 只看声明就能查的规则：只有不带数据的 enum 能有底层类型、值和 `flags`；值要么都写，要么都不写；flags enum 每个 case 都写；`struct enum` 要有带数据的 case。
+    - 只看声明就能查的规则：只有不带数据的 enum 能有底层类型、值和 `flags`；值要么都写，要么都不写；flags enum 每个 case 都写；`struct enum` 要有带数据的 case 或实现接口。
     - C# 写法 `[Flags]`、`x is Damage.Burn(a, s)` 的诊断。
   - 语义分析（M2）：
     - case 的值是整数常量，在底层类型的范围内。
@@ -179,3 +180,4 @@
 ## 修订记录
 
 - 2026-10-09：默认分支由 `else` 改为 `case _`：flags enum 的 `match` 要有 `case _`（决策 3），决策 8 的例子同样改了，见 ADR-0026。
+- 2026-10-16：不带数据的 enum 实现接口时可以写 `struct enum`（决策 6，原来一律是编译错误）；不能写值和底层类型的规则扩大到 `struct enum`（决策 1、2），见 ADR-0029。

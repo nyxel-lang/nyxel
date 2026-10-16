@@ -9,7 +9,7 @@ public enum Tile : byte {                       // 一格只占 1 字节
     case Wall
 }
 
-/// 格子地图：二维数组，用 tiles[x, y] 访问；y 从上往下数。
+/// 格子地图：map[x, y] 是一格，存在二维数组里；y 从上往下数。
 public class TileMap {
     static let Neighbors: array<(X: int, Y: int)> = [(0, -1), (1, 0), (0, 1), (-1, 0)]
 
@@ -30,6 +30,17 @@ public class TileMap {
         get { return self.tiles.GetLength(1) }
     }
 
+    /// 索引器：map[x, y]。读地图外面得到墙。
+    public property self[x: int, y: int]: Tile {
+        get {
+            if x < 0 or y < 0 or x >= self.Width or y >= self.Height {
+                return Tile.Wall
+            }
+            return self.tiles[x, y]
+        }
+        set(value) { self.tiles[x, y] = value }
+    }
+
     /// 从文本读地图。第一行是 "map: 名字"；其余每行一排格子：# 是墙，. 是地面，$ 是放着金币的地面。
     public func Parse(text: string) -> TileMap {
         let lines = text.Split('\n')
@@ -40,7 +51,7 @@ public class TileMap {
             for x in 0..<rows[y].Length {
                 let c = rows[y][x]
                 if c == '#' {
-                    map.tiles[x, y] = Tile.Wall
+                    map[x, y] = Tile.Wall
                 } else if c == '$' {
                     map.coins.Add((x, y))
                 }
@@ -49,12 +60,7 @@ public class TileMap {
         return map
     }
 
-    public func IsWall(self, x: int, y: int) -> bool {
-        if x < 0 or y < 0 or x >= self.Width or y >= self.Height {
-            return true                                 // 地图外面当作墙
-        }
-        return self.tiles[x, y] == Tile.Wall
-    }
+    public func IsWall(self, x: int, y: int) -> bool = self[x, y] == Tile.Wall
 
     /// 上下左右有几面墙。
     public func WallsAround(self, x: int, y: int) -> int {
@@ -70,8 +76,8 @@ public class TileMap {
     /// 沿上下两边每隔一格立一根柱子。
     public func AddPillars(self) {
         for x in (0..<self.Width).StepBy(2) {          // 0, 2, 4, ...
-            self.tiles[x, 0] = Tile.Wall
-            self.tiles[x, self.Height - 1] = Tile.Wall
+            self[x, 0] = Tile.Wall
+            self[x, self.Height - 1] = Tile.Wall
         }
     }
 

@@ -38,17 +38,18 @@
 | [0014](decisions/0014-conversions-parameters-extensions-exceptions.md) | 显式转换 `x as T`（只做不会因类型不对而失败的转换，向下转换用 `is`）；参数不能重新赋值；`extension 类型 { }` 块（对应 C# 14）；.NET 异常：`try` / `catch e: 类型` / `when` / `finally`，`try` 可当表达式（`try -> a catch e: E -> b`），`catch _: T` |
 | [0015](decisions/0015-ref-out-using-protected.md) | 调用处写 `out let x` / `out 目标` / `out _` / `ref 目标`；自己的函数只在 override / 实现接口时声明 `out` / `ref`；`using x = ...` 释放资源（无块形式、无 `defer`）；加 `protected`，不加 `internal` |
 | [0016](decisions/0016-async-await-launch.md) | 协程：`async func` + `await`（能等任何 .NET 可等待对象，恢复在主线程）；调用必须写 `await` 或 `launch`；`launch obj.M()` 绑定 `obj`，销毁后自动停止（`finally` 照常执行，`catch` 接不住）；热重载停止所有协程 |
-| [0017](decisions/0017-events-and-state-machines.md) | 事件 `event Died(slime: Slime)` + `emit`；`+=` / `-=` 订阅，绑定“执行谁的代码”，销毁或热重载时自动移除；方法可当函数值；状态机不加语法（enum + match + 协程） |
+| [0017](decisions/0017-events-and-state-machines.md) | 事件 `event Died(slime: Slime)` + `emit`；`+=` / `-=` 订阅，绑定“执行谁的代码”，销毁或热重载时自动移除；方法可当函数值；实现接口、重写的事件用对方的委托类型；状态机不加语法（enum + match + 协程） |
 | [0018](decisions/0018-npm-scope.md) | npm scope 用 `@nyxel-lang`（`@nyxel` 被别人注册了），改了 ADR-0001 的这一项 |
 | [0019](decisions/0019-syntax-details-for-parser.md) | 运算符一律放行首（括号里也一样）；修饰符顺序固定；区间优先级比算术低、比比较高；错误码 `NYX` 加四位数字 |
 | [0020](decisions/0020-literals-arrays-blocks.md) | 字符字面量 `'a'`；`0.5` 不省 0；原始字符串 `"""`（没有 `@"..."`）；数组类型 `array<T>`；不能嵌套类型；没有单独的块；赋值运算符可以写在行尾 |
 | [0021](decisions/0021-tuples-deconstruction-loops.md) | 元组 `(Min: int, Max: int)`（元素必须有名字）；按位置解构 `let (a, b) = ...`；`for (key, value) in dict`、`for (i, item) in list.Index()`；没有循环标签 |
 | [0022](decisions/0022-ranges-slices-collection-literals.md) | `(0..<n).Reversed()`、`.StepBy(2)`；区间不是值；切片 `name[0..<3]`、`name[1...]`（没有 `^1`）；集合字面量 `[1, 2, 3]`（没有展开和字典字面量）；多维数组 `array2d<T>` |
 | [0023](decisions/0023-array-elements-null-checks-coalesce-assignment.md) | 只有全零合法的元素类型能直接 `new array<T>(n)`，其余用 `element` 给出每个元素；和 `null` 比较只看引用（不调用重载的 `==`）；`??=` |
-| [0024](decisions/0024-enums-flags-struct-enum-case-data.md) | 简单枚举写值（要写就都写）、`enum Tile : byte`、`flags enum`；`x is 类型.Case`；带数据枚举的值类型版本 `struct enum`、`==` 比内容；case 的数据同元组（PascalCase、按位置取出） |
+| [0024](decisions/0024-enums-flags-struct-enum-case-data.md) | 简单枚举写值（要写就都写）、`enum Tile : byte`、`flags enum`；`x is 类型.Case`；带数据枚举的值类型版本 `struct enum`（不带数据的要实现接口时也写它）、`==` 比内容；case 的数据同元组（PascalCase、按位置取出） |
 | [0025](decisions/0025-eval-blocks-arrow-branches.md) | `{ }` 块本身没有值；`eval { ... give 值 }` 在自己的作用域里算一个值（块里不能 `return`）；`if` / `try` 当值用时分支写 `->`（`if c -> a else -> b`），当语句用时写 `{ }`；分支是一个表达式或一条离开语句，`match` 当语句用时是一条简单语句或块；改了 ADR-0007、0009、0014 里“最后一个表达式是值” |
 | [0026](decisions/0026-case-underscore-discard-private-getter-body.md) | language-reference 整体 review：`match` 默认分支写 `case _`（`else` 只属于 `if`）；`_` 是保留记号（解构、`out _`、case 数据、`case _`、`catch _`），不能当名字和值；成员上不写 `private`（只有 `private set`）；getter 可以 `get = 表达式` |
 | [0027](decisions/0027-with-members-and-init-calls.md) | 创建时设置成员 `new T(...) with (X = 1)`（C# 的对象初始化器，也用来设 `init` 访问器和 `required` 成员）；Nyxel 暂不声明只能在创建时设置的成员；调用其他 init 写 `init super(...)`、`init super.名字(...)`、`init self(...)`、`init self.名字(...)`，改了 ADR-0013 的 `super.init(...)` |
 | [0028](decisions/0028-keep-adrs-current.md) | ADR 保持最新：被推翻的决定直接改写原文（例子也改），原来的做法挪进备选方案，文末“修订记录”记日期和讨论在哪；历史看 git；已有的都改成了最新 |
+| [0029](decisions/0029-indexers-enum-members-event-accessors.md) | 索引器 `property self[x: int]: T { get ... }`；enum 的 case 后面写方法和计算属性；带数据的 enum 和 `struct enum` 实现接口，不带数据的要实现接口就写 `struct enum`；不加 `field` 关键字和事件访问器 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

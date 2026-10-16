@@ -410,7 +410,7 @@ let ground = self.Position.Flat()
 let dir = Vector3.FromAngle(radians = 0.5)
 ```
 
-- `extension 类型 { }` 写在文件顶层，给不是自己定义的类型（引擎、.NET）加方法和属性。块里的写法和类里一样：有 `self` 是实例方法，没有是静态函数；`static property` 是静态扩展属性。不能有字段和 `init`。
+- `extension 类型 { }` 写在文件顶层，给不是自己定义的类型（引擎、.NET）加方法和属性。块里的写法和类里一样：有 `self` 是实例方法，没有是静态函数；`static property` 是静态扩展属性。不能有字段和 `init`，暂时也不能有索引器（ADR-0029：C# 14 的 extension 块还不支持）。
 - 可见性同类成员：默认私有（只在这个块里可见），`public` 才能在块外用。使用方 `import` 扩展所在的命名空间后可见。类型本身的成员优先于扩展。
 - 扩展只能访问类型的公开成员。
 - C# 那边：C# 14 的 `extension` 块，放在 `static partial class Vector3Extensions` 里。
@@ -515,7 +515,48 @@ let hit = new Damage.Burn(Amount = 12, Seconds = 3)     // 带数据的 case：n
   - 用 `match` 按位置取出，同元组的解构（见“match”）。数据创建以后不能改。
 - 判断是不是某个 case 写 `x is Damage.Burn`，得到 bool，不取数据（ADR-0024，见“类型检查与收窄”）。
 - 带数据的 enum 用 `==` 比内容（ADR-0024）：同一个 case、数据逐个相等就相等，能当字典的键。不带数据的 case 只有一个值，`state == SlimeState.Idle` 就是判断是不是 Idle。
-- 待定：带数据的 enum 实现接口；在 enum 里写方法（现在用扩展）。
+
+### enum 的成员与接口（ADR-0029）
+
+```nyxel
+enum Element {
+    case Fire
+    case Ice
+    case Lightning
+
+    public func Weakness(self) -> Element = match self {
+        case Fire -> Element.Ice
+        case Ice -> Element.Lightning
+        case Lightning -> Element.Fire
+    }
+
+    public property IsHot: bool { get = self == Element.Fire }
+
+    public func Parse(text: string) -> Element? { ... }     // 没有 self：静态函数
+}
+
+enum Damage : IDescribable {                // 带数据的 enum：冒号后面是接口
+    case Physical(Amount: int)
+    case Heal(Amount: int)
+
+    public func Describe(self) -> string = match self {
+        case Physical(amount) -> $"{amount} 点物理伤害"
+        case Heal(amount) -> $"治疗 {amount}"
+    }
+}
+
+let w = element.Weakness()
+let e = Element.Parse("ice")
+```
+
+- case 后面可以写实例方法、静态函数、计算属性（含 `static property`）。先写全部 case，再写成员。
+- 不能写字段、`init`、自动属性、事件、索引器：enum 的值就是它的 case（加上 case 的数据），没有别的存储。
+- 不能写 `var self`（值创建以后不能改），不能写 `protected`、`virtual`、`abstract`、`sealed`、`override`（enum 不能被继承）。
+- 普通、flags、带数据、`struct enum` 四种都一样。不是自己定义的 enum（C# 和引擎的）照旧用扩展加方法。
+- 带数据的 enum 和 `struct enum` 能实现接口，接口的成员写在 enum 里；只能实现接口，不能继承类。
+- 不带数据的 `enum` 不能实现接口：它是 C# 的 enum，C# 的 enum 不能实现接口。要实现就写成 `struct enum`（见“struct enum”）。
+- C# 那边：不带数据的 enum 的成员在同一命名空间里生成的 `名字Extensions` 类的 extension 块里，C# 照样写 `element.Weakness()`、`Element.Parse("ice")`；带数据的 enum 的成员在抽象基类上，`struct enum` 的在 struct 上。
+- 待定：带数据 enum 的 `ToString`。
 
 ### enum 的值与 flags（ADR-0024）
 
@@ -538,7 +579,7 @@ let mask = Layer.Ground | Layer.Air
 if mask.HasFlag(Layer.Air) { ... }
 ```
 
-- 只有不带数据的 enum 能写值、底层类型和 `flags`。
+- 只有不带数据的 `enum` 能写值、底层类型和 `flags`；`struct enum` 不能（ADR-0029）。
 - 值：
   - 要么每个 case 都写，要么都不写。都不写时按声明顺序 0、1、2，同 C#。
   - 值是整数常量，可以用运算组合（`1 << 3`、`Layer.Ground | Layer.Water`）；引用别的 case 也写类型名。
@@ -569,7 +610,17 @@ struct Brain {                          // ECS 组件：引擎要求 unmanaged
 - 一个值里留着所有 case 的数据的位置（同类型的可以共用），大小约等于各 case 加起来。case 不能直接包含同一个 struct enum。
 - 数据全是 unmanaged 类型时，整个 enum 也是，能放进要求 `T : unmanaged` 的 ECS 组件。
 - 全零的值是第一个 case，前提是它不带数据（上例是 `Idle`）；否则数组要用 `element` 创建，同 Nyxel 的 struct。
-- 不带数据的 enum 本来就是值类型，写 `struct enum` 是编译错误。
+- 冒号后面是接口（ADR-0029），没有底层类型、case 的值和 `flags`。当接口用时会装箱，同 struct。
+- 不带数据的 enum 本来就是值类型，只有要实现接口时才写 `struct enum`（ADR-0029）；不带数据、也没写接口时写 `struct enum` 是编译错误。
+  ```nyxel
+  struct enum Element : IDescribable {
+      case Fire
+      case Ice
+
+      public func Describe(self) -> string = ...
+  }
+  ```
+  在 Nyxel 里用法和 enum 一样，大小也一样。代价：C# 那边是 struct，不是 enum（C# 的 `switch` case 标签、`Enum.GetValues`、`(int)e`、编辑器和序列化器按 enum 处理都用不了）；`Element.Fire` 不是常量，不能当参数的默认值；不能写值，存档和与引擎对齐的值用普通 enum。
 
 ### 构造
 
@@ -1019,7 +1070,31 @@ interface IDamageable {
 - setter 的新值在括号里命名：`set(value)`。访问器里 `self` 隐式可用。静态属性写 `static property`。
 - 默认用字段；实现接口的属性、对外只读对内可写、值需要计算时用属性。
 - C# 的 `init` 访问器（只能在创建时设置）用 `with` 设，见“创建时设置成员”（ADR-0027）；Nyxel 自己暂不能声明。
-- 待定：索引器；`field` 关键字。
+- 没有 C# 14 的 `field` 关键字（ADR-0029）：访问器仍然要么都带体，要么都不带。setter 里要加检查，就写字段加计算属性（上例的 `hp` 和 `Hp`）。
+
+### 索引器（ADR-0029）
+
+```nyxel
+public class Grid<T> {
+    let width: int
+    var cells: array<T>
+    ...
+    public property self[x: int, y: int]: T {
+        get = self.cells[y * self.width + x]
+        set(value) { self.cells[y * self.width + x] = value }
+    }
+}
+
+grid[3, 4] = Tile.Wall
+let t = grid[0, 0]
+```
+
+- 名字的位置写 `self[参数]`，其余同属性：`get = 表达式`、`set(value) { }`、`private set`，只写 `get` 是只读的。接口里写 `property self[index: int]: T { get }`。
+- 访问器必须带体，没有自动索引器，也不能写初始值。
+- 参数写法同函数参数，至少一个；不能有默认值，不能是 `out` / `ref`。
+- 一个类型最多一个索引器（同函数不能重载）；实现接口或重写要求的除外。
+- 不能 `static`；扩展里暂时不能声明。
+- C# 那边是 `this[...]` 索引器。
 
 ## 事件（ADR-0017）
 
@@ -1047,7 +1122,14 @@ slime.Died -= self.OnSlimeDied              // 提前取消
 - `+=` / `-=` 订阅和取消，C# 和引擎的事件也一样。
 - 订阅绑定在“执行谁的代码”上：`对象.方法` 绑定那个对象，lambda 绑定写它的 `self`。绑定对象被引擎销毁后，订阅在下一次触发时自动移除；热重载时脚本做过的所有订阅都会移除。对 lambda 写 `-=` 是编译错误。
 - C# 那边是普通的 C# `event`。
-- 待定：事件访问器（`add` / `remove`）；一个处理函数抛异常时是否继续通知其他处理函数。
+- 事件没有访问器（C# 的 `add` / `remove`，ADR-0029）。要转发别的对象的事件，就订阅它，在处理函数里 `emit` 自己的事件。
+- 实现接口里的事件、重写基类的事件时，用接口或基类规定的委托类型，参数的类型和顺序必须和它一致，名字自己起（ADR-0029）：
+  ```nyxel
+  public class Inventory : INotifyPropertyChanged {
+      public event PropertyChanged(sender: object?, e: PropertyChangedEventArgs)
+  }
+  ```
+- 待定：一个处理函数抛异常时是否继续通知其他处理函数。
 
 ## 状态机（ADR-0017）
 

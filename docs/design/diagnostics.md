@@ -84,10 +84,10 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1128` | `for` 里的区间后面接了 `Reversed()` / `StepBy(n)` 以外的成员 | `(0..<n).Reverse()` |
 | `NYX1129` | 切片以外的区间省略了一边，或切片两边都省略 | `for i in 2...`、`case ..<10`、`items[...]` |
 | `NYX1175` | enum 的底层类型不是一个整数类型（ADR-0024） | `enum E : float`、`enum E : byte, int` |
-| `NYX1176` | 带数据的 enum 写了底层类型、case 的值或 `flags` | `enum E : int { case A(X: int) }` |
+| `NYX1176` | 带数据的 enum 或 `struct enum` 写了底层类型、case 的值或 `flags`（ADR-0029：它们冒号后面是接口） | `enum E : int { case A(X: int) }`、`struct enum E : IFoo { case A = 1 }` |
 | `NYX1177` | 有的 case 写了值、有的没写，每个没写的报一次 | `case A = 1` 之后的 `case B` |
 | `NYX1178` | flags enum 的 case 没写值，每个报一次 | `flags enum E { case A }` |
-| `NYX1179` | `struct enum` 没有带数据的 case | `struct enum E { case A }` 写成 `enum E` |
+| `NYX1179` | `struct enum` 既没有带数据的 case，也没写接口（ADR-0029） | `struct enum E { case A }` 写成 `enum E` |
 | `NYX1182` | `eval` 块单独当语句（ADR-0025） | `eval { ... }` 写成 `let x = eval { ... }` |
 | `NYX1183` | `eval` 外面的 `give`，包括 `eval` 里的 lambda 里的 | 顶层的 `give 1`、`b ?? give 0` |
 | `NYX1184` | `eval` 块里的 `return`（lambda 里的不算） | 让块给出 `null`，在块后面写 `?? return` |
@@ -104,6 +104,14 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1197` | setter 写了表达式体（ADR-0026：只有 getter 能写 `get = 表达式`） | `set(value) = x` |
 | `NYX1198` | `with (...)` 不在 `new 类型(...)` 后面（ADR-0027：复制已有的值再改几个成员还是待定） | `self.pos with (Y = 0)` |
 | `NYX1199` | `with (...)` 里的一项没写成员名 | `new Spin() with (2)` 写成 `with (Speed = 2)` |
+| `NYX1201` | 索引器没有参数（ADR-0029） | `property self[]: int` |
+| `NYX1202` | 索引器写了初始值、`static`，或写在扩展里（C# 14 的 extension 块不支持） | `property self[i: int]: int = 0 { get }`、`static property self[...]` |
+| `NYX1203` | 事件或索引器的参数写了默认值，索引器的参数是 `out` / `ref` | `event Died(slime: Slime = null)`、`property self[i: out int]` |
+| `NYX1205` | enum 的 case 写在成员后面（ADR-0029：先写全部 case） | `func F(self) { }` 之后的 `case A` |
+| `NYX1206` | enum 里写了字段、`init`、事件、索引器或自动属性 | case 后面的 `var x: int = 0` |
+| `NYX1207` | enum 的成员写了 `protected`、`virtual`、`abstract`、`sealed`、`override` | `public override func ToString(self)` |
+| `NYX1208` | enum 的函数写了 `var self` | `func F(var self)` 写成 `func F(self)` |
+| `NYX1209` | 不带数据的 `enum` 写了接口（C# 的 enum 不能实现接口） | `enum E : IFoo { case A }` 写成 `struct enum E : IFoo` |
 
 ### 其他语言的写法
 
@@ -141,7 +149,8 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1187` | 当值用的 `if` / `try` 写 `{ }` 分支（Rust、Kotlin），或 `->` 后面写 `{ }` | `if c -> a else -> b`、`try -> a catch e: E -> b`；要先执行语句用 `eval`（ADR-0025） |
 | `NYX1193` | `match` 的默认分支写 `else`（Kotlin） | `case _ -> ...`（ADR-0026） |
 | `NYX1200` | `super.init(...)`、`self.init(...)`（Swift，也是 ADR-0013 的旧写法），包括 `super.init.Name(...)` | `init super(...)`、`init self(...)`、`init super.Name(...)`（ADR-0027） |
+| `NYX1204` | 事件的访问器 `event Clicked() { add(h) { ... } remove(h) { ... } }`，整个 `{ }` 跳过 | 订阅要转发的事件，在处理函数里 `emit` 自己的事件（ADR-0029） |
 
 ## 不在语法阶段报的
 
-语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。
+语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。

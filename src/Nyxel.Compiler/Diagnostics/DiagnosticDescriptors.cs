@@ -162,7 +162,7 @@ public static class DiagnosticDescriptors
         Error("NYX1175", "An enum's underlying type is one integer type: byte, sbyte, short, ushort, int, uint, long or ulong.");
 
     public static readonly DiagnosticDescriptor EnumWithDataValues =
-        Error("NYX1176", "Only an enum whose cases carry no data can {0}.");
+        Error("NYX1176", "Only an 'enum' whose cases carry no data can {0}; an enum with data and a 'struct enum' can't.");
 
     public static readonly DiagnosticDescriptor EnumCaseValue =
         Error("NYX1177", "Give '{0}' a value too; either every case of an enum has a value or none does.");
@@ -171,7 +171,7 @@ public static class DiagnosticDescriptors
         Error("NYX1178", "Give '{0}' a value; every case of a flags enum has one, usually a single bit such as 1, 2, 4 or 8.");
 
     public static readonly DiagnosticDescriptor StructEnumWithoutData =
-        Error("NYX1179", "'struct enum' is for enums whose cases carry data; an enum without data is already a value type, so write 'enum'.");
+        Error("NYX1179", "'struct enum' is for enums whose cases carry data or that implement interfaces; an enum without either is already a value type, so write 'enum'.");
 
     public static readonly DiagnosticDescriptor EvalStatement =
         Error("NYX1182", "An 'eval' block gives a value and can't stand on its own; use the value, as in 'let x = eval {{ ... }}'. To end a scope early, move the statements into a function of their own.");
@@ -226,6 +226,30 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor WithMemberName =
         Error("NYX1199", "Each item in 'with (...)' names the member it sets: 'Member = value'.");
+
+    public static readonly DiagnosticDescriptor IndexerWithoutParameters =
+        Error("NYX1201", "An indexer has at least one parameter, as in 'property self[index: int]: T'.");
+
+    public static readonly DiagnosticDescriptor IndexerNotAllowed =
+        Error("NYX1202", "An indexer can't {0}.");
+
+    public static readonly DiagnosticDescriptor ParameterNotAllowed =
+        Error("NYX1203", "A parameter of an {0} can't {1}.");
+
+    public static readonly DiagnosticDescriptor EnumCaseAfterMember =
+        Error("NYX1205", "Write all the cases of an enum before its other members.");
+
+    public static readonly DiagnosticDescriptor EnumMemberKind =
+        Error("NYX1206", "An enum's values are its cases, so it can't have {0}; it can have functions and computed properties.");
+
+    public static readonly DiagnosticDescriptor EnumMemberModifier =
+        Error("NYX1207", "An enum can't be inherited, so its members can't be '{0}'.");
+
+    public static readonly DiagnosticDescriptor EnumVarSelf =
+        Error("NYX1208", "An enum value doesn't change after it is created; write 'self' instead of 'var self'.");
+
+    public static readonly DiagnosticDescriptor EnumInterface =
+        Error("NYX1209", "An enum without data is a C# enum, which can't implement interfaces; write 'struct enum' to implement '{0}'.");
 
     // Habits from C# and other languages, each with the Nyxel way to write it.
 
@@ -312,6 +336,9 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor InitCallAsMember =
         Error("NYX1200", "Another init is called with 'init {0}(...)', or 'init {0}.Name(...)' for a named one; it is the first statement of an init.");
+
+    public static readonly DiagnosticDescriptor EventAccessors =
+        Error("NYX1204", "Events have no 'add' / 'remove' accessors; to forward another object's event, subscribe to it and 'emit' this one from the handler.");
 
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);

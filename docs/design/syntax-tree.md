@@ -35,6 +35,8 @@ SyntaxTreePrinter.Print(tree.Root, tree.Text)   // 缩进文本
 - 模式：`case Burn(_, seconds)` 这种不带点的名字解析成 `CasePatternSyntax`（enum case 和按位置取出数据的名字，ADR-0024），带点的名字和字面量是 `ConstantPatternSyntax`，`10..<50` 是 `RangePatternSyntax`，`case _` 是 `DiscardPatternSyntax`。名字到底是不是被匹配的 enum 的 case 由语义分析判断。
 - `x is SlimeState.Idle` 和 `x is Enemy` 是同一种 `IsExpressionSyntax`，`is` 后面是类型还是 enum case 由语义分析判断（ADR-0024）。
 - enum（ADR-0024）：`EnumDeclarationSyntax.KindKeyword` 是 `enum` 前面的 `flags` 或 `struct`；底层类型复用 `BaseListSyntax`（同 Roslyn）；case 的值是 `EqualsValueClauseSyntax`。只看声明就能查的规则（底层类型、值、flags 只用于不带数据的 enum，值要么都写要么都不写等）在声明读完后检查。
+- enum 的成员（ADR-0029）：`EnumDeclarationSyntax.Members` 在 `Cases` 后面，按类里的成员读（`MemberContext.Enum`），读完一个就查 enum 不能有的（字段、`init`、事件、索引器、自动属性、`var self`、`override` 等）。写在成员后面的 case 报 NYX1205 后挪进 trivia，所以树里永远是先 case 后成员。冒号后面：普通 enum 是底层类型，带数据的 enum 和 `struct enum` 是接口；Parser 只能按“是不是 `byte` 这类关键字”区分，是不是接口由语义分析查。
+- 索引器（ADR-0029）：`property` 后面是 `self` 时读成 `IndexerDeclarationSyntax`，参数列表是 `BracketedParameterListSyntax`（同 Roslyn），访问器列表同属性。
 - `get` / `set` 只在属性的访问器列表里是关键字，`flags` 只在同一行紧跟 `enum` 时是关键字，别处都是普通名字。
 - 创建对象（ADR-0027）：`new T(...) with (X = 1)` 的 `with (...)` 是 `ObjectCreationExpressionSyntax.WithClause`（`WithClauseSyntax`），每一项复用 `ArgumentSyntax`，同带名字的元组值；没写名字的一项报 NYX1199 后照样留在树里。别处的 `with (...)` 报 NYX1198 后整个挪进 trivia。`init super(...)` / `init self.Small()` 是语句 `InitStatementSyntax`（`Receiver` 是 `super` / `self` 记号，命名 init 有 `DotToken` 和 `Name`）。C# / Swift 习惯的 `super.init(...)` 报 NYX1200 后仍读成成员访问加调用，`init` 当成员名。
 - `if` / `while` / `for` / `match` / `when` 后面的表达式（`ParseHeadExpression`）里，`new T()` 后面的 `{` 是块，不当作 C# 的初始化器：`if pos == new Vector3(0, 0, 0) {`。Parser 记下这个表达式开始时的括号深度（`_headBracketDepth`），只在同一深度上这样判断；括号里（`F(new A() { X = 1 })`）和块里仍报 NYX1167。

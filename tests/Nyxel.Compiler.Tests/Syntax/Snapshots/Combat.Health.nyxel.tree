@@ -1,4 +1,4 @@
-CompilationUnit 1:1-41:1
+CompilationUnit 1:1-36:1
   NamespaceDeclaration 1:1-1:25
     NamespaceKeyword "namespace"
     QualifiedName 1:11-1:25
@@ -11,7 +11,7 @@ CompilationUnit 1:1-41:1
     ImportKeyword "import"
     IdentifierName 3:8-3:14
       IdentifierToken "System"
-  StructDeclaration 6:1-40:2
+  StructDeclaration 6:1-35:2
     PublicKeyword "public"
     StructKeyword "struct"
     IdentifierToken "Health"
@@ -179,7 +179,7 @@ CompilationUnit 1:1-41:1
                 IdentifierName 26:73-26:76
                   IdentifierToken "Max"
         CloseBraceToken "}"
-    FunctionDeclaration 30:5-39:6
+    FunctionDeclaration 30:5-34:6
       PublicKeyword "public"
       FuncKeyword "func"
       IdentifierToken "Apply"
@@ -199,125 +199,75 @@ CompilationUnit 1:1-41:1
         MinusGreaterThanToken "->"
         PredefinedType 30:52-30:55
           IntKeyword "int"
-      Block 30:56-39:6
+      Block 30:56-34:6
         OpenBraceToken "{"
-        LocalDeclarationStatement 31:9-35:10
-          LetKeyword "let"
-          IdentifierToken "change"
-          EqualsValueClause 31:20-35:10
-            EqualsToken "="
-            MatchExpression 31:22-35:10
-              MatchKeyword "match"
-              IdentifierName 31:28-31:34
-                IdentifierToken "damage"
-              OpenBraceToken "{"
-              MatchArm 32:13-32:45
-                CaseKeyword "case"
-                CasePattern 32:18-32:34
-                  IdentifierToken "Physical"
-                  CaseFieldList 32:26-32:34
-                    OpenParenToken "("
-                    IdentifierName 32:27-32:33
-                      IdentifierToken "amount"
-                    CloseParenToken ")"
-                MinusGreaterThanToken "->"
-                UnaryMinusExpression 32:38-32:45
-                  MinusToken "-"
-                  IdentifierName 32:39-32:45
-                    IdentifierToken "amount"
-              MatchArm 33:13-33:44
-                CaseKeyword "case"
-                CasePattern 33:18-33:33
-                  IdentifierToken "Burn"
-                  CaseFieldList 33:22-33:33
-                    OpenParenToken "("
-                    IdentifierName 33:23-33:29
-                      IdentifierToken "amount"
-                    CommaToken ","
-                    IdentifierName 33:31-33:32
-                      UnderscoreToken "_"
-                    CloseParenToken ")"
-                MinusGreaterThanToken "->"
-                UnaryMinusExpression 33:37-33:44
-                  MinusToken "-"
-                  IdentifierName 33:38-33:44
-                    IdentifierToken "amount"
-              MatchArm 34:13-34:40
-                CaseKeyword "case"
-                CasePattern 34:18-34:30
-                  IdentifierToken "Heal"
-                  CaseFieldList 34:22-34:30
-                    OpenParenToken "("
-                    IdentifierName 34:23-34:29
-                      IdentifierToken "amount"
-                    CloseParenToken ")"
-                MinusGreaterThanToken "->"
-                IdentifierName 34:34-34:40
-                  IdentifierToken "amount"
-              CloseBraceToken "}"
-        LocalDeclarationStatement 36:9-36:34
+        LocalDeclarationStatement 31:9-31:34
           LetKeyword "let"
           IdentifierToken "before"
-          EqualsValueClause 36:20-36:34
+          EqualsValueClause 31:20-31:34
             EqualsToken "="
-            SimpleMemberAccessExpression 36:22-36:34
-              SelfExpression 36:22-36:26
+            SimpleMemberAccessExpression 31:22-31:34
+              SelfExpression 31:22-31:26
                 SelfKeyword "self"
               DotToken "."
-              IdentifierName 36:27-36:34
+              IdentifierName 31:27-31:34
                 IdentifierToken "current"
-        AssignmentStatement 37:9-37:70
-          SimpleMemberAccessExpression 37:9-37:21
-            SelfExpression 37:9-37:13
+        AssignmentStatement 32:9-32:77
+          SimpleMemberAccessExpression 32:9-32:21
+            SelfExpression 32:9-32:13
               SelfKeyword "self"
             DotToken "."
-            IdentifierName 37:14-37:21
+            IdentifierName 32:14-32:21
               IdentifierToken "current"
           EqualsToken "="
-          InvocationExpression 37:24-37:70
-            SimpleMemberAccessExpression 37:24-37:34
-              IdentifierName 37:24-37:28
+          InvocationExpression 32:24-32:77
+            SimpleMemberAccessExpression 32:24-32:34
+              IdentifierName 32:24-32:28
                 IdentifierToken "Math"
               DotToken "."
-              IdentifierName 37:29-37:34
+              IdentifierName 32:29-32:34
                 IdentifierToken "Clamp"
-            ArgumentList 37:34-37:70
+            ArgumentList 32:34-32:77
               OpenParenToken "("
-              Argument 37:35-37:56
-                AddExpression 37:35-37:56
-                  SimpleMemberAccessExpression 37:35-37:47
-                    SelfExpression 37:35-37:39
+              Argument 32:35-32:63
+                AddExpression 32:35-32:63
+                  SimpleMemberAccessExpression 32:35-32:47
+                    SelfExpression 32:35-32:39
                       SelfKeyword "self"
                     DotToken "."
-                    IdentifierName 37:40-37:47
+                    IdentifierName 32:40-32:47
                       IdentifierToken "current"
                   PlusToken "+"
-                  IdentifierName 37:50-37:56
-                    IdentifierToken "change"
+                  SimpleMemberAccessExpression 32:50-32:63
+                    IdentifierName 32:50-32:56
+                      IdentifierToken "damage"
+                    DotToken "."
+                    IdentifierName 32:57-32:63
+                      IdentifierToken "Change"
               CommaToken ","
-              Argument 37:58-37:59
-                NumericLiteralExpression 37:58-37:59
+              Argument 32:65-32:66
+                NumericLiteralExpression 32:65-32:66
                   NumericLiteralToken "0"
               CommaToken ","
-              Argument 37:61-37:69
-                SimpleMemberAccessExpression 37:61-37:69
-                  SelfExpression 37:61-37:65
+              Argument 32:68-32:76
+                SimpleMemberAccessExpression 32:68-32:76
+                  SelfExpression 32:68-32:72
                     SelfKeyword "self"
                   DotToken "."
-                  IdentifierName 37:66-37:69
+                  IdentifierName 32:73-32:76
                     IdentifierToken "Max"
               CloseParenToken ")"
-        ReturnStatement 38:9-38:37
+        ReturnStatement 33:9-33:37
           ReturnKeyword "return"
-          SubtractExpression 38:16-38:37
-            SimpleMemberAccessExpression 38:16-38:28
-              SelfExpression 38:16-38:20
+          SubtractExpression 33:16-33:37
+            SimpleMemberAccessExpression 33:16-33:28
+              SelfExpression 33:16-33:20
                 SelfKeyword "self"
               DotToken "."
-              IdentifierName 38:21-38:28
+              IdentifierName 33:21-33:28
                 IdentifierToken "current"
             MinusToken "-"
-            IdentifierName 38:31-38:37
+            IdentifierName 33:31-33:37
               IdentifierToken "before"
         CloseBraceToken "}"
     CloseBraceToken "}"
