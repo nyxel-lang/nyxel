@@ -290,6 +290,9 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ExtensionTypeParameterUnused =
         Error("NYX1224", "'{0}' isn't used in the extended type '{1}'; a type parameter only some members use goes on them, as in 'func Name<{0}>(...)'.");
 
+    public static readonly DiagnosticDescriptor DuplicateImportAlias =
+        Error("NYX1227", "'{0}' already names another import of this file.");
+
     // Habits from C# and other languages, each with the Nyxel way to write it.
 
     public static readonly DiagnosticDescriptor SymbolicLogicalOperator =
@@ -384,6 +387,12 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor CSharpConversionSyntax =
         Error("NYX1222", "Write a conversion as 'public operator as({0}) -> {1}' and convert with 'value as {1}'{2}.");
+
+    public static readonly DiagnosticDescriptor ImportAliasSyntax =
+        Error("NYX1225", "Write a namespace alias as 'import {0} under {1}', then its types as '{1}.Name'.");
+
+    public static readonly DiagnosticDescriptor StaticImport =
+        Error("NYX1226", "Nyxel has no static imports; write the type name before each member, as in '{0}.Name'.");
 
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);

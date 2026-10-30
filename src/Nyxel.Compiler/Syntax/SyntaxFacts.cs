@@ -89,14 +89,16 @@ public static class SyntaxFacts
         Keywords.ToFrozenDictionary(pair => pair.Value, pair => pair.Key);
 
     /// <summary>
-    /// Words that are keywords only in one position (property accessors, just before <c>enum</c>) and identifiers
-    /// everywhere else.
+    /// Words that are keywords only in one position (property accessors, just before <c>enum</c>, after the
+    /// namespace of an import) and identifiers everywhere else.
     /// </summary>
     public const string GetContextualKeyword = "get";
 
     public const string SetContextualKeyword = "set";
 
     public const string FlagsContextualKeyword = "flags";
+
+    public const string UnderContextualKeyword = "under";
 
     public static SyntaxKind GetKeywordKind(string text) =>
         Keywords.TryGetValue(text, out var kind) ? kind : SyntaxKind.IdentifierToken;

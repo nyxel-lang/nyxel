@@ -46,13 +46,16 @@ public sealed class NamespaceDeclarationSyntax : SyntaxNode
     public override IEnumerable<SyntaxNode> GetChildren() => Children(NamespaceKeyword, Name);
 }
 
+/// <summary><c>import System.Numerics</c> (ADR-0012), or <c>import ep.protocol under Pb</c> (ADR-0033).</summary>
 public sealed class ImportDirectiveSyntax : SyntaxNode
 {
-    internal ImportDirectiveSyntax(SyntaxToken importKeyword, NameSyntax name)
+    internal ImportDirectiveSyntax(SyntaxToken importKeyword, NameSyntax name, SyntaxToken? underKeyword, SyntaxToken? alias)
         : base(SyntaxKind.ImportDirective)
     {
         ImportKeyword = importKeyword;
         Name = name;
+        UnderKeyword = underKeyword;
+        Alias = alias;
         AdoptChildren();
     }
 
@@ -60,7 +63,16 @@ public sealed class ImportDirectiveSyntax : SyntaxNode
 
     public NameSyntax Name { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(ImportKeyword, Name);
+    /// <summary>The contextual <c>under</c>; after its report, the <c>as</c> of <c>import x as y</c>.</summary>
+    public SyntaxToken? UnderKeyword { get; }
+
+    /// <summary>
+    /// The alias after <c>under</c>. The namespace's types are then written <c>Alias.Name</c>; the import brings in
+    /// no other name.
+    /// </summary>
+    public SyntaxToken? Alias { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(ImportKeyword, Name, UnderKeyword, Alias);
 }
 
 /// <summary>A declaration that can carry modifiers: a type, an extension or a member of a type.</summary>

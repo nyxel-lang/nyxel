@@ -100,6 +100,35 @@ public class ParserErrorTests
     [InlineData("enum E {\n    Fire\n}\n", "NYX1101 2:5")]
     public void FileStructureErrors(string source, string expected) => AssertFileErrors(source, expected);
 
+    // Namespace aliases, static imports (ADR-0033) ------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("import ep.protocol as Pb\n", "NYX1225 1:20")]
+    [InlineData("using Pb = ep.protocol\n", "NYX1225 1:1")]
+    [InlineData("import Pb = ep.protocol\n", "NYX1225 1:1")]
+    [InlineData("using static System.MathF\n", "NYX1226 1:1")]
+    [InlineData("import static System.MathF\nimport System\n", "NYX1226 1:1")]
+    [InlineData("import A under X\nimport B under X\n", "NYX1227 2:16")]
+    [InlineData("import A under X\nimport B under Y\n")]
+    [InlineData("import A under\n", "NYX1101 1:15")]
+    [InlineData("import A\nunder X\n", "NYX1101 2:1")]
+    public void ImportAliasesAndStaticImports(string source, params string[] expected) => AssertFileErrors(source, expected);
+
+    [Theory]
+    [InlineData("using Pb = ep.protocol\n", "Write a namespace alias as 'import ep.protocol under Pb', then its types as 'Pb.Name'.")]
+    [InlineData("import ep.protocol as Pb\n", "Write a namespace alias as 'import ep.protocol under Pb', then its types as 'Pb.Name'.")]
+    [InlineData("using static System.MathF\n", "Nyxel has no static imports; write the type name before each member, as in 'MathF.Name'.")]
+    public void ImportHabitMessagesSayWhatToWrite(string source, string expected) =>
+        Assert.Equal(expected, Assert.Single(SyntaxTree.Parse(source).Diagnostics).Message);
+
+    [Fact]
+    public void SkippedImportsLeaveTheOthers()
+    {
+        var tree = SyntaxTree.Parse("using static System.MathF\nusing Pb = ep.protocol\nimport System\nimport Game.Wire as Wire\n");
+        Assert.Equal(["System", "Game.Wire"], tree.Root.Imports.Select(i => i.Name.ToString()));
+        Assert.Equal("Wire", tree.Root.Imports[1].Alias!.Text);
+    }
+
     [Fact]
     public void FileStructureErrorsKeepTheFileLossless()
     {

@@ -61,13 +61,10 @@ internal sealed partial class Parser
                 case SyntaxKind.ImportKeyword:
                 case SyntaxKind.UsingKeyword:
                     {
-                        var keyword = NextToken();
-                        var name = ParseQualifiedName();
-                        if (keyword.Kind == SyntaxKind.UsingKeyword)
+                        if (ParseImportDirective() is not { } import)
                         {
-                            Report(DiagnosticDescriptors.UsingDirective, keyword.Span, name.ToString());
+                            break;
                         }
-                        var import = new ImportDirectiveSyntax(keyword, name);
                         if (members.Count > 0)
                         {
                             Report(DiagnosticDescriptors.ImportAfterDeclaration, import.Span);
@@ -75,6 +72,7 @@ internal sealed partial class Parser
                         }
                         else
                         {
+                            CheckDuplicateAlias(imports, import);
                             imports.Add(import);
                         }
                         break;

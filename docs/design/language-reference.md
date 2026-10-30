@@ -66,7 +66,7 @@ let speed = if self.IsFrozen -> 0
 - `{` 必须和前面的内容在同一行；`{ }` 形式的 `else`、`catch`、`finally` 必须跟在 `}` 后面同一行。
 - 每条语句、每个成员、每个 `case`、每个访问器各占一行；`{` 后面的第一个和 `}` 前面的最后一个可以和括号写在同一行（`get { return self.hp }`、`{ get }`）。
 
-## 文件结构（ADR-0012）
+## 文件结构（ADR-0012、ADR-0033）
 
 ```nyxel
 namespace Game.Enemies
@@ -83,7 +83,26 @@ public class Spawner : Behaviour {
 - 顺序固定：`namespace`（最多一个，作用于整个文件；不写时在全局命名空间）、`import`、声明。
 - 类型都写在文件顶层，一个文件可以有多个类型；不能在类型里声明类型（ADR-0020）。.NET 里已有的嵌套类型照常用：`Environment.SpecialFolder.Desktop`。
 - `import 命名空间` 导入整个命名空间。每个文件显式列出，没有全局导入和隐式导入。内置类型名不用导入；外层命名空间的类型按 C# 规则可见。
-- 待定：导入别名、静态导入。
+
+### 同名类型和命名空间别名（ADR-0033）
+
+```nyxel
+import System                       // System.Random
+import Engine                       // Engine.Random
+import ep.protocol under Pb         // 协议生成的代码
+
+public enum LogLevel : byte { ... } // 自己的
+
+let rng = new System.Random()       // 两个命名空间都有 Random：写全名
+let level = Pb.LogLevel.Warn        // 协议里的 LogLevel；不带前缀的 LogLevel 是自己的
+```
+
+- 导入的两个命名空间有同名类型时，只导入不报错，用到这个名字时是编译错误：写全名，或者给其中一个命名空间起别名。
+- 自己所在的命名空间（和外层）里的类型优先于导入的，不报错。
+- `import 命名空间 under 别名`：这个命名空间里的类型写成 `别名.类型名`。别名只引入这一个名字，不导入命名空间里的类型；要直接写名字，另写 `import 命名空间`。
+- 只能给命名空间起别名，不能给类型起。别名只在这个文件里有效，不能和另一个别名、看得见的类型或命名空间同名。`under` 只在导入行是关键字。
+- 没有静态导入（C# 的 `using static`）：成员前面总是写类型名，`MathF.Sqrt(x)`。不带接收者的名字只能是局部变量或参数（ADR-0008）。
+- C# 的 `using Pb = ep.protocol`、`import ep.protocol as Pb` 是编译错误，诊断给出 `under` 的写法；`using static` 也是编译错误。
 
 ## 关键字风格（ADR-0006）
 

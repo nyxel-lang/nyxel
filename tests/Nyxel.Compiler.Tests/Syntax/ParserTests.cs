@@ -613,6 +613,18 @@ public class ParserTests
         Assert.Equal("(TypeParameterList < (TypeParameter U) >)", Compact(map.TypeParameterList!));
     }
 
+    // Namespace aliases (ADR-0033) ----------------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("import System\n", "(ImportDirective import System)")]
+    [InlineData("import ep.protocol under Pb\n", "(ImportDirective import (QualifiedName ep . protocol) under Pb)")]
+    [InlineData("import under under Under\n", "(ImportDirective import under under Under)")]
+    public void Imports(string source, string expected) => Assert.Equal(expected, Compact(ParseClean(source).Root.Imports.Single()));
+
+    [Fact]
+    public void UnderIsANameOutsideImports() =>
+        Assert.Equal("(LocalDeclarationStatement let under (EqualsValueClause = 1))", Stmt("let under = 1"));
+
     [Fact]
     public void VarSelfInExtensions()
     {

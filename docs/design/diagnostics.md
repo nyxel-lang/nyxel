@@ -125,6 +125,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1220` | 声明了 `operator <` 的类型又写 `CompareTo`（ADR-0030：`CompareTo` 由 `<` 生成） | `func CompareTo(self, other: S) -> int` |
 | `NYX1223` | 类型参数前写了 `in` / `out`（ADR-0031：暂不声明协变逆变），按没写读下去 | `interface ISource<out T>` 写成 `interface ISource<T>` |
 | `NYX1224` | `extension` 后面的类型参数没出现在被扩展的类型里（ADR-0031，C# 的 CS9295） | `extension<T, U> List<T>`：`U` 写在用它的方法上 |
+| `NYX1227` | 同一个文件里两个导入用了同一个别名（ADR-0033） | `import A under X` 和 `import B under X` |
 
 ### 其他语言的写法
 
@@ -164,8 +165,10 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1200` | `super.init(...)`、`self.init(...)`（Swift，也是 ADR-0013 的旧写法），包括 `super.init.Name(...)` | `init super(...)`、`init self(...)`、`init super.Name(...)`（ADR-0027） |
 | `NYX1204` | 事件的访问器 `event Clicked() { add(h) { ... } remove(h) { ... } }`，整个 `{ }` 跳过 | 订阅要转发的事件，在处理函数里 `emit` 自己的事件（ADR-0029） |
 | `NYX1221` | C# 的运算符 `public static Cell operator +(Cell a, Cell b) => ...`，整个声明跳过；`==` 这类不能声明的报 `NYX1212`–`NYX1214` | `public operator +(a: Cell, b: Cell) -> Cell = ...`（ADR-0030），消息按原来的参数和返回类型写出 |
+| `NYX1225` | 别名写成 `using Pb = ep.protocol`（C#）、`import Pb = ep.protocol`、`import ep.protocol as Pb`（Python、Kotlin）；`=` 的整行跳过，`as` 的按 `under` 读 | `import ep.protocol under Pb`，类型写成 `Pb.LogLevel`（ADR-0033） |
+| `NYX1226` | 静态导入 `using static System.MathF`（C#）、`import static`（Java），整行跳过 | 成员前面写类型名：`MathF.Sqrt(x)`（ADR-0033） |
 | `NYX1222` | C# 的转换 `public static explicit operator float(Fixed f)`、`implicit operator`，整个声明跳过 | `public operator as(f: Fixed) -> float = ...`，用 `x as float` 转换；`implicit` 的消息说明 Nyxel 没有隐式转换（ADR-0030） |
 
 ## 不在语法阶段报的
 
-语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）、运算符的参数至少一个是所在的类型、转换的源和目标有一个是所在的类型且不是基类或接口、`<` 返回 bool、同一个运算符按操作数类型有没有重复（ADR-0030）、写 `T?` 的约束够不够、没约束的 T 的值用成员前有没有检查、可空类型能不能代入有约束的 T、元素是 T 的数组能不能直接创建（ADR-0031）、表达式是存储还是副本（在副本和只读的值上赋值、调用 `var self` 方法）、没标 `readonly` 的 C# 方法的返回值有没有用上、`var self` 扩展的被扩展类型是不是 struct（ADR-0032）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。
+语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）、运算符的参数至少一个是所在的类型、转换的源和目标有一个是所在的类型且不是基类或接口、`<` 返回 bool、同一个运算符按操作数类型有没有重复（ADR-0030）、写 `T?` 的约束够不够、没约束的 T 的值用成员前有没有检查、可空类型能不能代入有约束的 T、元素是 T 的数组能不能直接创建（ADR-0031）、表达式是存储还是副本（在副本和只读的值上赋值、调用 `var self` 方法）、没标 `readonly` 的 C# 方法的返回值有没有用上、`var self` 扩展的被扩展类型是不是 struct（ADR-0032）、同名类型的查找和冲突、`under` 前面是不是命名空间、别名和看得见的名字重名（ADR-0033）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。

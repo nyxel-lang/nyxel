@@ -1,0 +1,26 @@
+namespace Samples.Common
+
+import Game.Protocol under Wire         // 网络协议生成的代码，里面也有一个 Team
+
+/// 自己的阵营，和协议里的 Wire.Team 同名。
+/// 不带前缀的 Team 就是这一个：自己命名空间里的类型优先于导入的。
+public enum Team {
+    case Red
+    case Blue
+    case Neutral
+}
+
+/// 协议的类型和自己的类型互相转换：Wire.Team 是协议里的，Team 是自己的。
+public class TeamMapping {
+    public func FromWire(team: Wire.Team) -> Team = match team {
+        case Red -> Team.Red
+        case Blue -> Team.Blue
+        case _ -> Team.Neutral                  // 协议以后加的阵营先当中立
+    }
+
+    public func ToWire(team: Team) -> Wire.Team = match team {
+        case Red -> Wire.Team.Red
+        case Blue -> Wire.Team.Blue
+        case Neutral -> Wire.Team.None
+    }
+}

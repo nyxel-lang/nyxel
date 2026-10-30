@@ -113,6 +113,13 @@
         { "name": "keyword.operator.range.nyxel", "match": "\\.\\.<|\\.\\.\\." },
         { "name": "constant.language.nyxel", "match": "\\b(true|false|null)\\b" },
         { "name": "keyword.other.new.nyxel", "match": "\\b(new|with)\\b" },
+        {
+          "match": "^\\s*(import)\\s+[A-Za-z_][\\w.]*\\s+(under)\\b",
+          "captures": {
+            "1": { "name": "keyword.other.namespace.nyxel" },
+            "2": { "name": "keyword.other.namespace.nyxel" }
+          }
+        },
         { "name": "keyword.other.namespace.nyxel", "match": "\\b(namespace|import)\\b" },
         { "name": "variable.language.self.nyxel", "match": "\\bself\\b" },
         { "name": "variable.language.super.nyxel", "match": "\\bsuper\\b" },

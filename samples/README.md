@@ -1,6 +1,6 @@
 # samples/
 
-用已定的语法（ADR-0005 到 ADR-0032）写的示例，用来整体检查语言读起来怎么样。现在还没有编译器，这些文件只是设计材料；有了 Parser 之后，它们是第一批必须能解析的输入。
+用已定的语法（ADR-0005 到 ADR-0033）写的示例，用来整体检查语言读起来怎么样。现在还没有编译器，这些文件只是设计材料；有了 Parser 之后，它们是第一批必须能解析的输入。
 
 | 文件 | 展示 |
 |---|---|
@@ -8,6 +8,7 @@
 | Combat/Health.nyxel | struct、命名 `init`、计算属性（`get = 表达式`）、`var self` 方法、读 enum 的属性、`as float` 转换 |
 | Combat/Fireball.nyxel | `init super(...)` 调用基类 init、`init self(...)` 委托、`super.Update`、括号里换行、整数乘小数字面量 |
 | Common/Collections.nyxel | 泛型：泛型扩展 `extension<T> List<T>`（带约束的、方法自己的类型参数 `Map<U>`）、`T: class` 时的 `T?` 和直接创建的 `array<T?>`、`notnull` 约束、`for i in 1..<n` |
+| Common/TeamMapping.nyxel | 命名空间别名 `import Game.Protocol under Wire` 和 `Wire.Team`、自己的同名 `Team` 优先于导入的、`match` 一个 C# enum（`case _` 兜底） |
 | Common/Fixed.nyxel | 定点数：`operator` 定义运算符（一元 `-`、同一个运算符按操作数类型写两个）、只写 `<`（`>=` 由它生成）、`operator as` 转换和 `x as Fixed` / `x as float`、struct 的 `==` 比内容、`+=` 用 `+`、私有命名 init、静态字段 |
 | Common/VectorExtensions.nyxel | `extension` 块：实例扩展、静态扩展、行尾 `=` 续行 |
 | Common/HighScore.nyxel | 当值用的 `try`（`->` 分支，`catch` 分支里 `return`）、`eval` 块（提前 `give`，临时变量只在块里）、`give` 后面接 `->` 形式的 `if`、`out let`、`try` 语句里的 `using`、`new ... with (...)` 创建时设属性 |
@@ -19,6 +20,6 @@
 | Enemies/Spawner.nyxel | `async` 波次流程（`Wait.Until`、`Wait.Seconds`）、`launch` 绑定对象、`+=` 订阅事件、自动属性 `private set`、`for` + `..<`、静态扩展、lambda、多行方法链、泛型调用、`is not` 收窄、LINQ |
 | Enemies/Turret.nyxel | `flags enum` 和 `HasFlag`、写明每个值的 `enum TurretModel : byte` 和它的方法、`struct enum` 状态（不分配）、`is not` 判断 case、`match` 按位置取数据并自己起名、`when`、`return match` |
 
-`Engine` 命名空间是假想的引擎 API（`Behaviour`、`World`、`Log`、`Collider`、`Projectile`、`Smooth`、`Color`），Ecs/Spin.nyxel 里的 `World`、`Transform`、`Entity`、`Query` 照 EnginePlayground 的 Engine.Managed（`world.Get<T>(e)` 返回 `ref T`，`chunk.Get<T>()` 返回 `Span<T>`），`Player` 是假想的另一个脚本，都只为展示语法。`Projectile` 继承 `Behaviour`，有 `init(power: int)` 和 `Power` 属性；`Behaviour` 有 `Tint` 属性，`OnEnable` 是 `protected virtual`，并实现了 Nyxel 的生命周期接口（销毁后协程自动停止）；`Smooth.Damp` 类似 Unity 的 `SmoothDamp`，速度用 `ref` 参数传。`System`、`System.IO`、`System.Numerics`、`System.Linq` 是真实的 .NET API；`Nyxel`（`Wait`）是 Nyxel.Runtime 将要提供的 API。
+`Engine` 命名空间是假想的引擎 API（`Behaviour`、`World`、`Log`、`Collider`、`Projectile`、`Smooth`、`Color`），Ecs/Spin.nyxel 里的 `World`、`Transform`、`Entity`、`Query` 照 EnginePlayground 的 Engine.Managed（`world.Get<T>(e)` 返回 `ref T`，`chunk.Get<T>()` 返回 `Span<T>`），`Game.Protocol` 是假想的网络协议生成代码（有一个 `Team` enum），`Player` 是假想的另一个脚本，都只为展示语法。`Projectile` 继承 `Behaviour`，有 `init(power: int)` 和 `Power` 属性；`Behaviour` 有 `Tint` 属性，`OnEnable` 是 `protected virtual`，并实现了 Nyxel 的生命周期接口（销毁后协程自动停止）；`Smooth.Damp` 类似 Unity 的 `SmoothDamp`，速度用 `ref` 参数传。`System`、`System.IO`、`System.Numerics`、`System.Linq` 是真实的 .NET API；`Nyxel`（`Wait`）是 Nyxel.Runtime 将要提供的 API。
 
 language-reference 各节末尾“待定”的细节示例里刻意没用到。

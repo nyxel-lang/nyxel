@@ -40,6 +40,7 @@ public class LexerTests
     [Theory]
     [InlineData("get")]
     [InlineData("set")]
+    [InlineData("under")]
     [InlineData("from")]
     [InlineData("value")]
     [InlineData("_x")]

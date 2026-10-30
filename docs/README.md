@@ -54,5 +54,6 @@
 | [0030](decisions/0030-operators-equality-conversions.md) | `public operator +(a: T, b: T) -> T` 定义运算符（静态、按操作数类型可写几个）；比较只写 `<`，另外三个和 `IComparable<T>` 生成；struct 和 enum 的 `==` 比内容、class 比引用，`==` 不能定义；C# 的隐式转换照用，Nyxel 只能定义显式转换 `operator as` |
 | [0031](decisions/0031-generics-nullability-variance-extensions.md) | 写 `T?` 时约束要看得出 T 是 class 还是 struct，加 `notnull` 约束；元素是 T 的数组写 `element`，`array<T?>` 可以直接创建；暂不声明协变 / 逆变，用 .NET 的同 C#；泛型扩展 `extension<T> List<T>` |
 | [0032](decisions/0032-struct-copies-var-self-extensions-unmarked-methods.md) | 副本同 C#：数组元素、`Span` 元素、`ref` 返回值能直接改，属性、`List` 的 `[]`、函数返回值是副本；扩展里能写 `var self`；C# 没标 `readonly` 的方法在只读的值或副本上调用、又不用返回值时报错 |
+| [0033](decisions/0033-namespace-aliases-name-clashes-no-static-imports.md) | 同名类型同 C#（两个导入都有、用到时报错；自己命名空间里的优先）；只能给命名空间起别名，写 `import ep.protocol under Pb`；没有静态导入 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。
