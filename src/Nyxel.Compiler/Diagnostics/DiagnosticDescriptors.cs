@@ -284,6 +284,12 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor GeneratedCompareTo =
         Error("NYX1220", "'CompareTo' is generated from 'operator <'; remove this 'CompareTo' or the operator.");
 
+    public static readonly DiagnosticDescriptor VarianceModifier =
+        Error("NYX1223", "Nyxel doesn't declare variance yet; write '{0}' without '{1}'. .NET's variant interfaces such as IEnumerable<T> still convert as in C#.");
+
+    public static readonly DiagnosticDescriptor ExtensionTypeParameterUnused =
+        Error("NYX1224", "'{0}' isn't used in the extended type '{1}'; a type parameter only some members use goes on them, as in 'func Name<{0}>(...)'.");
+
     // Habits from C# and other languages, each with the Nyxel way to write it.
 
     public static readonly DiagnosticDescriptor SymbolicLogicalOperator =

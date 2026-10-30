@@ -595,6 +595,31 @@ public class ParserTests
     [Fact]
     public void OperatorIsAKeyword() => Assert.Equal(SyntaxKind.OperatorKeyword, SyntaxFacts.GetKeywordKind("operator"));
 
+    // Generic extensions, notnull (ADR-0031) -----------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("extension<T> List<T> {\n}", "(ExtensionDeclaration extension (TypeParameterList < (TypeParameter T) >) (GenericName List (TypeArgumentList < T >)) { })")]
+    [InlineData("extension<T: IComparable<T>> T {\n}", "(ExtensionDeclaration extension (TypeParameterList < (TypeParameter T (TypeParameterConstraintClause : (TypeConstraint (GenericName IComparable (TypeArgumentList < T >))))) >) T { })")]
+    [InlineData("extension<K, V> Dictionary<K, List<V>> {\n}", "(ExtensionDeclaration extension (TypeParameterList < (TypeParameter K) , (TypeParameter V) >) (GenericName Dictionary (TypeArgumentList < K , (GenericName List (TypeArgumentList < V >)) >)) { })")]
+    [InlineData("extension<T: class> T? {\n}", "(ExtensionDeclaration extension (TypeParameterList < (TypeParameter T (TypeParameterConstraintClause : (ClassConstraint class))) >) (NullableType T ?) { })")]
+    [InlineData("extension List<int> {\n}", "(ExtensionDeclaration extension (GenericName List (TypeArgumentList < int >)) { })")]
+    public void GenericExtensions(string source, string expected) => Assert.Equal(expected, Compact(ParseClean(source).Root.Members[0]));
+
+    [Fact]
+    public void MethodTypeParametersInAGenericExtension()
+    {
+        var extension = (ExtensionDeclarationSyntax)ParseClean("extension<T> List<T> {\n    public func Map<U>(self, f: func(T) -> U) -> List<U> = []\n}\n").Root.Members[0];
+        var map = (FunctionDeclarationSyntax)extension.Members.Single();
+        Assert.Equal("(TypeParameterList < (TypeParameter U) >)", Compact(map.TypeParameterList!));
+    }
+
+    [Fact]
+    public void NotnullIsAConstraintTypeName()
+    {
+        var registry = (TypeDeclarationSyntax)ParseClean("class Registry<K: notnull, V> {\n}\n").Root.Members[0];
+        Assert.Equal("(TypeParameterList < (TypeParameter K (TypeParameterConstraintClause : (TypeConstraint notnull))) , (TypeParameter V) >)", Compact(registry.TypeParameterList!));
+    }
+
     [Fact]
     public void IndexersAreUsedWithSelfAndBrackets()
     {

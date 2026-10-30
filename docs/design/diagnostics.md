@@ -123,6 +123,8 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1218` | 运算符写在接口或 enum 里，转换写在扩展里（C# 14 的 extension 块不支持转换） | `interface I { public operator +(...) }`、`extension V { public operator as(...) }` |
 | `NYX1219` | struct 或 enum 声明 `Equals`、`GetHashCode`（ADR-0030：编译器生成，比内容） | `public override func Equals(self, obj: object?) -> bool` |
 | `NYX1220` | 声明了 `operator <` 的类型又写 `CompareTo`（ADR-0030：`CompareTo` 由 `<` 生成） | `func CompareTo(self, other: S) -> int` |
+| `NYX1223` | 类型参数前写了 `in` / `out`（ADR-0031：暂不声明协变逆变），按没写读下去 | `interface ISource<out T>` 写成 `interface ISource<T>` |
+| `NYX1224` | `extension` 后面的类型参数没出现在被扩展的类型里（ADR-0031，C# 的 CS9295） | `extension<T, U> List<T>`：`U` 写在用它的方法上 |
 
 ### 其他语言的写法
 
@@ -166,4 +168,4 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 
 ## 不在语法阶段报的
 
-语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）、运算符的参数至少一个是所在的类型、转换的源和目标有一个是所在的类型且不是基类或接口、`<` 返回 bool、同一个运算符按操作数类型有没有重复（ADR-0030）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。
+语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）、运算符的参数至少一个是所在的类型、转换的源和目标有一个是所在的类型且不是基类或接口、`<` 返回 bool、同一个运算符按操作数类型有没有重复（ADR-0030）、写 `T?` 的约束够不够、没约束的 T 的值用成员前有没有检查、可空类型能不能代入有约束的 T、元素是 T 的数组能不能直接创建（ADR-0031）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。

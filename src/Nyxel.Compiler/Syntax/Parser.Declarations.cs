@@ -274,9 +274,36 @@ internal sealed partial class Parser
     private ExtensionDeclarationSyntax ParseExtensionDeclaration(SyntaxList<SyntaxToken> modifiers)
     {
         var keyword = NextToken();
+        var typeParameters = At(SyntaxKind.LessThanToken) ? ParseTypeParameterList() : null;
         var type = ParseType();
+        if (typeParameters != null)
+        {
+            CheckExtensionTypeParameters(typeParameters, type);
+        }
         var (open, members, close) = ParseMemberBody(MemberContext.Extension);
-        return new ExtensionDeclarationSyntax(modifiers, keyword, type, open, members, close);
+        return new ExtensionDeclarationSyntax(modifiers, keyword, typeParameters, type, open, members, close);
+    }
+
+    /// <summary>
+    /// Each type parameter of <c>extension&lt;T&gt; List&lt;T&gt;</c> appears in the extended type (ADR-0031, C# CS9295):
+    /// one that only some members use goes on those members.
+    /// </summary>
+    private void CheckExtensionTypeParameters(TypeParameterListSyntax typeParameters, TypeSyntax extendedType)
+    {
+        var tokens = extendedType.DescendantTokens().ToList();
+        if (tokens.Any(t => t.IsMissing))
+        {
+            return;
+        }
+        var names = tokens.Where(t => t.Kind == SyntaxKind.IdentifierToken).Select(t => t.Text).ToHashSet();
+        foreach (var parameter in typeParameters.Parameters)
+        {
+            var identifier = parameter.Identifier;
+            if (!identifier.IsMissing && !names.Contains(identifier.Text))
+            {
+                Report(DiagnosticDescriptors.ExtensionTypeParameterUnused, identifier.Span, identifier.Text, extendedType.ToString());
+            }
+        }
     }
 
     private (SyntaxToken Open, SyntaxList<MemberDeclarationSyntax> Members, SyntaxToken Close) ParseMemberBody(MemberContext context)
@@ -735,6 +762,12 @@ internal sealed partial class Parser
         var parameters = new List<SyntaxNode>();
         while (true)
         {
+            if (Current.Kind is SyntaxKind.InKeyword or SyntaxKind.OutKeyword && Peek(1).Kind == SyntaxKind.IdentifierToken)
+            {
+                // C#'s <out T> / <in T>: not declared yet (ADR-0031), read on as plain T.
+                Report(DiagnosticDescriptors.VarianceModifier, Current.Span, Peek(1).Text, Current.Text);
+                SkipCurrentToken();
+            }
             var identifier = ExpectIdentifier();
             TypeParameterConstraintClauseSyntax? clause = null;
             if (At(SyntaxKind.ColonToken))

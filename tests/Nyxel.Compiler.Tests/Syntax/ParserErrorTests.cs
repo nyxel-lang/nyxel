@@ -217,6 +217,26 @@ public class ParserErrorTests
     [InlineData("class C {\n    func CompareTo(self, other: C) -> int = 0\n}\n")]
     public void OperatorPlacementAndGeneratedMembers(string source, params string[] expected) => AssertFileErrors(source, expected);
 
+    // Variance, generic extensions (ADR-0031) -----------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("interface ISource<out T> {\n}\n", "NYX1223 1:19")]
+    [InlineData("interface IHandler<in T, out R: class> {\n}\n", "NYX1223 1:20", "NYX1223 1:26")]
+    [InlineData("class Box<out T> {\n}\n", "NYX1223 1:11")]
+    [InlineData("func F<in T>(x: T) {\n}\n", "NYX1113 1:1", "NYX1223 1:8")]
+    [InlineData("extension<T, U> List<T> {\n}\n", "NYX1224 1:14")]
+    [InlineData("extension<T> Dictionary<string, int> {\n}\n", "NYX1224 1:11")]
+    [InlineData("extension<T> List<T>.Enumerator {\n}\n")]
+    [InlineData("extension<T> {\n}\n", "NYX1101 1:14")]
+    public void VarianceAndGenericExtensions(string source, params string[] expected) => AssertFileErrors(source, expected);
+
+    [Fact]
+    public void VarianceMessageSaysWhatToWrite()
+    {
+        var message = Assert.Single(SyntaxTree.Parse("interface ISource<out T> {\n}\n").Diagnostics).Message;
+        Assert.StartsWith("Nyxel doesn't declare variance yet; write 'T' without 'out'.", message);
+    }
+
     [Theory]
     [InlineData("    public static Cell operator +(Cell a, Cell b) => a;", "NYX1221 2:19", "C# operator syntax; write 'public operator +(a: Cell, b: Cell) -> Cell'.")]
     [InlineData("    public static Cell operator -(Cell a) { return a; }", "NYX1221 2:19", "C# operator syntax; write 'public operator -(a: Cell) -> Cell'.")]

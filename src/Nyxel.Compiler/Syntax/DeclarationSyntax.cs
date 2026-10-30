@@ -198,12 +198,13 @@ public sealed class EnumCaseDeclarationSyntax : SyntaxNode
     public override IEnumerable<SyntaxNode> GetChildren() => Children(CaseKeyword, Identifier, ParameterList, EqualsValue);
 }
 
-/// <summary><c>extension Vector3 { ... }</c> (ADR-0014).</summary>
+/// <summary><c>extension Vector3 { ... }</c> (ADR-0014), <c>extension&lt;T&gt; List&lt;T&gt; { ... }</c> (ADR-0031).</summary>
 public sealed class ExtensionDeclarationSyntax : MemberDeclarationSyntax
 {
     internal ExtensionDeclarationSyntax(
         SyntaxList<SyntaxToken> modifiers,
         SyntaxToken extensionKeyword,
+        TypeParameterListSyntax? typeParameterList,
         TypeSyntax extendedType,
         SyntaxToken openBraceToken,
         SyntaxList<MemberDeclarationSyntax> members,
@@ -211,6 +212,7 @@ public sealed class ExtensionDeclarationSyntax : MemberDeclarationSyntax
         : base(SyntaxKind.ExtensionDeclaration, modifiers)
     {
         ExtensionKeyword = extensionKeyword;
+        TypeParameterList = typeParameterList;
         ExtendedType = extendedType;
         OpenBraceToken = openBraceToken;
         Members = members;
@@ -219,6 +221,9 @@ public sealed class ExtensionDeclarationSyntax : MemberDeclarationSyntax
     }
 
     public SyntaxToken ExtensionKeyword { get; }
+
+    /// <summary>The <c>&lt;T&gt;</c> of a generic extension; each one appears in <see cref="ExtendedType"/>.</summary>
+    public TypeParameterListSyntax? TypeParameterList { get; }
 
     public TypeSyntax ExtendedType { get; }
 
@@ -229,7 +234,7 @@ public sealed class ExtensionDeclarationSyntax : MemberDeclarationSyntax
     public SyntaxToken CloseBraceToken { get; }
 
     public override IEnumerable<SyntaxNode> GetChildren() =>
-        Children(Modifiers, ExtensionKeyword, ExtendedType, OpenBraceToken, Members, CloseBraceToken);
+        Children(Modifiers, ExtensionKeyword, TypeParameterList, ExtendedType, OpenBraceToken, Members, CloseBraceToken);
 }
 
 /// <summary>A <c>let</c> or <c>var</c> field. The type annotation is required; the parser reports it when absent.</summary>
@@ -636,7 +641,10 @@ public abstract class TypeParameterConstraintSyntax : SyntaxNode
     }
 }
 
-/// <summary>A type as a constraint. <c>unmanaged</c> is parsed as a type name and recognized during binding.</summary>
+/// <summary>
+/// A type as a constraint. <c>unmanaged</c> and <c>notnull</c> (ADR-0031) are parsed as type names and recognized
+/// during binding.
+/// </summary>
 public sealed class TypeConstraintSyntax : TypeParameterConstraintSyntax
 {
     internal TypeConstraintSyntax(TypeSyntax type)

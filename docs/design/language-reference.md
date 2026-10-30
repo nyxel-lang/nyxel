@@ -211,6 +211,7 @@ class Shooter : Behaviour {
     let grid = new array2d<Cell>(w, h, func(x, y) = new Cell(x = x, y = y))
     ```
   - Nyxel 的 struct 也算在内：全零的元素没有经过它的 `init` 和字段初始值。
+  - 元素类型是类型参数 T 时也要写 `element`（ADR-0031）：编译器不知道 T 的全零合不合法。元素类型是 `T?`（有 `class` 或 `struct` 约束）的可以直接创建，全是 null。
   - 让引擎往里填的数组（NonAlloc 系列）写成 `array<Collider?>`，取出来时 `hits[i] ?? continue`。
 - 带元素创建用集合字面量：`let primes: array<int> = [2, 3, 5, 7]`，见下一节。
 - C# 的 `T[]`、`new T[n]` 是编译错误，诊断给出 `array<T>` 的写法。
@@ -385,7 +386,7 @@ self.Position = Smooth.Damp(self.Position, target, ref self.velocity, 0.3)
 - 按 .NET 的可空标注收窄：`TryGetValue` 返回 `true` 的分支里，`out` 出来的值非空。
 - 自己的函数只在 `override` 或实现接口、.NET 签名要求时才能声明：`data: out SaveData`、`velocity: ref Vector3`、`value: in Matrix4x4`。`out` 参数每条返回路径都要赋值；`ref` / `out` 参数可以赋值（普通参数不行）。自己的 API 表达“可能没有”用 `T?`。
 
-## 扩展（ADR-0014）
+## 扩展（ADR-0014、ADR-0031）
 
 ```nyxel
 namespace Game.Util
@@ -414,7 +415,24 @@ let dir = Vector3.FromAngle(radians = 0.5)
 - 可见性同类成员：默认私有（只在这个块里可见），`public` 才能在块外用。使用方 `import` 扩展所在的命名空间后可见。类型本身的成员优先于扩展。
 - 扩展只能访问类型的公开成员。
 - C# 那边：C# 14 的 `extension` 块，放在 `static partial class Vector3Extensions` 里。
-- 待定：泛型扩展（`extension<T> List<T>`）；修改 struct 自己的扩展（`var self`）。
+- 泛型扩展（ADR-0031）：类型参数写在 `extension` 后面，后面的类型再用它；约束照旧写在 `<>` 里。
+  ```nyxel
+  extension<T> List<T> {
+      public func Shuffle(self, rng: Random) { ... }
+      public func Map<U>(self, convert: func(T) -> U) -> List<U> { ... }   // 只有这个方法用的 U 写在方法上
+  }
+
+  extension<T: IComparable<T>> T {                  // 扩展所有可比较的类型：5.Clamp(lo = 0, hi = 3)
+      public func Clamp(self, lo: T, hi: T) -> T { ... }
+  }
+
+  extension List<int> {                             // 具体类型不需要类型参数
+      public func Total(self) -> int { ... }
+  }
+  ```
+  - `extension` 后面的每个类型参数都要在被扩展的类型里出现；只有某些成员用的写在那个成员上。
+  - C# 那边：`extension<T>(List<T> self) where T : ...`，放在 `ListExtensions` 里。
+- 待定：修改 struct 自己的扩展（`var self`）。
 
 ## 函数类型与 lambda（ADR-0012）
 
@@ -440,7 +458,7 @@ let nearest = enemies.MinBy(func(e: Enemy) -> float {
 - 成员函数仍用 `func Name(...)` 声明。
 - 在需要函数类型的地方，`对象.方法` / `类型名.函数` 不带括号就是这个函数本身（ADR-0017）：`slime.Died += self.OnSlimeDied`、`names.Select(Slime.Describe)`。别处不带括号写方法名是编译错误。
 
-## 泛型（ADR-0012）
+## 泛型（ADR-0012、ADR-0031）
 
 ```nyxel
 func Max<T: IComparable<T>>(a: T, b: T) -> T {
@@ -456,8 +474,37 @@ let biggest = Max(a = 3, b = 7)        // T 推断为 int
 ```
 
 - `<T>` 同 C#；类型实参推断同 C#。
-- 约束写在 `<>` 里，冒号后是类型；多个约束用 `and`。特殊约束 `class`、`struct`、`unmanaged`、`new()`。
-- 待定：泛型的可空性（包括 `new array<T>(n)` 能不能直接创建，ADR-0023）；协变 / 逆变。
+- 约束写在 `<>` 里，冒号后是类型；多个约束用 `and`。特殊约束 `class`、`struct`、`unmanaged`、`notnull`、`new()`。
+
+### 泛型和空值（ADR-0031）
+
+```nyxel
+func Find<T: class>(items: List<T>, pred: func(T) -> bool) -> T? {
+    for x in items {
+        if pred(x) { return x }
+    }
+    return null
+}
+
+class Registry<K: notnull, V> {                  // K 当 Dictionary 的键，不能是 null
+    let entries: Dictionary<K, V> = new Dictionary<K, V>()
+}
+
+func Find<T>(items: List<T>, ...) -> T?          // 错误：T 可能是 int，这时 T? 不表示“可能没有”
+```
+
+- 写 `T?` 时，约束里要看得出 T 是 class 还是 struct：`class` 或基类（`T: Enemy`）时 `T?` 是可能为 null 的引用；`struct` 或 `unmanaged` 时是 `Nullable<T>`。没约束、只有 `notnull` 或只有接口约束时写 `T?` 是编译错误。所以 `T?` 永远表示“可能是 null”，`return null` 照常写；Nyxel 没有 `default`。
+- 实现或重写 .NET 成员时，签名里有没约束的 `T?`（`IComparer<T>.Compare(x: T?, y: T?)`）照签名写，含义同 C#。
+- 调用 .NET 里返回没约束 `T?` 的方法同 C#：`list.FirstOrDefault()` 在 `List<int>` 上返回 int（没有时是 0），在 `List<Enemy>` 上返回 `Enemy?`。
+- 没约束的 T 可以代入可空类型（`List<Enemy?>`），所以 T 的值可能是 null，调用它的成员前要先检查。
+- `notnull`：T 可以是任何不可空的类型。有 `class`、`struct`、基类或接口约束的 T 本来就不能代入可空类型。
+- 元素类型是 T 的数组要写 `element`，元素类型是 `T?` 的可以直接创建，见“数组”。
+
+### 协变和逆变（ADR-0031）
+
+- 只往外出 T 的接口（`IEnumerable<T>`、`IReadOnlyList<T>`）是协变的：`IEnumerable<Slime>` 可以当 `IEnumerable<Enemy>` 用。只往里进 T 的接口（`IComparer<T>`）是逆变的：`IComparer<Enemy>` 可以当 `IComparer<Slime>` 用。既进又出的（`List<T>`）两个方向都不行。
+- 用 .NET 已经标好的接口和 `func(...)` 函数类型，规则同 C#：`let all: IEnumerable<Enemy> = slimes`、`let logSlime: func(Slime) = logAnyEnemy`。值类型不参与：`List<int>` 不能当 `IEnumerable<object>`。
+- Nyxel 自己声明的接口暂时不能标 `in` / `out`（写 `interface ISource<out T>` 是编译错误）。要让 `ISpawner<Slime>` 传给需要刷怪点的函数，把函数写成泛型：`func Fill<T: Enemy>(spawner: ISpawner<T>)`。
 
 ## 成员访问（ADR-0008）
 
@@ -843,6 +890,7 @@ class Turret : Behaviour {
   ```
 - 没有 `x!` / `x!!`；断言非空写 `?? throw new 异常("原因")`。
 - 数组元素一开始是全零，所以 `new array<Enemy>(16)` 是编译错误，见“数组”。
+- 泛型里的 `T?` 要求约束看得出 T 是 class 还是 struct，见“泛型”（ADR-0031）。
 
 ## 循环与区间（ADR-0010、ADR-0022）
 

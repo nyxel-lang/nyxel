@@ -1,0 +1,71 @@
+namespace Samples.Common
+
+import System
+import System.Collections.Generic
+
+/// 给所有 List<T> 加的方法，T 是什么都行。类型参数写在 extension 后面，后面的类型再用它。
+extension<T> List<T> {
+    /// 原地打乱顺序：洗牌、随机刷怪顺序。
+    public func Shuffle(self, rng: Random) {
+        for i in 1..<self.Count {
+            let j = rng.Next(i + 1)
+            let picked = self[j]
+            self[j] = self[i]
+            self[i] = picked
+        }
+    }
+
+    /// 只有这个方法用的 U 写在方法上。
+    public func Map<U>(self, convert: func(T) -> U) -> List<U> {
+        let result = new List<U>(self.Count)
+        for item in self {
+            result.Add(convert(item))
+        }
+        return result
+    }
+}
+
+/// 约束照旧写在 <> 里。
+extension<T: IComparable<T>> List<T> {
+    /// 最大的一个。列表不能是空的。
+    public func Largest(self) -> T {
+        var best = self[0]
+        for item in self {
+            if item.CompareTo(best) > 0 {
+                best = item
+            }
+        }
+        return best
+    }
+}
+
+/// 最近的几条，满了挤掉最早的一条（聊天框、最近拾取的物品）。
+/// 要写 T?，约束里得看得出 T 是 class 还是 struct：这里是 T: class，T? 就是“可能是 null”。
+public class RecentList<T: class> {
+    let items: array<T?>
+    var next: int = 0
+
+    init(capacity: int) {
+        self.items = new array<T?>(capacity)           // 元素是 T?：可以直接创建，一开始全是 null
+    }
+
+    public func Add(self, item: T) {
+        self.items[self.next] = item
+        self.next = (self.next + 1) % self.items.Length
+    }
+
+    /// 最近加进来的一条；还没加过是 null。
+    public func Latest(self) -> T? = self.items[(self.next + self.items.Length - 1) % self.items.Length]
+}
+
+/// 按种类计数（击杀统计）。K 当 Dictionary 的键，键不能是 null，所以写 K: notnull。
+public class Tally<K: notnull> {
+    let counts: Dictionary<K, int> = new Dictionary<K, int>()
+
+    public func Add(self, key: K) {
+        self.counts[key] = self.Count(key) + 1
+    }
+
+    /// 没记过的是 0：.NET 的 GetValueOrDefault 在值是 int 时返回 0，不是 null。
+    public func Count(self, key: K) -> int = self.counts.GetValueOrDefault(key)
+}
