@@ -61,8 +61,8 @@
 
 - C# 习惯的 `(int)x`、`obj as Enemy`、`throw e` 都不会悄悄换含义：前两个是编译错误并给出写法，`throw e` 按读者以为的含义（保留调用栈）翻译。
 - 扩展依赖 C# 14 的 `extension` 块（.NET 10 SDK 自带）。
-- 后来定了：`ref` / `out` 参数、资源释放（ADR-0015）；泛型扩展 `extension<T> List<T>`（ADR-0031）。
-- 待定：修改 struct 自己的扩展（`var self`，对应 C# 的 `extension(ref Vector3 v)`）；文档注释里写会抛哪些异常的约定。
+- 后来定了：`ref` / `out` 参数、资源释放（ADR-0015）；泛型扩展 `extension<T> List<T>`（ADR-0031）；修改 struct 自己的扩展 `var self`（ADR-0032）。
+- 待定：文档注释里写会抛哪些异常的约定。
 
 ## 修订记录
 

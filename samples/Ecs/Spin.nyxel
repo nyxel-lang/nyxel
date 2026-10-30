@@ -1,0 +1,48 @@
+namespace Samples.Ecs
+
+import System.Numerics
+import Engine
+
+/// 绕自己的轴旋转。ECS 组件只有数据，引擎把同一种组件存在连续的内存里。
+public struct Spin {
+    public var Axis: Vector3 = Vector3.UnitY
+    public var Speed: float = 1                 // 每秒转多少弧度
+}
+
+/// 给引擎的 Transform 组件加的方法。
+extension Transform {
+    /// var self：改的是调用方那个 Transform 本身。
+    public func MoveBy(var self, delta: Vector3) {
+        self.Position += delta
+    }
+
+    public func RotateAround(var self, axis: Vector3, radians: float) {
+        let delta = Quaternion.CreateFromAxisAngle(axis, radians)
+        self.Rotation = Quaternion.Normalize(Quaternion.Concatenate(self.Rotation, delta))
+    }
+
+    /// 只写 self：不改自己。
+    public func Forward(self) -> Vector3 = Vector3.Transform(Vector3.UnitZ, self.Rotation)
+}
+
+/// 每帧让有 Spin 的实体转起来。
+public class SpinSystem {
+    public func Run(world: World, dt: float) {
+        // Read 没标 readonly（改自己再返回自己），返回值都用上了，所以能在临时值上连着调用。
+        for chunk in world.Query<Transform>().Read<Spin>() {
+            let transforms = chunk.Get<Transform>()     // Span<Transform>：直接指向引擎的内存
+            let spins = chunk.GetReadOnly<Spin>()       // ReadOnlySpan<Spin>：只读
+            for i in 0..<chunk.Count {
+                // Span 的元素不是副本：var self 方法改的是引擎里的组件，不复制。
+                transforms[i].RotateAround(axis = spins[i].Axis, radians = spins[i].Speed * dt)
+            }
+        }
+    }
+
+    /// 把一个实体往前推一段。world.Get 返回 ref：改的是组件本身。
+    public func Push(world: World, entity: Entity, distance: float) {
+        let forward = world.Get<Transform>(entity).Forward()
+        world.Get<Transform>(entity).MoveBy(delta = forward * distance)
+        // var t = world.Get<Transform>(entity) 是复制一份：t.MoveBy(...) 改的只是 t。
+    }
+}

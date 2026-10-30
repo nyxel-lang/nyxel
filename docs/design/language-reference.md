@@ -301,7 +301,7 @@ class Slime : Behaviour {
 - 字段必须写类型。局部变量有初始值时可以省略类型。
 - 静态字段写 `static var` / `static let`（ADR-0008）。
 
-## 函数与方法（ADR-0006、ADR-0008）
+## 函数与方法（ADR-0006、ADR-0008、ADR-0032）
 
 ```nyxel
 class Slime : Behaviour {
@@ -344,16 +344,41 @@ let d = Slime.Distance(a, b)        // 静态函数通过类型名调用
 - `func Name(参数) -> 返回类型 { ... }`；没有返回值时省略 `->` 和返回类型。参数和返回类型必须写。
 - 第一个参数是 `self`（不写类型）的是实例方法，没有 `self` 的是静态函数。没有 `static func`。
 - `var self` 只能用在 struct 上，表示方法会修改这个值；只写 `self` 的 struct 方法不能修改字段，也不能调用 `var self` 方法。class 方法的 `self` 是引用，总能修改对象的字段，不需要也不允许写 `var self`。
-- `var self` 方法不能在 `let` 的 struct 上调用，也不能在临时副本上调用（属性、索引器、函数调用的结果）：
+- `var self` 方法不能在 `let` 的 struct 上调用，也不能在临时副本上调用（属性、`List` 这类普通索引器、函数调用的结果）：
   ```nyxel
   let h = new Health()
   h.Damage(amount = 5)                    // 错误：h 是 let
-  self.healths[0].Damage(amount = 5)      // 错误：改的是副本，修改会丢失
+  self.healths[0].Damage(amount = 5)      // 错误（healths 是 List<Health>）：改的是副本，修改会丢失
   var first = self.healths[0]             // 先取出，改完再写回
   first.Damage(amount = 5)
   self.healths[0] = first
+  self.slots[0].Damage(amount = 5)        // 能（slots 是 array<Health>）：数组元素就是数组里的格子
   ```
-- 待定：C# 里没有标 `readonly` 的 struct 方法在 `let` 和临时副本上怎么处理。
+- 哪些写法拿到的是副本，同 C#（ADR-0032）。“改”指给字段赋值、调用 `var self` 方法：
+
+  | 写法 | 拿到的是 | 能改吗 |
+  |---|---|---|
+  | `var` 局部变量；class 的字段；`var self` 方法里的 `self.x` | 存储本身 | 能 |
+  | `let` 局部变量和字段；`self` 方法里的 `self.x`；`for x in` 的 `x` | 存储本身，只读 | 不能 |
+  | 数组元素 `arr[i]` | 数组里的格子 | 能，`let arr` 也能 |
+  | `Span<T>` 的元素、返回 `ref` 的函数（`world.Get<T>(e)`） | 原来的存储 | 能，`let` 的 `Span` 也能 |
+  | `ReadOnlySpan<T>` 的元素、返回 `ref readonly` 的函数 | 原来的存储，只读 | 不能 |
+  | 属性、普通索引器（`list[i]`、`dict[key]`）、普通函数的返回值 | 副本 | 不能，改了会丢 |
+
+  ```nyxel
+  let transforms = chunk.Get<Transform>()                  // Span<Transform>：直接指向引擎的内存
+  transforms[i].Rotation = Quaternion.Normalize(...)       // 写进引擎的内存，不复制
+  world.Get<Transform>(e).Position = spawnPoint            // ref 返回值：改的是组件本身
+  var t = world.Get<Transform>(e)                          // 这是复制一份：没有 ref 局部变量
+  ```
+- C# 的 struct 方法：标了 `readonly` 的（和 `readonly struct` 的方法）同 Nyxel 的 `self` 方法，哪里都能调用。没标的可能会改自己，同 C#，在只读的值或副本上调用时是在一份副本上调用；但这时**不用它的返回值是编译错误**（ADR-0032）：只为副作用调用，要么改动会丢，要么只是库作者漏标了 `readonly`。
+  ```nyxel
+  for chunk in world.Query<Transform>().Read<Spin>() { ... }   // 能：Read 没标 readonly，但返回值用上了
+  let ready = cd.Ready()                                         // 能：用了返回值
+  for cd in self.cooldowns { cd.Tick(dt) }     // 错误：cd 是只读的，Tick 的改动会丢
+  self.weapon.Cooldown.Tick(dt)                // 错误：Cooldown 是属性，改的是副本；先存进 var，改完写回
+  ```
+- 待定：ref 局部变量（C# 的 `ref var t = ref world.Get<Transform>(e)`）。
 - 参数不能重新赋值，和 `let` 一样（ADR-0014），需要改就复制到局部变量：`let actual = amount - self.armor`。lambda 的参数同样。没有 `var` 参数。
 - 实例方法通过实例调用（`slime.TakeDamage(5)`），静态函数通过类型名调用（`Slime.Distance(a, b)`），不能互换。
 - 返回值必须写 `return`（ADR-0007）。
@@ -386,7 +411,7 @@ self.Position = Smooth.Damp(self.Position, target, ref self.velocity, 0.3)
 - 按 .NET 的可空标注收窄：`TryGetValue` 返回 `true` 的分支里，`out` 出来的值非空。
 - 自己的函数只在 `override` 或实现接口、.NET 签名要求时才能声明：`data: out SaveData`、`velocity: ref Vector3`、`value: in Matrix4x4`。`out` 参数每条返回路径都要赋值；`ref` / `out` 参数可以赋值（普通参数不行）。自己的 API 表达“可能没有”用 `T?`。
 
-## 扩展（ADR-0014、ADR-0031）
+## 扩展（ADR-0014、ADR-0031、ADR-0032）
 
 ```nyxel
 namespace Game.Util
@@ -432,7 +457,20 @@ let dir = Vector3.FromAngle(radians = 0.5)
   ```
   - `extension` 后面的每个类型参数都要在被扩展的类型里出现；只有某些成员用的写在那个成员上。
   - C# 那边：`extension<T>(List<T> self) where T : ...`，放在 `ListExtensions` 里。
-- 待定：修改 struct 自己的扩展（`var self`）。
+- 扩展 struct 时可以写 `var self`，规则同 struct 的方法（ADR-0032）：
+  ```nyxel
+  extension Transform {
+      public func MoveBy(var self, delta: Vector3) {
+          self.Position += delta
+      }
+  }
+
+  world.Get<Transform>(e).MoveBy(delta)     // ref 返回值：改的是引擎里的组件
+  transforms[i].MoveBy(delta)               // Span 的元素
+  self.ghosts[0].MoveBy(delta)              // 错误（ghosts 是 List）：改的是副本
+  ```
+  - 被扩展的类型要是 struct（或有 `struct` 约束的 T）；class 的扩展写 `var self` 是编译错误。只写 `self` 的扩展方法不能改自己的字段。
+  - C# 那边：`extension(ref Transform self)`。
 
 ## 函数类型与 lambda（ADR-0012）
 

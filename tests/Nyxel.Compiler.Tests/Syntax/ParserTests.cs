@@ -614,6 +614,15 @@ public class ParserTests
     }
 
     [Fact]
+    public void VarSelfInExtensions()
+    {
+        // ADR-0032: a struct's extension may change it; whether the type is a struct is checked in binding.
+        var extension = (ExtensionDeclarationSyntax)ParseClean("extension Transform {\n    public func MoveBy(var self, delta: Vector3) {\n    }\n}\n").Root.Members[0];
+        var moveBy = (FunctionDeclarationSyntax)extension.Members.Single();
+        Assert.Equal("(ParameterList ( (SelfParameter var self) , (Parameter delta : Vector3) ))", Compact(moveBy.ParameterList));
+    }
+
+    [Fact]
     public void NotnullIsAConstraintTypeName()
     {
         var registry = (TypeDeclarationSyntax)ParseClean("class Registry<K: notnull, V> {\n}\n").Root.Members[0];
