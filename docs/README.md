@@ -51,5 +51,6 @@
 | [0027](decisions/0027-with-members-and-init-calls.md) | 创建时设置成员 `new T(...) with (X = 1)`（C# 的对象初始化器，也用来设 `init` 访问器和 `required` 成员）；Nyxel 暂不声明只能在创建时设置的成员；调用其他 init 写 `init super(...)`、`init super.名字(...)`、`init self(...)`、`init self.名字(...)`，改了 ADR-0013 的 `super.init(...)` |
 | [0028](decisions/0028-keep-adrs-current.md) | ADR 保持最新：被推翻的决定直接改写原文（例子也改），原来的做法挪进备选方案，文末“修订记录”记日期和讨论在哪；历史看 git；已有的都改成了最新 |
 | [0029](decisions/0029-indexers-enum-members-event-accessors.md) | 索引器 `property self[x: int]: T { get ... }`；enum 的 case 后面写方法和计算属性；带数据的 enum 和 `struct enum` 实现接口，不带数据的要实现接口就写 `struct enum`；不加 `field` 关键字和事件访问器 |
+| [0030](decisions/0030-operators-equality-conversions.md) | `public operator +(a: T, b: T) -> T` 定义运算符（静态、按操作数类型可写几个）；比较只写 `<`，另外三个和 `IComparable<T>` 生成；struct 和 enum 的 `==` 比内容、class 比引用，`==` 不能定义；C# 的隐式转换照用，Nyxel 只能定义显式转换 `operator as` |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

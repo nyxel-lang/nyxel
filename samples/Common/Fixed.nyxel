@@ -1,0 +1,45 @@
+namespace Samples.Common
+
+/// 定点数：用整数存小数，低 16 位是小数部分。整数运算在每台机器上结果都一样，帧同步（lockstep）游戏用它代替 float。
+public struct Fixed {
+    static let scale: int = 1 << 16
+
+    let raw: int
+
+    init FromRaw(raw: int) {
+        self.raw = raw
+    }
+
+    // 运算符没有 self，两个操作数都是参数；必须写 public。
+    public operator +(a: Fixed, b: Fixed) -> Fixed = new Fixed.FromRaw(a.raw + b.raw)
+    public operator -(a: Fixed, b: Fixed) -> Fixed = new Fixed.FromRaw(a.raw - b.raw)
+    public operator -(a: Fixed) -> Fixed = new Fixed.FromRaw(-a.raw)          // 一个参数：取负
+    public operator *(a: Fixed, b: Fixed) -> Fixed = new Fixed.FromRaw(((a.raw as long * b.raw) >> 16) as int)
+    public operator *(a: Fixed, k: int) -> Fixed = new Fixed.FromRaw(a.raw * k)   // 同一个运算符按操作数类型写几个
+    public operator /(a: Fixed, b: Fixed) -> Fixed = new Fixed.FromRaw(((a.raw as long << 16) / b.raw) as int)
+
+    // 只写 <：>、<=、>= 和 CompareTo 由它生成。== 不用写：struct 按内容比。
+    public operator <(a: Fixed, b: Fixed) -> bool = a.raw < b.raw
+
+    // 转换写 as：3 as Fixed、speed as float。
+    public operator as(value: int) -> Fixed = new Fixed.FromRaw(value * Fixed.scale)
+    public operator as(value: Fixed) -> float = value.raw as float / Fixed.scale
+}
+
+/// 帧同步的移动：位置和速度都是定点数，每台机器算出来一样，只在显示时转成 float。
+public class LockstepMover {
+    let speed: Fixed = 3 as Fixed
+    let limit: Fixed = 100 as Fixed
+    var position: Fixed = 0 as Fixed
+
+    public property Shown: float { get = self.position as float }
+
+    public property AtLimit: bool { get = self.position == self.limit }
+
+    public func Step(self, ticks: int) {
+        self.position += self.speed * ticks
+        if self.position >= self.limit {        // 由 < 生成
+            self.position = self.limit
+        }
+    }
+}

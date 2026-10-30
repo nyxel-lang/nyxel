@@ -1,12 +1,13 @@
 # samples/
 
-用已定的语法（ADR-0005 到 ADR-0029）写的示例，用来整体检查语言读起来怎么样。现在还没有编译器，这些文件只是设计材料；有了 Parser 之后，它们是第一批必须能解析的输入。
+用已定的语法（ADR-0005 到 ADR-0030）写的示例，用来整体检查语言读起来怎么样。现在还没有编译器，这些文件只是设计材料；有了 Parser 之后，它们是第一批必须能解析的输入。
 
 | 文件 | 展示 |
 |---|---|
 | Combat/Damage.nyxel | 带数据的 `enum`（数据同元组，PascalCase）、enum 里的计算属性和方法、带数据的 enum 实现接口、`match` 按位置取 case 数据（`_` 丢弃）、接口 |
 | Combat/Health.nyxel | struct、命名 `init`、计算属性（`get = 表达式`）、`var self` 方法、读 enum 的属性、`as float` 转换 |
 | Combat/Fireball.nyxel | `init super(...)` 调用基类 init、`init self(...)` 委托、`super.Update`、括号里换行、整数乘小数字面量 |
+| Common/Fixed.nyxel | 定点数：`operator` 定义运算符（一元 `-`、同一个运算符按操作数类型写两个）、只写 `<`（`>=` 由它生成）、`operator as` 转换和 `x as Fixed` / `x as float`、struct 的 `==` 比内容、`+=` 用 `+`、私有命名 init、静态字段 |
 | Common/VectorExtensions.nyxel | `extension` 块：实例扩展、静态扩展、行尾 `=` 续行 |
 | Common/HighScore.nyxel | 当值用的 `try`（`->` 分支，`catch` 分支里 `return`）、`eval` 块（提前 `give`，临时变量只在块里）、`give` 后面接 `->` 形式的 `if`、`out let`、`try` 语句里的 `using`、`new ... with (...)` 创建时设属性 |
 | Common/Scoreboard.nyxel | 元组：返回元组、`(name, score)` 按元素类型取名、按位置解构、`for (key, value) in` 遍历字典、`for (i, entry) in ….Index()` 同时拿下标、泛型参数里的元组类型 |

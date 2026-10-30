@@ -173,6 +173,72 @@ public class ParserErrorTests
     [InlineData("property self[i: int]: int { get = i }\n", "NYX1113 1:1")]
     public void IndexerAndEventErrors(string source, params string[] expected) => AssertFileErrors(source, expected);
 
+    // Operators and conversions (ADR-0030) -------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("operator +(a: S, b: S) -> S = a", "NYX1210 2:1")]
+    [InlineData("public static operator -(a: S) -> S = a", "NYX1211 2:8")]
+    [InlineData("public override operator -(a: S) -> S = a", "NYX1211 2:8")]
+    [InlineData("protected operator -(a: S) -> S = a", "NYX1211 2:1", "NYX1210 2:11")]
+    [InlineData("public operator ==(a: S, b: S) -> bool = true", "NYX1212 2:17")]
+    [InlineData("public operator !=(a: S, b: S) -> bool = true", "NYX1212 2:17")]
+    [InlineData("public operator >(a: S, b: S) -> bool = true", "NYX1213 2:17")]
+    [InlineData("public operator <=(a: S, b: S) -> bool = true", "NYX1213 2:17")]
+    [InlineData("public operator >=(a: S, b: S) -> bool = true", "NYX1213 2:17")]
+    [InlineData("public operator and(a: S, b: S) -> S = a", "NYX1214 2:17")]
+    [InlineData("public operator not(a: S) -> S = a", "NYX1214 2:17")]
+    [InlineData("public operator +=(a: S, b: S) -> S = a", "NYX1214 2:17")]
+    [InlineData("public operator ++(a: S) -> S = a", "NYX1214 2:17")]
+    [InlineData("public operator true(a: S) -> bool = true", "NYX1214 2:17")]
+    [InlineData("public operator >>=(a: S, n: int) -> S = a", "NYX1214 2:17")]
+    [InlineData("public operator *(a: S) -> S = a", "NYX1215 2:18")]
+    [InlineData("public operator ~(a: S, b: S) -> S = a", "NYX1215 2:18")]
+    [InlineData("public operator -(a: S, b: S, c: S) -> S = a", "NYX1215 2:18")]
+    [InlineData("public operator as(a: S, b: S) -> int = 0", "NYX1215 2:19")]
+    [InlineData("public operator +(self, b: S) -> S = b", "NYX1216 2:19")]
+    [InlineData("public operator /(a: S, b: S) = a", "NYX1217 2:30")]
+    [InlineData("public operator %(a: S, b: S = 1) -> S = a", "NYX1203 2:30")]
+    [InlineData("public operator %(a: S, b: ref S) -> S = a", "NYX1203 2:28")]
+    [InlineData("public operator +(a: S, b: S) -> S", "NYX1101 2:35")]
+    [InlineData("public operator\nvar x: int = 0", "NYX1101 2:16")]
+    [InlineData("public operator (a: S) -> S = a", "NYX1101 2:17")]
+    public void OperatorErrors(string member, params string[] expected) => AssertFileErrors("struct S {\n" + member + "\n}\n", expected);
+
+    [Theory]
+    [InlineData("interface I {\n    public operator +(a: I, b: I) -> I\n}\n", "NYX1218 2:12")]
+    [InlineData("enum E {\n    case A\n    public operator +(a: E, b: E) -> E = a\n}\n", "NYX1218 3:12")]
+    [InlineData("extension Vector3 {\n    public operator as(v: Vector3) -> float = 0\n}\n", "NYX1218 2:12")]
+    [InlineData("public operator -(a: S) -> S = a\n", "NYX1113 1:1")]
+    [InlineData("struct S {\n    public override func Equals(self, obj: object?) -> bool = false\n}\n", "NYX1219 2:26")]
+    [InlineData("struct S {\n    func GetHashCode(self) -> int = 0\n}\n", "NYX1219 2:10")]
+    [InlineData("struct enum E {\n    case A(X: int)\n    func Equals(self, other: E) -> bool = true\n}\n", "NYX1219 3:10")]
+    [InlineData("class C {\n    public override func Equals(self, obj: object?) -> bool = false\n}\n")]
+    [InlineData("class C {\n    func CompareTo(self, other: C) -> int = 0\n    public operator <(a: C, b: C) -> bool = true\n}\n", "NYX1220 2:10")]
+    [InlineData("class C {\n    func CompareTo(self, other: C) -> int = 0\n}\n")]
+    public void OperatorPlacementAndGeneratedMembers(string source, params string[] expected) => AssertFileErrors(source, expected);
+
+    [Theory]
+    [InlineData("    public static Cell operator +(Cell a, Cell b) => a;", "NYX1221 2:19", "C# operator syntax; write 'public operator +(a: Cell, b: Cell) -> Cell'.")]
+    [InlineData("    public static Cell operator -(Cell a) { return a; }", "NYX1221 2:19", "C# operator syntax; write 'public operator -(a: Cell) -> Cell'.")]
+    [InlineData("    public static Bits operator >>(Bits a, int n) => a;", "NYX1221 2:19", "C# operator syntax; write 'public operator >>(a: Bits, n: int) -> Bits'.")]
+    [InlineData("    public static List<int> operator *(List<int> a, int k) => a;", "NYX1221 2:19", "C# operator syntax; write 'public operator *(name: Type, ...) -> List<int>'.")]
+    [InlineData("    public static bool operator ==(Cell a, Cell b) => true;", "NYX1212 2:33", "'==' can't be declared: '==' compares the contents of a struct or an enum and the reference of a class, and '!=' is its opposite.")]
+    [InlineData("    public static explicit operator float(Fixed f) => 0;", "NYX1222 2:19", "Write a conversion as 'public operator as(f: Fixed) -> float' and convert with 'value as float'.")]
+    [InlineData("    public static implicit operator Fixed(int v)\n    {\n        return default;\n    }", "NYX1222 2:19", "Write a conversion as 'public operator as(v: int) -> Fixed' and convert with 'value as Fixed'; Nyxel has no implicit conversions.")]
+    public void CSharpOperatorsSayHowToWriteThem(string member, string expected, string message)
+    {
+        var source = "struct Cell {\n" + member + "\n    var x: int = 0\n}\n";
+        Assert.Equal([expected], DiagnosticsOf(source));
+        Assert.Equal(message, SyntaxTree.Parse(source).Diagnostics.Single().Message);
+    }
+
+    [Fact]
+    public void OperatorParameterCountMessageShowsBothForms()
+    {
+        var diagnostic = SyntaxTree.Parse("struct S {\n    public operator -(a: S, b: S, c: S) -> S = a\n}\n").Diagnostics.Single();
+        Assert.Equal("'operator -' takes one parameter ('-x') or two ('a - b').", diagnostic.Message);
+    }
+
     [Theory]
     [InlineData("enum E {\n    func F(self) { }\n    case A\n}\n")]
     [InlineData("class C {\n    property self[i: int]: int = 0 { get }\n}\n")]

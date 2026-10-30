@@ -574,6 +574,27 @@ public class ParserTests
     [InlineData("property self[index: int]: T { get }", "(IndexerDeclaration property self (BracketedParameterList [ (Parameter index : int) ]) (TypeAnnotation : T) (AccessorList { (GetAccessorDeclaration get) }))")]
     public void Indexers(string member, string expected) => Assert.Equal(expected, Compact(ParseMember(member)));
 
+    // Operators and conversions (ADR-0030) -------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("public operator +(a: Cell, b: Cell) -> Cell = a", "(OperatorDeclaration public operator + (ParameterList ( (Parameter a : Cell) , (Parameter b : Cell) )) (ReturnTypeClause -> Cell) (ExpressionBody = a))")]
+    [InlineData("public operator -(a: Cell) -> Cell {\n    return a\n}", "(OperatorDeclaration public operator - (ParameterList ( (Parameter a : Cell) )) (ReturnTypeClause -> Cell) (Block { (ReturnStatement return a) }))")]
+    [InlineData("public operator >>(a: Bits, n: int) -> Bits = a", "(OperatorDeclaration public operator >> (ParameterList ( (Parameter a : Bits) , (Parameter n : int) )) (ReturnTypeClause -> Bits) (ExpressionBody = a))")]
+    [InlineData("public operator <(a: Fixed, b: Fixed) -> bool = a.raw < b.raw", "(OperatorDeclaration public operator < (ParameterList ( (Parameter a : Fixed) , (Parameter b : Fixed) )) (ReturnTypeClause -> bool) (ExpressionBody = (LessThanExpression (SimpleMemberAccessExpression a . raw) < (SimpleMemberAccessExpression b . raw))))")]
+    [InlineData("public operator *(m: in Matrix4x4, k: float) -> Matrix4x4 = m", "(OperatorDeclaration public operator * (ParameterList ( (Parameter m : in Matrix4x4) , (Parameter k : float) )) (ReturnTypeClause -> Matrix4x4) (ExpressionBody = m))")]
+    [InlineData("public operator as(value: Fixed) -> float = value.raw as float / 65536", "(ConversionOperatorDeclaration public operator as (ParameterList ( (Parameter value : Fixed) )) (ReturnTypeClause -> float) (ExpressionBody = (DivideExpression (AsExpression (SimpleMemberAccessExpression value . raw) as float) / 65536)))")]
+    public void Operators(string member, string expected) => Assert.Equal(expected, Compact(ParseMember(member)));
+
+    [Fact]
+    public void OperatorsInExtensions()
+    {
+        var extension = (ExtensionDeclarationSyntax)ParseClean("extension Vector3 {\n    public operator %(a: Vector3, b: float) -> Vector3 = a\n}\n").Root.Members[0];
+        Assert.Equal(SyntaxKind.OperatorDeclaration, extension.Members.Single().Kind);
+    }
+
+    [Fact]
+    public void OperatorIsAKeyword() => Assert.Equal(SyntaxKind.OperatorKeyword, SyntaxFacts.GetKeywordKind("operator"));
+
     [Fact]
     public void IndexersAreUsedWithSelfAndBrackets()
     {

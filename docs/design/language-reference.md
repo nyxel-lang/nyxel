@@ -358,7 +358,7 @@ let d = Slime.Distance(a, b)        // 静态函数通过类型名调用
 - 返回值必须写 `return`（ADR-0007）。
 - 命名实参写 `名字 = 值`，写不写由调用者决定，混用规则同 C#（ADR-0011）：`self.Spawn(kind = EnemyKind.Slime, count = 3)`。
 - 默认参数 `count: int = 1`，规则同 C#。
-- 自己声明的函数不能重载（同一类型里不能同名）；`override` / 实现 .NET 里本来就重载的方法除外。
+- 自己声明的函数不能重载（同一类型里不能同名）；`override` / 实现 .NET 里本来就重载的方法除外。运算符和转换按操作数类型可以写几个（ADR-0030）。
 - 函数体可以是块，也可以是 `= 表达式`（ADR-0012）：`public func IsDead(self) -> bool = self.hp <= 0`。赋值不能作为表达式体。
 
 ### out / ref 参数（ADR-0015）
@@ -410,7 +410,7 @@ let ground = self.Position.Flat()
 let dir = Vector3.FromAngle(radians = 0.5)
 ```
 
-- `extension 类型 { }` 写在文件顶层，给不是自己定义的类型（引擎、.NET）加方法和属性。块里的写法和类里一样：有 `self` 是实例方法，没有是静态函数；`static property` 是静态扩展属性。不能有字段和 `init`，暂时也不能有索引器（ADR-0029：C# 14 的 extension 块还不支持）。
+- `extension 类型 { }` 写在文件顶层，给不是自己定义的类型（引擎、.NET）加方法和属性。块里的写法和类里一样：有 `self` 是实例方法，没有是静态函数；`static property` 是静态扩展属性。不能有字段和 `init`，暂时也不能有索引器（ADR-0029：C# 14 的 extension 块还不支持）。可以写运算符，不能写转换（ADR-0030：C# 14 不支持）。
 - 可见性同类成员：默认私有（只在这个块里可见），`public` 才能在块外用。使用方 `import` 扩展所在的命名空间后可见。类型本身的成员优先于扩展。
 - 扩展只能访问类型的公开成员。
 - C# 那边：C# 14 的 `extension` 块，放在 `static partial class Vector3Extensions` 里。
@@ -927,6 +927,50 @@ self.combo += 1
 - 算术、比较、位运算、复合赋值、整数除法、隐式数值转换同 C#。`??=` 见“空值”；Nyxel 的 enum 只有 flags enum 能位运算，见“enum 的值与 flags”。
 - 赋值（包括 `+=` 等）是语句，不产生值：不能 `a = b = 0`，不能写在条件里（ADR-0011）。
 - 优先级从高到低（ADR-0019）：成员访问、调用、下标 → 一元（`-` `+` `~` `not` `await` `launch`）→ `as` → `*` `/` `%` → `+` `-` → `<<` `>>` → `..<` `...` → `<` `>` `<=` `>=` `is` → `==` `!=` → `&` → `^` → `|` → `and` → `or` → `??`。除了 `as`（ADR-0014）和区间，其余同 C#。`??` 从右往左结合，区间不结合，其余从左往右。
+- .NET 类型定义的运算符照 C# 用：`(a - b).Length()`、`matrix * other`。
+
+### 自己的类型定义运算符（ADR-0030）
+
+```nyxel
+public struct Cell {
+    public let X: int
+    public let Y: int
+    ...
+    public operator +(a: Cell, b: Cell) -> Cell = new Cell(x = a.X + b.X, y = a.Y + b.Y)
+    public operator *(a: Cell, k: int) -> Cell = new Cell(x = a.X * k, y = a.Y * k)
+    public operator *(k: int, a: Cell) -> Cell = a * k
+    public operator -(a: Cell) -> Cell = new Cell(x = -a.X, y = -a.Y)     // 一个参数：取负
+    public operator <(a: Cell, b: Cell) -> bool = a.Y < b.Y or (a.Y == b.Y and a.X < b.X)
+}
+
+let next = cell + dir * 2
+if next >= limit { ... }                // 由 < 生成
+```
+
+- `operator 运算符(参数) -> 返回类型`，体同函数（`= 表达式` 或块）。没有 `self`，两个操作数都是参数（静态的，同 C#）；参数至少一个是这个类型。
+- 必须写 `public`，不写别的修饰符（`static` 也不写）。
+- 能定义的：`+ - * / %`、`& | ^ << >>`，一元的 `-` `+` `~`，比较只有 `<`。参数个数：`~` 一个，`+` `-` 一个或两个，其余两个。
+- 比较只写 `<`：`a > b` 是 `b < a`，`a <= b` 是 `not (b < a)`，`a >= b` 是 `not (a < b)`，三个都由编译器生成；同时生成 `IComparable<T>`，`list.Sort()`、`Max()` 直接能用，不能再写 `CompareTo`。`<` 返回 bool，只适合任意两个值都能比出大小的类型。
+- 不能定义：`==` `!=`（见“相等”）、`>` `<=` `>=`、`and` `or` `not`（短路求值）、`??`、`is`、区间、复合赋值。`a += b` 用 `+`。
+- 同一个运算符可以按操作数类型写几个（上例的两个 `*`）。
+- 能写在 class、struct 和扩展里；enum 和接口里暂时不能写。参数不能有默认值，不能是 `out` / `ref`，可以是 `in`。
+- C# 那边是 `public static Cell operator +(Cell a, Cell b)`，`<` 生成全部四个比较运算符。C# 的写法是编译错误，诊断给出 Nyxel 的写法。
+- 待定：enum 和接口里的运算符；自定义复合赋值（C# 14 的 `operator +=`）。
+
+### 相等（ADR-0030）
+
+```nyxel
+if cell == goal { ... }                  // struct：X、Y 都相等就相等
+let walls = new HashSet<Cell>()          // 能当字典的键，不装箱
+if target == self.player { ... }         // class：是不是同一个对象
+```
+
+- class 比是不是同一个对象；struct、enum（ADR-0024）、元组比内容。`==` 和 `!=` 不能自己定义。
+- struct 的字段逐个用 .NET 的 `Equals` 比，同 C# 的 `record struct`：class 类型的字段比引用（两个内容一样的 `List` 不相等），float 字段两个 NaN 算相等。
+- 编译器给 struct 生成 `IEquatable<T>`、`Equals`、`GetHashCode`、`==`、`!=`，C# 那边也能用。struct 和 enum 不能自己写 `Equals`、`GetHashCode`；要别的比较方式就写普通方法。
+- class 可以照 C# 重写 `Equals` / `GetHashCode`（影响字典和 `Contains`），`==` 仍然比引用。
+- 和 `null` 比较见“空值”。
+- 待定：struct 自定义相等。
 
 ## 类型检查与收窄（ADR-0010、ADR-0024）
 
@@ -957,11 +1001,30 @@ let code = Element.Fire as int                   // 枚举和整数互转
 let p = other as Projectile                      // 错误：可能失败，用 if other is Projectile
 ```
 
-- `as` 是转换，不是类型检查，不会因为“类型不对”而失败。允许：数字之间、枚举和整数之间、子类转父类或接口、C# 类型定义的显式转换运算符。
+- `as` 是转换，不是类型检查，不会因为“类型不对”而失败。允许：数字之间、枚举和整数之间、子类转父类或接口、C# 类型定义的显式转换运算符、Nyxel 类型用 `operator as` 声明的转换（ADR-0030）。
 - 可能失败的向下转换写 `as` 是编译错误，用 `is` 收窄。
 - 语义同 C# 的强制转换：向零截断，不检查溢出，常量超出范围是编译错误。整数转成 enum 也不检查：`5 as Element` 可能不是任何 case，列全了 case 的 `match` 遇到它时抛异常，同 C# 的 switch 表达式（ADR-0024）。
 - 优先级比 `*` `/` 高，比一元运算符和成员访问低。
 - 没有 C# 的 `(int)x` 写法。
+- C# 类型定义的隐式转换同 C#，在需要时自动发生（ADR-0030）：参数是 `ReadOnlySpan<char>` 的 .NET 方法直接传 string。Nyxel 自己不能定义隐式转换。
+
+### 自己的类型定义转换（ADR-0030）
+
+```nyxel
+public struct Fixed {
+    let raw: int
+    ...
+    public operator as(value: int) -> Fixed = new Fixed.FromRaw(value << 16)
+    public operator as(value: Fixed) -> float = value.raw as float / 65536
+}
+
+let speed = 3 as Fixed
+let shown = speed as float
+```
+
+- `operator as(值: 源类型) -> 目标类型`，用 `值 as 目标类型` 调用。用于同一个量换一种表示，创建新东西照样 `new`。
+- 规则同运算符：必须 `public`，可以按源类型写几个。源和目标有一个是这个类型，不能转成自己的基类或接口；扩展里不能写（C# 14 不支持）。
+- C# 那边是 `explicit operator`，C# 代码写 `(float)speed`。
 
 ## 错误处理（ADR-0014）
 

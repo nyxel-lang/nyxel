@@ -251,6 +251,39 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor EnumInterface =
         Error("NYX1209", "An enum without data is a C# enum, which can't implement interfaces; write 'struct enum' to implement '{0}'.");
 
+    public static readonly DiagnosticDescriptor OperatorNotPublic =
+        Error("NYX1210", "Write 'public operator {0}': an operator is always public, and a member without 'public' reads as private.");
+
+    public static readonly DiagnosticDescriptor OperatorModifier =
+        Error("NYX1211", "An operator can't be '{0}'{1}.");
+
+    public static readonly DiagnosticDescriptor EqualityOperatorDeclaration =
+        Error("NYX1212", "'{0}' can't be declared: '==' compares the contents of a struct or an enum and the reference of a class, and '!=' is its opposite.");
+
+    public static readonly DiagnosticDescriptor DerivedComparisonOperator =
+        Error("NYX1213", "Declare only 'operator <'; '>', '<=' and '>=' are generated from it.");
+
+    public static readonly DiagnosticDescriptor OperatorNotDeclarable =
+        Error("NYX1214", "'{0}' can't be declared as an operator; the operators are + - * / % & | ^ ~ << >> and <, and 'as' for a conversion.");
+
+    public static readonly DiagnosticDescriptor OperatorParameterCount =
+        Error("NYX1215", "'operator {0}' takes {1}.");
+
+    public static readonly DiagnosticDescriptor OperatorSelf =
+        Error("NYX1216", "An operator has no 'self'; its operands are all parameters, as in 'operator +(a: Cell, b: Cell)'.");
+
+    public static readonly DiagnosticDescriptor OperatorReturnType =
+        Error("NYX1217", "An operator returns a value; write its type after the parameters, as in 'operator {0}(...) -> Type'.");
+
+    public static readonly DiagnosticDescriptor OperatorPlacement =
+        Error("NYX1218", "{0} can't be declared in {1}.");
+
+    public static readonly DiagnosticDescriptor GeneratedEqualityMember =
+        Error("NYX1219", "A {0} can't declare '{1}': its 'Equals' and 'GetHashCode' are generated and compare the contents.");
+
+    public static readonly DiagnosticDescriptor GeneratedCompareTo =
+        Error("NYX1220", "'CompareTo' is generated from 'operator <'; remove this 'CompareTo' or the operator.");
+
     // Habits from C# and other languages, each with the Nyxel way to write it.
 
     public static readonly DiagnosticDescriptor SymbolicLogicalOperator =
@@ -339,6 +372,12 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor EventAccessors =
         Error("NYX1204", "Events have no 'add' / 'remove' accessors; to forward another object's event, subscribe to it and 'emit' this one from the handler.");
+
+    public static readonly DiagnosticDescriptor CSharpOperatorSyntax =
+        Error("NYX1221", "C# operator syntax; write 'public operator {0}({1}) -> {2}'.");
+
+    public static readonly DiagnosticDescriptor CSharpConversionSyntax =
+        Error("NYX1222", "Write a conversion as 'public operator as({0}) -> {1}' and convert with 'value as {1}'{2}.");
 
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);

@@ -11,6 +11,7 @@ internal sealed partial class Parser
         Type,
         Extension,
         Enum,
+        Interface,
     }
 
     private enum ParameterContext
@@ -20,6 +21,7 @@ internal sealed partial class Parser
         EnumCase,
         Event,
         Indexer,
+        Operator,
     }
 
     // File structure (ADR-0012): namespace, imports, declarations, in this order. Misplaced namespaces and imports
@@ -123,6 +125,10 @@ internal sealed partial class Parser
         {
             Report(DiagnosticDescriptors.PrivateMember, privateKeyword.Span);
         }
+        if (!(modifiers.Count > 0 && AtLineBreak) && TrySkipCSharpOperator(modifiers))
+        {
+            return null;
+        }
         MemberDeclarationSyntax? member = Current.Kind switch
         {
             _ when modifiers.Count > 0 && AtLineBreak => null,
@@ -134,6 +140,7 @@ internal sealed partial class Parser
             SyntaxKind.InitKeyword => ParseInitDeclaration(modifiers),
             SyntaxKind.PropertyKeyword => ParsePropertyDeclaration(modifiers),
             SyntaxKind.EventKeyword => ParseEventDeclaration(modifiers),
+            SyntaxKind.OperatorKeyword => ParseOperatorDeclaration(modifiers, context),
             _ => null,
         };
 
@@ -159,6 +166,7 @@ internal sealed partial class Parser
                 SyntaxKind.InitDeclaration => "init",
                 SyntaxKind.PropertyDeclaration => "property",
                 SyntaxKind.IndexerDeclaration => "indexer",
+                SyntaxKind.OperatorDeclaration or SyntaxKind.ConversionOperatorDeclaration => "operator",
                 _ => "event",
             };
             Report(DiagnosticDescriptors.TopLevelMember, first.Span, what);
@@ -243,7 +251,11 @@ internal sealed partial class Parser
         var identifier = ExpectIdentifier();
         var typeParameters = At(SyntaxKind.LessThanToken) ? ParseTypeParameterList() : null;
         var baseList = At(SyntaxKind.ColonToken) ? ParseBaseList() : null;
-        var (open, members, close) = ParseMemberBody(MemberContext.Type);
+        var (open, members, close) = ParseMemberBody(kind == SyntaxKind.InterfaceDeclaration ? MemberContext.Interface : MemberContext.Type);
+        if (kind != SyntaxKind.InterfaceDeclaration)
+        {
+            CheckGeneratedMembers(keyword.Text, members);
+        }
         return new TypeDeclarationSyntax(kind, modifiers, keyword, identifier, typeParameters, baseList, open, members, close);
     }
 
@@ -349,6 +361,7 @@ internal sealed partial class Parser
         var declaration = new EnumDeclarationSyntax(
             modifiers, kindKeyword, keyword, identifier, baseList, open, MakeList(cases), MakeList(members), close);
         CheckEnum(declaration);
+        CheckGeneratedMembers("enum", declaration.Members);
         return declaration;
     }
 
@@ -653,7 +666,11 @@ internal sealed partial class Parser
         {
             var varKeyword = TryEat(SyntaxKind.VarKeyword);
             var self = NextToken();
-            if (context != ParameterContext.Function)
+            if (context == ParameterContext.Operator)
+            {
+                Report(DiagnosticDescriptors.OperatorSelf, self.Span);
+            }
+            else if (context != ParameterContext.Function)
             {
                 Report(DiagnosticDescriptors.UnexpectedToken, self.Span, "'self'");
             }
@@ -698,13 +715,14 @@ internal sealed partial class Parser
         {
             ParameterContext.Event => "event",
             ParameterContext.Indexer => "indexer",
+            ParameterContext.Operator => "operator",
             _ => null,
         };
         if (owner != null && @default != null)
         {
             Report(DiagnosticDescriptors.ParameterNotAllowed, @default.Span, owner, "have a default value");
         }
-        if (context == ParameterContext.Indexer && refKind?.Kind is SyntaxKind.OutKeyword or SyntaxKind.RefKeyword)
+        if (context is ParameterContext.Indexer or ParameterContext.Operator && refKind?.Kind is SyntaxKind.OutKeyword or SyntaxKind.RefKeyword)
         {
             Report(DiagnosticDescriptors.ParameterNotAllowed, refKind.Span, owner!, "be 'out' or 'ref'");
         }

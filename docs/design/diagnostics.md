@@ -106,12 +106,23 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1199` | `with (...)` 里的一项没写成员名 | `new Spin() with (2)` 写成 `with (Speed = 2)` |
 | `NYX1201` | 索引器没有参数（ADR-0029） | `property self[]: int` |
 | `NYX1202` | 索引器写了初始值、`static`，或写在扩展里（C# 14 的 extension 块不支持） | `property self[i: int]: int = 0 { get }`、`static property self[...]` |
-| `NYX1203` | 事件或索引器的参数写了默认值，索引器的参数是 `out` / `ref` | `event Died(slime: Slime = null)`、`property self[i: out int]` |
+| `NYX1203` | 事件、索引器或运算符的参数写了默认值，索引器或运算符的参数是 `out` / `ref` | `event Died(slime: Slime = null)`、`property self[i: out int]`、`operator %(a: S, b: S = 1)` |
 | `NYX1205` | enum 的 case 写在成员后面（ADR-0029：先写全部 case） | `func F(self) { }` 之后的 `case A` |
 | `NYX1206` | enum 里写了字段、`init`、事件、索引器或自动属性 | case 后面的 `var x: int = 0` |
 | `NYX1207` | enum 的成员写了 `protected`、`virtual`、`abstract`、`sealed`、`override` | `public override func ToString(self)` |
 | `NYX1208` | enum 的函数写了 `var self` | `func F(var self)` 写成 `func F(self)` |
 | `NYX1209` | 不带数据的 `enum` 写了接口（C# 的 enum 不能实现接口） | `enum E : IFoo { case A }` 写成 `struct enum E : IFoo` |
+| `NYX1210` | 运算符没写 `public`（ADR-0030：运算符总是公开的，不写读起来像私有） | `operator +(a: S, b: S) -> S` 写成 `public operator +` |
+| `NYX1211` | 运算符写了 `public` 以外的修饰符；`static` 的消息说明它没有 `self`，本来就是静态的 | `public static operator -(a: S) -> S` |
+| `NYX1212` | 声明 `==` 或 `!=`（ADR-0030：struct 和 enum 比内容，class 比引用） | `public operator ==(a: S, b: S) -> bool` |
+| `NYX1213` | 声明 `>`、`<=` 或 `>=`（ADR-0030：只写 `<`，另外三个由它生成） | `public operator >=(a: S, b: S) -> bool` |
+| `NYX1214` | 声明不能定义的运算符：`and`、`or`、`not`、`??`、`is`、区间、复合赋值、`++` 等 | `public operator and(a: S, b: S) -> S` |
+| `NYX1215` | 运算符的参数个数不对：`~` 和转换一个，`+` `-` 一个或两个，其余两个 | `public operator *(a: S) -> S` |
+| `NYX1216` | 运算符写了 `self`（ADR-0030：没有 `self`，操作数都是参数） | `public operator +(self, b: S) -> S` |
+| `NYX1217` | 运算符没写返回类型 | `public operator /(a: S, b: S) = a` |
+| `NYX1218` | 运算符写在接口或 enum 里，转换写在扩展里（C# 14 的 extension 块不支持转换） | `interface I { public operator +(...) }`、`extension V { public operator as(...) }` |
+| `NYX1219` | struct 或 enum 声明 `Equals`、`GetHashCode`（ADR-0030：编译器生成，比内容） | `public override func Equals(self, obj: object?) -> bool` |
+| `NYX1220` | 声明了 `operator <` 的类型又写 `CompareTo`（ADR-0030：`CompareTo` 由 `<` 生成） | `func CompareTo(self, other: S) -> int` |
 
 ### 其他语言的写法
 
@@ -150,7 +161,9 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1193` | `match` 的默认分支写 `else`（Kotlin） | `case _ -> ...`（ADR-0026） |
 | `NYX1200` | `super.init(...)`、`self.init(...)`（Swift，也是 ADR-0013 的旧写法），包括 `super.init.Name(...)` | `init super(...)`、`init self(...)`、`init super.Name(...)`（ADR-0027） |
 | `NYX1204` | 事件的访问器 `event Clicked() { add(h) { ... } remove(h) { ... } }`，整个 `{ }` 跳过 | 订阅要转发的事件，在处理函数里 `emit` 自己的事件（ADR-0029） |
+| `NYX1221` | C# 的运算符 `public static Cell operator +(Cell a, Cell b) => ...`，整个声明跳过；`==` 这类不能声明的报 `NYX1212`–`NYX1214` | `public operator +(a: Cell, b: Cell) -> Cell = ...`（ADR-0030），消息按原来的参数和返回类型写出 |
+| `NYX1222` | C# 的转换 `public static explicit operator float(Fixed f)`、`implicit operator`，整个声明跳过 | `public operator as(f: Fixed) -> float = ...`，用 `x as float` 转换；`implicit` 的消息说明 Nyxel 没有隐式转换（ADR-0030） |
 
 ## 不在语法阶段报的
 
-语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。
+语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）、运算符的参数至少一个是所在的类型、转换的源和目标有一个是所在的类型且不是基类或接口、`<` 返回 bool、同一个运算符按操作数类型有没有重复（ADR-0030）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。

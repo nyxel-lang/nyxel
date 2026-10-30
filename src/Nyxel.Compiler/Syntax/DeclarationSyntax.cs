@@ -508,6 +508,52 @@ public sealed class EventDeclarationSyntax : MemberDeclarationSyntax
     public override IEnumerable<SyntaxNode> GetChildren() => Children(Modifiers, EventKeyword, Identifier, ParameterList);
 }
 
+/// <summary>
+/// <c>public operator +(a: Cell, b: Cell) -&gt; Cell = ...</c>, or a conversion <c>public operator as(value: int) -&gt;
+/// Fixed = ...</c> (<see cref="SyntaxKind.ConversionOperatorDeclaration"/>) (ADR-0030). It has no <c>self</c>, so it
+/// is static. The operator token is kept even when it can't be declared (<c>==</c>), and is missing when none was
+/// written.
+/// </summary>
+public sealed class OperatorDeclarationSyntax : MemberDeclarationSyntax
+{
+    internal OperatorDeclarationSyntax(
+        SyntaxKind kind,
+        SyntaxList<SyntaxToken> modifiers,
+        SyntaxToken operatorKeyword,
+        SyntaxToken operatorToken,
+        ParameterListSyntax parameterList,
+        ReturnTypeClauseSyntax? returnType,
+        BlockSyntax? body,
+        ExpressionBodySyntax? expressionBody)
+        : base(kind, modifiers)
+    {
+        OperatorKeyword = operatorKeyword;
+        OperatorToken = operatorToken;
+        ParameterList = parameterList;
+        ReturnType = returnType;
+        Body = body;
+        ExpressionBody = expressionBody;
+        AdoptChildren();
+    }
+
+    public SyntaxToken OperatorKeyword { get; }
+
+    /// <summary>The operator declared: <c>+</c>, <c>&lt;</c>, ..., or <c>as</c> for a conversion.</summary>
+    public SyntaxToken OperatorToken { get; }
+
+    public ParameterListSyntax ParameterList { get; }
+
+    /// <summary>Required; null only when it is missing, which the parser reports.</summary>
+    public ReturnTypeClauseSyntax? ReturnType { get; }
+
+    public BlockSyntax? Body { get; }
+
+    public ExpressionBodySyntax? ExpressionBody { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() =>
+        Children(Modifiers, OperatorKeyword, OperatorToken, ParameterList, ReturnType, Body, ExpressionBody);
+}
+
 /// <summary><c>: Behaviour, IDamageable</c>.</summary>
 public sealed class BaseListSyntax : SyntaxNode
 {

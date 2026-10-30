@@ -13,6 +13,7 @@ public static class SyntaxFacts
         ["init"] = SyntaxKind.InitKeyword,
         ["property"] = SyntaxKind.PropertyKeyword,
         ["event"] = SyntaxKind.EventKeyword,
+        ["operator"] = SyntaxKind.OperatorKeyword,
         ["class"] = SyntaxKind.ClassKeyword,
         ["struct"] = SyntaxKind.StructKeyword,
         ["interface"] = SyntaxKind.InterfaceKeyword,

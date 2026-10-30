@@ -323,7 +323,7 @@ internal sealed partial class Parser
         or SyntaxKind.WhileKeyword or SyntaxKind.ForKeyword or SyntaxKind.ReturnKeyword or SyntaxKind.GiveKeyword
         or SyntaxKind.ThrowKeyword or SyntaxKind.BreakKeyword or SyntaxKind.ContinueKeyword or SyntaxKind.EmitKeyword
         or SyntaxKind.UsingKeyword or SyntaxKind.FuncKeyword or SyntaxKind.PropertyKeyword or SyntaxKind.InitKeyword
-        or SyntaxKind.EventKeyword or SyntaxKind.ClassKeyword or SyntaxKind.StructKeyword or SyntaxKind.EnumKeyword
+        or SyntaxKind.EventKeyword or SyntaxKind.OperatorKeyword or SyntaxKind.ClassKeyword or SyntaxKind.StructKeyword or SyntaxKind.EnumKeyword
         or SyntaxKind.InterfaceKeyword or SyntaxKind.ExtensionKeyword or SyntaxKind.PublicKeyword
         or SyntaxKind.ProtectedKeyword or SyntaxKind.PrivateKeyword or SyntaxKind.StaticKeyword
         or SyntaxKind.OverrideKeyword or SyntaxKind.CaseKeyword;
