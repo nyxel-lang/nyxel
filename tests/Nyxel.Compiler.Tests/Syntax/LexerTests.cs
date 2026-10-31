@@ -264,6 +264,27 @@ public class LexerTests
     [InlineData("$\"a } b\"", "NYX1012 1:5")]
     public void BrokenInterpolatedStrings(string text, string expected) => Assert.Equal([expected], LexDiagnostics(text));
 
+    // ADR-0035: a hole closes on its own line. One that C# 11 would read on to a later line is one error, and the
+    // code after it is read as usual.
+    [Theory]
+    [InlineData("let s = $\"a {x\n    + 1} b\"", "NYX1234 3:13")]
+    [InlineData("let s = $\"a {self.enemies\n    .Where(func(e) = e.IsDead)   // dead\n    .Count()} b\"", "NYX1234 3:13")]
+    [InlineData("let s = $\"a {F(x,\n    y)} b {z}\"", "NYX1234 3:13")]
+    [InlineData("let s = $\"a {x\n}\"", "NYX1234 3:13")]
+    [InlineData("let s = $\"\"\"a {x\n    + 1} b\"\"\"", "NYX1234 3:15")]
+    // Not closed later either: the '}' found has no end of the string after it.
+    [InlineData("let s = $\"a {x", "NYX1011 3:13")]
+    [InlineData("let s = $\"a {x\nLog.Info(\"done\")", "NYX1011 3:13")]
+    [InlineData("if a {\n    let s = $\"a {x\n} else {\n    Log.Info(\"b\")\n}", "NYX1011 4:17")]
+    public void HoleThatGoesOnToALaterLine(string statements, string expected)
+    {
+        var text = InMethod(statements + "\nlet t = 1");
+        var tree = SyntaxTree.Parse(text);
+        Assert.Equal([expected], tree.Diagnostics.Select(Format));
+        Assert.Equal(text, tree.Root.ToFullString());
+        Assert.IsType<LocalDeclarationStatementSyntax>(Body(tree).Statements[^1]);
+    }
+
     [Fact]
     public void LineBreaksAreLeadingTriviaAndFlagTheNextToken()
     {

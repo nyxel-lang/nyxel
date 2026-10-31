@@ -1,4 +1,4 @@
-CompilationUnit 1:1-122:1
+CompilationUnit 1:1-131:1
   NamespaceDeclaration 1:1-1:25
     NamespaceKeyword "namespace"
     QualifiedName 1:11-1:25
@@ -7,1305 +7,1309 @@ CompilationUnit 1:1-122:1
       DotToken "."
       IdentifierName 1:19-1:25
         IdentifierToken "Common"
-  ImportDirective 3:1-3:34
+  ImportDirective 3:1-3:14
     ImportKeyword "import"
-    QualifiedName 3:8-3:34
-      QualifiedName 3:8-3:26
-        IdentifierName 3:8-3:14
+    IdentifierName 3:8-3:14
+      IdentifierToken "System"
+  ImportDirective 4:1-4:34
+    ImportKeyword "import"
+    QualifiedName 4:8-4:34
+      QualifiedName 4:8-4:26
+        IdentifierName 4:8-4:14
           IdentifierToken "System"
         DotToken "."
-        IdentifierName 3:15-3:26
+        IdentifierName 4:15-4:26
           IdentifierToken "Collections"
       DotToken "."
-      IdentifierName 3:27-3:34
+      IdentifierName 4:27-4:34
         IdentifierToken "Generic"
-  ImportDirective 4:1-4:19
+  ImportDirective 5:1-5:19
     ImportKeyword "import"
-    QualifiedName 4:8-4:19
-      IdentifierName 4:8-4:14
+    QualifiedName 5:8-5:19
+      IdentifierName 5:8-5:14
         IdentifierToken "System"
       DotToken "."
-      IdentifierName 4:15-4:19
+      IdentifierName 5:15-5:19
         IdentifierToken "Text"
-  ImportDirective 5:1-5:14
+  ImportDirective 6:1-6:14
     ImportKeyword "import"
-    IdentifierName 5:8-5:14
+    IdentifierName 6:8-6:14
       IdentifierToken "Engine"
-  EnumDeclaration 7:1-10:2
+  EnumDeclaration 8:1-11:2
     PublicKeyword "public"
     EnumKeyword "enum"
     IdentifierToken "Tile"
-    BaseList 7:18-7:24
+    BaseList 8:18-8:24
       ColonToken ":"
-      PredefinedType 7:20-7:24
+      PredefinedType 8:20-8:24
         ByteKeyword "byte"
     OpenBraceToken "{"
-    EnumCaseDeclaration 8:5-8:15
+    EnumCaseDeclaration 9:5-9:15
       CaseKeyword "case"
       IdentifierToken "Floor"
-    EnumCaseDeclaration 9:5-9:14
+    EnumCaseDeclaration 10:5-10:14
       CaseKeyword "case"
       IdentifierToken "Wall"
     CloseBraceToken "}"
-  ClassDeclaration 13:1-121:2
+  ClassDeclaration 14:1-130:2
     PublicKeyword "public"
     ClassKeyword "class"
     IdentifierToken "TileMap"
     OpenBraceToken "{"
-    FieldDeclaration 14:5-14:87
+    FieldDeclaration 15:5-15:87
       StaticKeyword "static"
       LetKeyword "let"
       IdentifierToken "Neighbors"
-      TypeAnnotation 14:25-14:50
+      TypeAnnotation 15:25-15:50
         ColonToken ":"
-        ArrayType 14:27-14:50
+        ArrayType 15:27-15:50
           ArrayKeyword "array"
           LessThanToken "<"
-          TupleType 14:33-14:49
+          TupleType 15:33-15:49
             OpenParenToken "("
-            TupleElement 14:34-14:40
+            TupleElement 15:34-15:40
               IdentifierToken "X"
               ColonToken ":"
-              PredefinedType 14:37-14:40
+              PredefinedType 15:37-15:40
                 IntKeyword "int"
             CommaToken ","
-            TupleElement 14:42-14:48
+            TupleElement 15:42-15:48
               IdentifierToken "Y"
               ColonToken ":"
-              PredefinedType 14:45-14:48
+              PredefinedType 15:45-15:48
                 IntKeyword "int"
             CloseParenToken ")"
           GreaterThanToken ">"
-      EqualsValueClause 14:51-14:87
+      EqualsValueClause 15:51-15:87
         EqualsToken "="
-        CollectionExpression 14:53-14:87
+        CollectionExpression 15:53-15:87
           OpenBracketToken "["
-          TupleExpression 14:54-14:61
+          TupleExpression 15:54-15:61
             OpenParenToken "("
-            Argument 14:55-14:56
-              NumericLiteralExpression 14:55-14:56
+            Argument 15:55-15:56
+              NumericLiteralExpression 15:55-15:56
                 NumericLiteralToken "0"
             CommaToken ","
-            Argument 14:58-14:60
-              UnaryMinusExpression 14:58-14:60
+            Argument 15:58-15:60
+              UnaryMinusExpression 15:58-15:60
                 MinusToken "-"
-                NumericLiteralExpression 14:59-14:60
+                NumericLiteralExpression 15:59-15:60
                   NumericLiteralToken "1"
             CloseParenToken ")"
           CommaToken ","
-          TupleExpression 14:63-14:69
+          TupleExpression 15:63-15:69
             OpenParenToken "("
-            Argument 14:64-14:65
-              NumericLiteralExpression 14:64-14:65
+            Argument 15:64-15:65
+              NumericLiteralExpression 15:64-15:65
                 NumericLiteralToken "1"
             CommaToken ","
-            Argument 14:67-14:68
-              NumericLiteralExpression 14:67-14:68
+            Argument 15:67-15:68
+              NumericLiteralExpression 15:67-15:68
                 NumericLiteralToken "0"
             CloseParenToken ")"
           CommaToken ","
-          TupleExpression 14:71-14:77
+          TupleExpression 15:71-15:77
             OpenParenToken "("
-            Argument 14:72-14:73
-              NumericLiteralExpression 14:72-14:73
+            Argument 15:72-15:73
+              NumericLiteralExpression 15:72-15:73
                 NumericLiteralToken "0"
             CommaToken ","
-            Argument 14:75-14:76
-              NumericLiteralExpression 14:75-14:76
+            Argument 15:75-15:76
+              NumericLiteralExpression 15:75-15:76
                 NumericLiteralToken "1"
             CloseParenToken ")"
           CommaToken ","
-          TupleExpression 14:79-14:86
+          TupleExpression 15:79-15:86
             OpenParenToken "("
-            Argument 14:80-14:82
-              UnaryMinusExpression 14:80-14:82
+            Argument 15:80-15:82
+              UnaryMinusExpression 15:80-15:82
                 MinusToken "-"
-                NumericLiteralExpression 14:81-14:82
+                NumericLiteralExpression 15:81-15:82
                   NumericLiteralToken "1"
             CommaToken ","
-            Argument 14:84-14:85
-              NumericLiteralExpression 14:84-14:85
+            Argument 15:84-15:85
+              NumericLiteralExpression 15:84-15:85
                 NumericLiteralToken "0"
             CloseParenToken ")"
           CloseBracketToken "]"
-    FieldDeclaration 16:5-16:28
+    FieldDeclaration 17:5-17:28
       PublicKeyword "public"
       LetKeyword "let"
       IdentifierToken "Name"
-      TypeAnnotation 16:20-16:28
+      TypeAnnotation 17:20-17:28
         ColonToken ":"
-        PredefinedType 16:22-16:28
+        PredefinedType 17:22-17:28
           StringKeyword "string"
-    FieldDeclaration 17:5-17:29
+    FieldDeclaration 18:5-18:29
       LetKeyword "let"
       IdentifierToken "tiles"
-      TypeAnnotation 17:14-17:29
+      TypeAnnotation 18:14-18:29
         ColonToken ":"
-        ArrayType 17:16-17:29
+        ArrayType 18:16-18:29
           Array2DKeyword "array2d"
           LessThanToken "<"
-          IdentifierName 17:24-17:28
+          IdentifierName 18:24-18:28
             IdentifierToken "Tile"
           GreaterThanToken ">"
-    FieldDeclaration 18:5-18:43
+    FieldDeclaration 19:5-19:43
       LetKeyword "let"
       IdentifierToken "coins"
-      TypeAnnotation 18:14-18:38
+      TypeAnnotation 19:14-19:38
         ColonToken ":"
-        GenericName 18:16-18:38
+        GenericName 19:16-19:38
           IdentifierToken "List"
-          TypeArgumentList 18:20-18:38
+          TypeArgumentList 19:20-19:38
             LessThanToken "<"
-            TupleType 18:21-18:37
+            TupleType 19:21-19:37
               OpenParenToken "("
-              TupleElement 18:22-18:28
+              TupleElement 19:22-19:28
                 IdentifierToken "X"
                 ColonToken ":"
-                PredefinedType 18:25-18:28
+                PredefinedType 19:25-19:28
                   IntKeyword "int"
               CommaToken ","
-              TupleElement 18:30-18:36
+              TupleElement 19:30-19:36
                 IdentifierToken "Y"
                 ColonToken ":"
-                PredefinedType 18:33-18:36
+                PredefinedType 19:33-19:36
                   IntKeyword "int"
               CloseParenToken ")"
             GreaterThanToken ">"
-      EqualsValueClause 18:39-18:43
+      EqualsValueClause 19:39-19:43
         EqualsToken "="
-        CollectionExpression 18:41-18:43
+        CollectionExpression 19:41-19:43
           OpenBracketToken "["
           CloseBracketToken "]"
-    InitDeclaration 20:5-23:6
+    InitDeclaration 21:5-24:6
       InitKeyword "init"
-      ParameterList 20:9-20:48
+      ParameterList 21:9-21:48
         OpenParenToken "("
-        Parameter 20:10-20:22
+        Parameter 21:10-21:22
           IdentifierToken "name"
           ColonToken ":"
-          PredefinedType 20:16-20:22
+          PredefinedType 21:16-21:22
             StringKeyword "string"
         CommaToken ","
-        Parameter 20:24-20:34
+        Parameter 21:24-21:34
           IdentifierToken "width"
           ColonToken ":"
-          PredefinedType 20:31-20:34
+          PredefinedType 21:31-21:34
             IntKeyword "int"
         CommaToken ","
-        Parameter 20:36-20:47
+        Parameter 21:36-21:47
           IdentifierToken "height"
           ColonToken ":"
-          PredefinedType 20:44-20:47
+          PredefinedType 21:44-21:47
             IntKeyword "int"
         CloseParenToken ")"
-      Block 20:49-23:6
+      Block 21:49-24:6
         OpenBraceToken "{"
-        AssignmentStatement 21:9-21:25
-          SimpleMemberAccessExpression 21:9-21:18
-            SelfExpression 21:9-21:13
-              SelfKeyword "self"
-            DotToken "."
-            IdentifierName 21:14-21:18
-              IdentifierToken "Name"
-          EqualsToken "="
-          IdentifierName 21:21-21:25
-            IdentifierToken "name"
-        AssignmentStatement 22:9-22:54
-          SimpleMemberAccessExpression 22:9-22:19
+        AssignmentStatement 22:9-22:25
+          SimpleMemberAccessExpression 22:9-22:18
             SelfExpression 22:9-22:13
               SelfKeyword "self"
             DotToken "."
-            IdentifierName 22:14-22:19
+            IdentifierName 22:14-22:18
+              IdentifierToken "Name"
+          EqualsToken "="
+          IdentifierName 22:21-22:25
+            IdentifierToken "name"
+        AssignmentStatement 23:9-23:54
+          SimpleMemberAccessExpression 23:9-23:19
+            SelfExpression 23:9-23:13
+              SelfKeyword "self"
+            DotToken "."
+            IdentifierName 23:14-23:19
               IdentifierToken "tiles"
           EqualsToken "="
-          ObjectCreationExpression 22:22-22:54
+          ObjectCreationExpression 23:22-23:54
             NewKeyword "new"
-            ArrayType 22:26-22:39
+            ArrayType 23:26-23:39
               Array2DKeyword "array2d"
               LessThanToken "<"
-              IdentifierName 22:34-22:38
+              IdentifierName 23:34-23:38
                 IdentifierToken "Tile"
               GreaterThanToken ">"
-            ArgumentList 22:39-22:54
+            ArgumentList 23:39-23:54
               OpenParenToken "("
-              Argument 22:40-22:45
-                IdentifierName 22:40-22:45
+              Argument 23:40-23:45
+                IdentifierName 23:40-23:45
                   IdentifierToken "width"
               CommaToken ","
-              Argument 22:47-22:53
-                IdentifierName 22:47-22:53
+              Argument 23:47-23:53
+                IdentifierName 23:47-23:53
                   IdentifierToken "height"
               CloseParenToken ")"
         CloseBraceToken "}"
-    PropertyDeclaration 25:5-27:6
+    PropertyDeclaration 26:5-28:6
       PublicKeyword "public"
       PropertyKeyword "property"
       IdentifierToken "Width"
-      TypeAnnotation 25:26-25:31
+      TypeAnnotation 26:26-26:31
         ColonToken ":"
-        PredefinedType 25:28-25:31
+        PredefinedType 26:28-26:31
           IntKeyword "int"
-      AccessorList 25:32-27:6
+      AccessorList 26:32-28:6
         OpenBraceToken "{"
-        GetAccessorDeclaration 26:9-26:47
+        GetAccessorDeclaration 27:9-27:47
           IdentifierToken "get"
-          Block 26:13-26:47
+          Block 27:13-27:47
             OpenBraceToken "{"
-            ReturnStatement 26:15-26:45
+            ReturnStatement 27:15-27:45
               ReturnKeyword "return"
-              InvocationExpression 26:22-26:45
-                SimpleMemberAccessExpression 26:22-26:42
-                  SimpleMemberAccessExpression 26:22-26:32
-                    SelfExpression 26:22-26:26
+              InvocationExpression 27:22-27:45
+                SimpleMemberAccessExpression 27:22-27:42
+                  SimpleMemberAccessExpression 27:22-27:32
+                    SelfExpression 27:22-27:26
                       SelfKeyword "self"
                     DotToken "."
-                    IdentifierName 26:27-26:32
+                    IdentifierName 27:27-27:32
                       IdentifierToken "tiles"
                   DotToken "."
-                  IdentifierName 26:33-26:42
+                  IdentifierName 27:33-27:42
                     IdentifierToken "GetLength"
-                ArgumentList 26:42-26:45
+                ArgumentList 27:42-27:45
                   OpenParenToken "("
-                  Argument 26:43-26:44
-                    NumericLiteralExpression 26:43-26:44
+                  Argument 27:43-27:44
+                    NumericLiteralExpression 27:43-27:44
                       NumericLiteralToken "0"
                   CloseParenToken ")"
             CloseBraceToken "}"
         CloseBraceToken "}"
-    PropertyDeclaration 29:5-31:6
+    PropertyDeclaration 30:5-32:6
       PublicKeyword "public"
       PropertyKeyword "property"
       IdentifierToken "Height"
-      TypeAnnotation 29:27-29:32
+      TypeAnnotation 30:27-30:32
         ColonToken ":"
-        PredefinedType 29:29-29:32
+        PredefinedType 30:29-30:32
           IntKeyword "int"
-      AccessorList 29:33-31:6
+      AccessorList 30:33-32:6
         OpenBraceToken "{"
-        GetAccessorDeclaration 30:9-30:47
+        GetAccessorDeclaration 31:9-31:47
           IdentifierToken "get"
-          Block 30:13-30:47
+          Block 31:13-31:47
             OpenBraceToken "{"
-            ReturnStatement 30:15-30:45
+            ReturnStatement 31:15-31:45
               ReturnKeyword "return"
-              InvocationExpression 30:22-30:45
-                SimpleMemberAccessExpression 30:22-30:42
-                  SimpleMemberAccessExpression 30:22-30:32
-                    SelfExpression 30:22-30:26
+              InvocationExpression 31:22-31:45
+                SimpleMemberAccessExpression 31:22-31:42
+                  SimpleMemberAccessExpression 31:22-31:32
+                    SelfExpression 31:22-31:26
                       SelfKeyword "self"
                     DotToken "."
-                    IdentifierName 30:27-30:32
+                    IdentifierName 31:27-31:32
                       IdentifierToken "tiles"
                   DotToken "."
-                  IdentifierName 30:33-30:42
+                  IdentifierName 31:33-31:42
                     IdentifierToken "GetLength"
-                ArgumentList 30:42-30:45
+                ArgumentList 31:42-31:45
                   OpenParenToken "("
-                  Argument 30:43-30:44
-                    NumericLiteralExpression 30:43-30:44
+                  Argument 31:43-31:44
+                    NumericLiteralExpression 31:43-31:44
                       NumericLiteralToken "1"
                   CloseParenToken ")"
             CloseBraceToken "}"
         CloseBraceToken "}"
-    IndexerDeclaration 34:5-42:6
+    IndexerDeclaration 35:5-43:6
       PublicKeyword "public"
       PropertyKeyword "property"
       SelfKeyword "self"
-      BracketedParameterList 34:25-34:41
+      BracketedParameterList 35:25-35:41
         OpenBracketToken "["
-        Parameter 34:26-34:32
+        Parameter 35:26-35:32
           IdentifierToken "x"
           ColonToken ":"
-          PredefinedType 34:29-34:32
+          PredefinedType 35:29-35:32
             IntKeyword "int"
         CommaToken ","
-        Parameter 34:34-34:40
+        Parameter 35:34-35:40
           IdentifierToken "y"
           ColonToken ":"
-          PredefinedType 34:37-34:40
+          PredefinedType 35:37-35:40
             IntKeyword "int"
         CloseBracketToken "]"
-      TypeAnnotation 34:41-34:47
+      TypeAnnotation 35:41-35:47
         ColonToken ":"
-        IdentifierName 34:43-34:47
+        IdentifierName 35:43-35:47
           IdentifierToken "Tile"
-      AccessorList 34:48-42:6
+      AccessorList 35:48-43:6
         OpenBraceToken "{"
-        GetAccessorDeclaration 35:9-40:10
+        GetAccessorDeclaration 36:9-41:10
           IdentifierToken "get"
-          Block 35:13-40:10
+          Block 36:13-41:10
             OpenBraceToken "{"
-            IfStatement 36:13-38:14
+            IfStatement 37:13-39:14
               IfKeyword "if"
-              LogicalOrExpression 36:16-36:69
-                LogicalOrExpression 36:16-36:49
-                  LogicalOrExpression 36:16-36:30
-                    LessThanExpression 36:16-36:21
-                      IdentifierName 36:16-36:17
+              LogicalOrExpression 37:16-37:69
+                LogicalOrExpression 37:16-37:49
+                  LogicalOrExpression 37:16-37:30
+                    LessThanExpression 37:16-37:21
+                      IdentifierName 37:16-37:17
                         IdentifierToken "x"
                       LessThanToken "<"
-                      NumericLiteralExpression 36:20-36:21
+                      NumericLiteralExpression 37:20-37:21
                         NumericLiteralToken "0"
                     OrKeyword "or"
-                    LessThanExpression 36:25-36:30
-                      IdentifierName 36:25-36:26
+                    LessThanExpression 37:25-37:30
+                      IdentifierName 37:25-37:26
                         IdentifierToken "y"
                       LessThanToken "<"
-                      NumericLiteralExpression 36:29-36:30
+                      NumericLiteralExpression 37:29-37:30
                         NumericLiteralToken "0"
                   OrKeyword "or"
-                  GreaterThanOrEqualExpression 36:34-36:49
-                    IdentifierName 36:34-36:35
+                  GreaterThanOrEqualExpression 37:34-37:49
+                    IdentifierName 37:34-37:35
                       IdentifierToken "x"
                     GreaterThanEqualsToken ">="
-                    SimpleMemberAccessExpression 36:39-36:49
-                      SelfExpression 36:39-36:43
+                    SimpleMemberAccessExpression 37:39-37:49
+                      SelfExpression 37:39-37:43
                         SelfKeyword "self"
                       DotToken "."
-                      IdentifierName 36:44-36:49
+                      IdentifierName 37:44-37:49
                         IdentifierToken "Width"
                 OrKeyword "or"
-                GreaterThanOrEqualExpression 36:53-36:69
-                  IdentifierName 36:53-36:54
+                GreaterThanOrEqualExpression 37:53-37:69
+                  IdentifierName 37:53-37:54
                     IdentifierToken "y"
                   GreaterThanEqualsToken ">="
-                  SimpleMemberAccessExpression 36:58-36:69
-                    SelfExpression 36:58-36:62
+                  SimpleMemberAccessExpression 37:58-37:69
+                    SelfExpression 37:58-37:62
                       SelfKeyword "self"
                     DotToken "."
-                    IdentifierName 36:63-36:69
+                    IdentifierName 37:63-37:69
                       IdentifierToken "Height"
-              Block 36:70-38:14
+              Block 37:70-39:14
                 OpenBraceToken "{"
-                ReturnStatement 37:17-37:33
+                ReturnStatement 38:17-38:33
                   ReturnKeyword "return"
-                  SimpleMemberAccessExpression 37:24-37:33
-                    IdentifierName 37:24-37:28
+                  SimpleMemberAccessExpression 38:24-38:33
+                    IdentifierName 38:24-38:28
                       IdentifierToken "Tile"
                     DotToken "."
-                    IdentifierName 37:29-37:33
+                    IdentifierName 38:29-38:33
                       IdentifierToken "Wall"
                 CloseBraceToken "}"
-            ReturnStatement 39:13-39:36
+            ReturnStatement 40:13-40:36
               ReturnKeyword "return"
-              ElementAccessExpression 39:20-39:36
-                SimpleMemberAccessExpression 39:20-39:30
-                  SelfExpression 39:20-39:24
+              ElementAccessExpression 40:20-40:36
+                SimpleMemberAccessExpression 40:20-40:30
+                  SelfExpression 40:20-40:24
                     SelfKeyword "self"
                   DotToken "."
-                  IdentifierName 39:25-39:30
+                  IdentifierName 40:25-40:30
                     IdentifierToken "tiles"
-                BracketedArgumentList 39:30-39:36
+                BracketedArgumentList 40:30-40:36
                   OpenBracketToken "["
-                  Argument 39:31-39:32
-                    IdentifierName 39:31-39:32
+                  Argument 40:31-40:32
+                    IdentifierName 40:31-40:32
                       IdentifierToken "x"
                   CommaToken ","
-                  Argument 39:34-39:35
-                    IdentifierName 39:34-39:35
+                  Argument 40:34-40:35
+                    IdentifierName 40:34-40:35
                       IdentifierToken "y"
                   CloseBracketToken "]"
             CloseBraceToken "}"
-        SetAccessorDeclaration 41:9-41:48
+        SetAccessorDeclaration 42:9-42:48
           IdentifierToken "set"
-          SetterParameter 41:12-41:19
+          SetterParameter 42:12-42:19
             OpenParenToken "("
             IdentifierToken "value"
             CloseParenToken ")"
-          Block 41:20-41:48
+          Block 42:20-42:48
             OpenBraceToken "{"
-            AssignmentStatement 41:22-41:46
-              ElementAccessExpression 41:22-41:38
-                SimpleMemberAccessExpression 41:22-41:32
-                  SelfExpression 41:22-41:26
+            AssignmentStatement 42:22-42:46
+              ElementAccessExpression 42:22-42:38
+                SimpleMemberAccessExpression 42:22-42:32
+                  SelfExpression 42:22-42:26
                     SelfKeyword "self"
                   DotToken "."
-                  IdentifierName 41:27-41:32
+                  IdentifierName 42:27-42:32
                     IdentifierToken "tiles"
-                BracketedArgumentList 41:32-41:38
+                BracketedArgumentList 42:32-42:38
                   OpenBracketToken "["
-                  Argument 41:33-41:34
-                    IdentifierName 41:33-41:34
+                  Argument 42:33-42:34
+                    IdentifierName 42:33-42:34
                       IdentifierToken "x"
                   CommaToken ","
-                  Argument 41:36-41:37
-                    IdentifierName 41:36-41:37
+                  Argument 42:36-42:37
+                    IdentifierName 42:36-42:37
                       IdentifierToken "y"
                   CloseBracketToken "]"
               EqualsToken "="
-              IdentifierName 41:41-41:46
+              IdentifierName 42:41-42:46
                 IdentifierToken "value"
             CloseBraceToken "}"
         CloseBraceToken "}"
-    FunctionDeclaration 45:5-61:6
+    FunctionDeclaration 52:5-68:6
       PublicKeyword "public"
       FuncKeyword "func"
       IdentifierToken "Parse"
-      ParameterList 45:22-45:36
+      ParameterList 52:22-52:36
         OpenParenToken "("
-        Parameter 45:23-45:35
+        Parameter 52:23-52:35
           IdentifierToken "text"
           ColonToken ":"
-          PredefinedType 45:29-45:35
+          PredefinedType 52:29-52:35
             StringKeyword "string"
         CloseParenToken ")"
-      ReturnTypeClause 45:37-45:47
+      ReturnTypeClause 52:37-52:47
         MinusGreaterThanToken "->"
-        IdentifierName 45:40-45:47
+        IdentifierName 52:40-52:47
           IdentifierToken "TileMap"
-      Block 45:48-61:6
+      Block 52:48-68:6
         OpenBraceToken "{"
-        LocalDeclarationStatement 46:9-46:37
+        LocalDeclarationStatement 53:9-53:37
           LetKeyword "let"
           IdentifierToken "lines"
-          EqualsValueClause 46:19-46:37
+          EqualsValueClause 53:19-53:37
             EqualsToken "="
-            InvocationExpression 46:21-46:37
-              SimpleMemberAccessExpression 46:21-46:31
-                IdentifierName 46:21-46:25
+            InvocationExpression 53:21-53:37
+              SimpleMemberAccessExpression 53:21-53:31
+                IdentifierName 53:21-53:25
                   IdentifierToken "text"
                 DotToken "."
-                IdentifierName 46:26-46:31
+                IdentifierName 53:26-53:31
                   IdentifierToken "Split"
-              ArgumentList 46:31-46:37
+              ArgumentList 53:31-53:37
                 OpenParenToken "("
-                Argument 46:32-46:36
-                  CharacterLiteralExpression 46:32-46:36
+                Argument 53:32-53:36
+                  CharacterLiteralExpression 53:32-53:36
                     CharacterLiteralToken "'\\n'"
                 CloseParenToken ")"
-        LocalDeclarationStatement 47:9-47:41
+        LocalDeclarationStatement 54:9-54:41
           LetKeyword "let"
           IdentifierToken "name"
-          EqualsValueClause 47:18-47:41
+          EqualsValueClause 54:18-54:41
             EqualsToken "="
-            InvocationExpression 47:20-47:41
-              SimpleMemberAccessExpression 47:20-47:39
-                ElementAccessExpression 47:20-47:34
-                  ElementAccessExpression 47:20-47:28
-                    IdentifierName 47:20-47:25
+            InvocationExpression 54:20-54:41
+              SimpleMemberAccessExpression 54:20-54:39
+                ElementAccessExpression 54:20-54:34
+                  ElementAccessExpression 54:20-54:28
+                    IdentifierName 54:20-54:25
                       IdentifierToken "lines"
-                    BracketedArgumentList 47:25-47:28
+                    BracketedArgumentList 54:25-54:28
                       OpenBracketToken "["
-                      Argument 47:26-47:27
-                        NumericLiteralExpression 47:26-47:27
+                      Argument 54:26-54:27
+                        NumericLiteralExpression 54:26-54:27
                           NumericLiteralToken "0"
                       CloseBracketToken "]"
-                  BracketedArgumentList 47:28-47:34
+                  BracketedArgumentList 54:28-54:34
                     OpenBracketToken "["
-                    Argument 47:29-47:33
-                      RangeExpression 47:29-47:33
-                        NumericLiteralExpression 47:29-47:30
+                    Argument 54:29-54:33
+                      RangeExpression 54:29-54:33
+                        NumericLiteralExpression 54:29-54:30
                           NumericLiteralToken "5"
                         DotDotDotToken "..."
                     CloseBracketToken "]"
                 DotToken "."
-                IdentifierName 47:35-47:39
+                IdentifierName 54:35-54:39
                   IdentifierToken "Trim"
-              ArgumentList 47:39-47:41
+              ArgumentList 54:39-54:41
                 OpenParenToken "("
                 CloseParenToken ")"
-        LocalDeclarationStatement 48:9-48:31
+        LocalDeclarationStatement 55:9-55:31
           LetKeyword "let"
           IdentifierToken "rows"
-          EqualsValueClause 48:18-48:31
+          EqualsValueClause 55:18-55:31
             EqualsToken "="
-            ElementAccessExpression 48:20-48:31
-              IdentifierName 48:20-48:25
+            ElementAccessExpression 55:20-55:31
+              IdentifierName 55:20-55:25
                 IdentifierToken "lines"
-              BracketedArgumentList 48:25-48:31
+              BracketedArgumentList 55:25-55:31
                 OpenBracketToken "["
-                Argument 48:26-48:30
-                  RangeExpression 48:26-48:30
-                    NumericLiteralExpression 48:26-48:27
+                Argument 55:26-55:30
+                  RangeExpression 55:26-55:30
+                    NumericLiteralExpression 55:26-55:27
                       NumericLiteralToken "1"
                     DotDotDotToken "..."
                 CloseBracketToken "]"
-        LocalDeclarationStatement 49:9-49:89
+        LocalDeclarationStatement 56:9-56:89
           LetKeyword "let"
           IdentifierToken "map"
-          EqualsValueClause 49:17-49:89
+          EqualsValueClause 56:17-56:89
             EqualsToken "="
-            ObjectCreationExpression 49:19-49:89
+            ObjectCreationExpression 56:19-56:89
               NewKeyword "new"
-              IdentifierName 49:23-49:30
+              IdentifierName 56:23-56:30
                 IdentifierToken "TileMap"
-              ArgumentList 49:30-49:89
+              ArgumentList 56:30-56:89
                 OpenParenToken "("
-                Argument 49:31-49:42
-                  NameEquals 49:31-49:37
-                    IdentifierName 49:31-49:35
+                Argument 56:31-56:42
+                  NameEquals 56:31-56:37
+                    IdentifierName 56:31-56:35
                       IdentifierToken "name"
                     EqualsToken "="
-                  IdentifierName 49:38-49:42
+                  IdentifierName 56:38-56:42
                     IdentifierToken "name"
                 CommaToken ","
-                Argument 49:44-49:66
-                  NameEquals 49:44-49:51
-                    IdentifierName 49:44-49:49
+                Argument 56:44-56:66
+                  NameEquals 56:44-56:51
+                    IdentifierName 56:44-56:49
                       IdentifierToken "width"
                     EqualsToken "="
-                  SimpleMemberAccessExpression 49:52-49:66
-                    ElementAccessExpression 49:52-49:59
-                      IdentifierName 49:52-49:56
+                  SimpleMemberAccessExpression 56:52-56:66
+                    ElementAccessExpression 56:52-56:59
+                      IdentifierName 56:52-56:56
                         IdentifierToken "rows"
-                      BracketedArgumentList 49:56-49:59
+                      BracketedArgumentList 56:56-56:59
                         OpenBracketToken "["
-                        Argument 49:57-49:58
-                          NumericLiteralExpression 49:57-49:58
+                        Argument 56:57-56:58
+                          NumericLiteralExpression 56:57-56:58
                             NumericLiteralToken "0"
                         CloseBracketToken "]"
                     DotToken "."
-                    IdentifierName 49:60-49:66
+                    IdentifierName 56:60-56:66
                       IdentifierToken "Length"
                 CommaToken ","
-                Argument 49:68-49:88
-                  NameEquals 49:68-49:76
-                    IdentifierName 49:68-49:74
+                Argument 56:68-56:88
+                  NameEquals 56:68-56:76
+                    IdentifierName 56:68-56:74
                       IdentifierToken "height"
                     EqualsToken "="
-                  SimpleMemberAccessExpression 49:77-49:88
-                    IdentifierName 49:77-49:81
+                  SimpleMemberAccessExpression 56:77-56:88
+                    IdentifierName 56:77-56:81
                       IdentifierToken "rows"
                     DotToken "."
-                    IdentifierName 49:82-49:88
+                    IdentifierName 56:82-56:88
                       IdentifierToken "Length"
                 CloseParenToken ")"
-        ForStatement 50:9-59:10
+        ForStatement 57:9-66:10
           ForKeyword "for"
           IdentifierToken "y"
           InKeyword "in"
-          RangeExpression 50:18-50:33
-            NumericLiteralExpression 50:18-50:19
+          RangeExpression 57:18-57:33
+            NumericLiteralExpression 57:18-57:19
               NumericLiteralToken "0"
             DotDotLessThanToken "..<"
-            SimpleMemberAccessExpression 50:22-50:33
-              IdentifierName 50:22-50:26
+            SimpleMemberAccessExpression 57:22-57:33
+              IdentifierName 57:22-57:26
                 IdentifierToken "rows"
               DotToken "."
-              IdentifierName 50:27-50:33
+              IdentifierName 57:27-57:33
                 IdentifierToken "Length"
-          Block 50:34-59:10
+          Block 57:34-66:10
             OpenBraceToken "{"
-            ForStatement 51:13-58:14
+            ForStatement 58:13-65:14
               ForKeyword "for"
               IdentifierToken "x"
               InKeyword "in"
-              RangeExpression 51:22-51:40
-                NumericLiteralExpression 51:22-51:23
+              RangeExpression 58:22-58:40
+                NumericLiteralExpression 58:22-58:23
                   NumericLiteralToken "0"
                 DotDotLessThanToken "..<"
-                SimpleMemberAccessExpression 51:26-51:40
-                  ElementAccessExpression 51:26-51:33
-                    IdentifierName 51:26-51:30
+                SimpleMemberAccessExpression 58:26-58:40
+                  ElementAccessExpression 58:26-58:33
+                    IdentifierName 58:26-58:30
                       IdentifierToken "rows"
-                    BracketedArgumentList 51:30-51:33
+                    BracketedArgumentList 58:30-58:33
                       OpenBracketToken "["
-                      Argument 51:31-51:32
-                        IdentifierName 51:31-51:32
+                      Argument 58:31-58:32
+                        IdentifierName 58:31-58:32
                           IdentifierToken "y"
                       CloseBracketToken "]"
                   DotToken "."
-                  IdentifierName 51:34-51:40
+                  IdentifierName 58:34-58:40
                     IdentifierToken "Length"
-              Block 51:41-58:14
+              Block 58:41-65:14
                 OpenBraceToken "{"
-                LocalDeclarationStatement 52:17-52:35
+                LocalDeclarationStatement 59:17-59:35
                   LetKeyword "let"
                   IdentifierToken "c"
-                  EqualsValueClause 52:23-52:35
+                  EqualsValueClause 59:23-59:35
                     EqualsToken "="
-                    ElementAccessExpression 52:25-52:35
-                      ElementAccessExpression 52:25-52:32
-                        IdentifierName 52:25-52:29
+                    ElementAccessExpression 59:25-59:35
+                      ElementAccessExpression 59:25-59:32
+                        IdentifierName 59:25-59:29
                           IdentifierToken "rows"
-                        BracketedArgumentList 52:29-52:32
+                        BracketedArgumentList 59:29-59:32
                           OpenBracketToken "["
-                          Argument 52:30-52:31
-                            IdentifierName 52:30-52:31
+                          Argument 59:30-59:31
+                            IdentifierName 59:30-59:31
                               IdentifierToken "y"
                           CloseBracketToken "]"
-                      BracketedArgumentList 52:32-52:35
+                      BracketedArgumentList 59:32-59:35
                         OpenBracketToken "["
-                        Argument 52:33-52:34
-                          IdentifierName 52:33-52:34
+                        Argument 59:33-59:34
+                          IdentifierName 59:33-59:34
                             IdentifierToken "x"
                         CloseBracketToken "]"
-                IfStatement 53:17-57:18
+                IfStatement 60:17-64:18
                   IfKeyword "if"
-                  EqualsExpression 53:20-53:28
-                    IdentifierName 53:20-53:21
+                  EqualsExpression 60:20-60:28
+                    IdentifierName 60:20-60:21
                       IdentifierToken "c"
                     EqualsEqualsToken "=="
-                    CharacterLiteralExpression 53:25-53:28
+                    CharacterLiteralExpression 60:25-60:28
                       CharacterLiteralToken "'#'"
-                  Block 53:29-55:18
+                  Block 60:29-62:18
                     OpenBraceToken "{"
-                    AssignmentStatement 54:21-54:42
-                      ElementAccessExpression 54:21-54:30
-                        IdentifierName 54:21-54:24
+                    AssignmentStatement 61:21-61:42
+                      ElementAccessExpression 61:21-61:30
+                        IdentifierName 61:21-61:24
                           IdentifierToken "map"
-                        BracketedArgumentList 54:24-54:30
+                        BracketedArgumentList 61:24-61:30
                           OpenBracketToken "["
-                          Argument 54:25-54:26
-                            IdentifierName 54:25-54:26
+                          Argument 61:25-61:26
+                            IdentifierName 61:25-61:26
                               IdentifierToken "x"
                           CommaToken ","
-                          Argument 54:28-54:29
-                            IdentifierName 54:28-54:29
+                          Argument 61:28-61:29
+                            IdentifierName 61:28-61:29
                               IdentifierToken "y"
                           CloseBracketToken "]"
                       EqualsToken "="
-                      SimpleMemberAccessExpression 54:33-54:42
-                        IdentifierName 54:33-54:37
+                      SimpleMemberAccessExpression 61:33-61:42
+                        IdentifierName 61:33-61:37
                           IdentifierToken "Tile"
                         DotToken "."
-                        IdentifierName 54:38-54:42
+                        IdentifierName 61:38-61:42
                           IdentifierToken "Wall"
                     CloseBraceToken "}"
-                  ElseClause 55:19-57:18
+                  ElseClause 62:19-64:18
                     ElseKeyword "else"
-                    IfStatement 55:24-57:18
+                    IfStatement 62:24-64:18
                       IfKeyword "if"
-                      EqualsExpression 55:27-55:35
-                        IdentifierName 55:27-55:28
+                      EqualsExpression 62:27-62:35
+                        IdentifierName 62:27-62:28
                           IdentifierToken "c"
                         EqualsEqualsToken "=="
-                        CharacterLiteralExpression 55:32-55:35
+                        CharacterLiteralExpression 62:32-62:35
                           CharacterLiteralToken "'$'"
-                      Block 55:36-57:18
+                      Block 62:36-64:18
                         OpenBraceToken "{"
-                        ExpressionStatement 56:21-56:42
-                          InvocationExpression 56:21-56:42
-                            SimpleMemberAccessExpression 56:21-56:34
-                              SimpleMemberAccessExpression 56:21-56:30
-                                IdentifierName 56:21-56:24
+                        ExpressionStatement 63:21-63:42
+                          InvocationExpression 63:21-63:42
+                            SimpleMemberAccessExpression 63:21-63:34
+                              SimpleMemberAccessExpression 63:21-63:30
+                                IdentifierName 63:21-63:24
                                   IdentifierToken "map"
                                 DotToken "."
-                                IdentifierName 56:25-56:30
+                                IdentifierName 63:25-63:30
                                   IdentifierToken "coins"
                               DotToken "."
-                              IdentifierName 56:31-56:34
+                              IdentifierName 63:31-63:34
                                 IdentifierToken "Add"
-                            ArgumentList 56:34-56:42
+                            ArgumentList 63:34-63:42
                               OpenParenToken "("
-                              Argument 56:35-56:41
-                                TupleExpression 56:35-56:41
+                              Argument 63:35-63:41
+                                TupleExpression 63:35-63:41
                                   OpenParenToken "("
-                                  Argument 56:36-56:37
-                                    IdentifierName 56:36-56:37
+                                  Argument 63:36-63:37
+                                    IdentifierName 63:36-63:37
                                       IdentifierToken "x"
                                   CommaToken ","
-                                  Argument 56:39-56:40
-                                    IdentifierName 56:39-56:40
+                                  Argument 63:39-63:40
+                                    IdentifierName 63:39-63:40
                                       IdentifierToken "y"
                                   CloseParenToken ")"
                               CloseParenToken ")"
                         CloseBraceToken "}"
                 CloseBraceToken "}"
             CloseBraceToken "}"
-        ReturnStatement 60:9-60:19
+        ReturnStatement 67:9-67:19
           ReturnKeyword "return"
-          IdentifierName 60:16-60:19
+          IdentifierName 67:16-67:19
             IdentifierToken "map"
         CloseBraceToken "}"
-    FunctionDeclaration 63:5-63:79
+    FunctionDeclaration 70:5-70:79
       PublicKeyword "public"
       FuncKeyword "func"
       IdentifierToken "IsWall"
-      ParameterList 63:23-63:45
+      ParameterList 70:23-70:45
         OpenParenToken "("
-        SelfParameter 63:24-63:28
+        SelfParameter 70:24-70:28
           SelfKeyword "self"
         CommaToken ","
-        Parameter 63:30-63:36
+        Parameter 70:30-70:36
           IdentifierToken "x"
           ColonToken ":"
-          PredefinedType 63:33-63:36
+          PredefinedType 70:33-70:36
             IntKeyword "int"
         CommaToken ","
-        Parameter 63:38-63:44
+        Parameter 70:38-70:44
           IdentifierToken "y"
           ColonToken ":"
-          PredefinedType 63:41-63:44
+          PredefinedType 70:41-70:44
             IntKeyword "int"
         CloseParenToken ")"
-      ReturnTypeClause 63:46-63:53
+      ReturnTypeClause 70:46-70:53
         MinusGreaterThanToken "->"
-        PredefinedType 63:49-63:53
+        PredefinedType 70:49-70:53
           BoolKeyword "bool"
-      ExpressionBody 63:54-63:79
+      ExpressionBody 70:54-70:79
         EqualsToken "="
-        EqualsExpression 63:56-63:79
-          ElementAccessExpression 63:56-63:66
-            SelfExpression 63:56-63:60
+        EqualsExpression 70:56-70:79
+          ElementAccessExpression 70:56-70:66
+            SelfExpression 70:56-70:60
               SelfKeyword "self"
-            BracketedArgumentList 63:60-63:66
+            BracketedArgumentList 70:60-70:66
               OpenBracketToken "["
-              Argument 63:61-63:62
-                IdentifierName 63:61-63:62
+              Argument 70:61-70:62
+                IdentifierName 70:61-70:62
                   IdentifierToken "x"
               CommaToken ","
-              Argument 63:64-63:65
-                IdentifierName 63:64-63:65
+              Argument 70:64-70:65
+                IdentifierName 70:64-70:65
                   IdentifierToken "y"
               CloseBracketToken "]"
           EqualsEqualsToken "=="
-          SimpleMemberAccessExpression 63:70-63:79
-            IdentifierName 63:70-63:74
+          SimpleMemberAccessExpression 70:70-70:79
+            IdentifierName 70:70-70:74
               IdentifierToken "Tile"
             DotToken "."
-            IdentifierName 63:75-63:79
+            IdentifierName 70:75-70:79
               IdentifierToken "Wall"
-    FunctionDeclaration 66:5-74:6
+    FunctionDeclaration 73:5-81:6
       PublicKeyword "public"
       FuncKeyword "func"
       IdentifierToken "WallsAround"
-      ParameterList 66:28-66:50
+      ParameterList 73:28-73:50
         OpenParenToken "("
-        SelfParameter 66:29-66:33
+        SelfParameter 73:29-73:33
           SelfKeyword "self"
         CommaToken ","
-        Parameter 66:35-66:41
+        Parameter 73:35-73:41
           IdentifierToken "x"
           ColonToken ":"
-          PredefinedType 66:38-66:41
+          PredefinedType 73:38-73:41
             IntKeyword "int"
         CommaToken ","
-        Parameter 66:43-66:49
+        Parameter 73:43-73:49
           IdentifierToken "y"
           ColonToken ":"
-          PredefinedType 66:46-66:49
+          PredefinedType 73:46-73:49
             IntKeyword "int"
         CloseParenToken ")"
-      ReturnTypeClause 66:51-66:57
+      ReturnTypeClause 73:51-73:57
         MinusGreaterThanToken "->"
-        PredefinedType 66:54-66:57
+        PredefinedType 73:54-73:57
           IntKeyword "int"
-      Block 66:58-74:6
+      Block 73:58-81:6
         OpenBraceToken "{"
-        LocalDeclarationStatement 67:9-67:22
+        LocalDeclarationStatement 74:9-74:22
           VarKeyword "var"
           IdentifierToken "count"
-          EqualsValueClause 67:19-67:22
+          EqualsValueClause 74:19-74:22
             EqualsToken "="
-            NumericLiteralExpression 67:21-67:22
+            NumericLiteralExpression 74:21-74:22
               NumericLiteralToken "0"
-        ForStatement 68:9-72:10
+        ForStatement 75:9-79:10
           ForKeyword "for"
-          Deconstruction 68:13-68:21
+          Deconstruction 75:13-75:21
             OpenParenToken "("
-            IdentifierName 68:14-68:16
+            IdentifierName 75:14-75:16
               IdentifierToken "dx"
             CommaToken ","
-            IdentifierName 68:18-68:20
+            IdentifierName 75:18-75:20
               IdentifierToken "dy"
             CloseParenToken ")"
           InKeyword "in"
-          SimpleMemberAccessExpression 68:25-68:42
-            IdentifierName 68:25-68:32
+          SimpleMemberAccessExpression 75:25-75:42
+            IdentifierName 75:25-75:32
               IdentifierToken "TileMap"
             DotToken "."
-            IdentifierName 68:33-68:42
+            IdentifierName 75:33-75:42
               IdentifierToken "Neighbors"
-          Block 68:43-72:10
+          Block 75:43-79:10
             OpenBraceToken "{"
-            IfStatement 69:13-71:14
+            IfStatement 76:13-78:14
               IfKeyword "if"
-              InvocationExpression 69:16-69:43
-                SimpleMemberAccessExpression 69:16-69:27
-                  SelfExpression 69:16-69:20
+              InvocationExpression 76:16-76:43
+                SimpleMemberAccessExpression 76:16-76:27
+                  SelfExpression 76:16-76:20
                     SelfKeyword "self"
                   DotToken "."
-                  IdentifierName 69:21-69:27
+                  IdentifierName 76:21-76:27
                     IdentifierToken "IsWall"
-                ArgumentList 69:27-69:43
+                ArgumentList 76:27-76:43
                   OpenParenToken "("
-                  Argument 69:28-69:34
-                    AddExpression 69:28-69:34
-                      IdentifierName 69:28-69:29
+                  Argument 76:28-76:34
+                    AddExpression 76:28-76:34
+                      IdentifierName 76:28-76:29
                         IdentifierToken "x"
                       PlusToken "+"
-                      IdentifierName 69:32-69:34
+                      IdentifierName 76:32-76:34
                         IdentifierToken "dx"
                   CommaToken ","
-                  Argument 69:36-69:42
-                    AddExpression 69:36-69:42
-                      IdentifierName 69:36-69:37
+                  Argument 76:36-76:42
+                    AddExpression 76:36-76:42
+                      IdentifierName 76:36-76:37
                         IdentifierToken "y"
                       PlusToken "+"
-                      IdentifierName 69:40-69:42
+                      IdentifierName 76:40-76:42
                         IdentifierToken "dy"
                   CloseParenToken ")"
-              Block 69:44-71:14
+              Block 76:44-78:14
                 OpenBraceToken "{"
-                AssignmentStatement 70:17-70:27
-                  IdentifierName 70:17-70:22
+                AssignmentStatement 77:17-77:27
+                  IdentifierName 77:17-77:22
                     IdentifierToken "count"
                   PlusEqualsToken "+="
-                  NumericLiteralExpression 70:26-70:27
+                  NumericLiteralExpression 77:26-77:27
                     NumericLiteralToken "1"
                 CloseBraceToken "}"
             CloseBraceToken "}"
-        ReturnStatement 73:9-73:21
+        ReturnStatement 80:9-80:21
           ReturnKeyword "return"
-          IdentifierName 73:16-73:21
+          IdentifierName 80:16-80:21
             IdentifierToken "count"
         CloseBraceToken "}"
-    FunctionDeclaration 77:5-82:6
+    FunctionDeclaration 84:5-89:6
       PublicKeyword "public"
       FuncKeyword "func"
       IdentifierToken "AddPillars"
-      ParameterList 77:27-77:33
+      ParameterList 84:27-84:33
         OpenParenToken "("
-        SelfParameter 77:28-77:32
+        SelfParameter 84:28-84:32
           SelfKeyword "self"
         CloseParenToken ")"
-      Block 77:34-82:6
+      Block 84:34-89:6
         OpenBraceToken "{"
-        ForStatement 78:9-81:10
+        ForStatement 85:9-88:10
           ForKeyword "for"
           IdentifierToken "x"
           InKeyword "in"
-          InvocationExpression 78:18-78:44
-            SimpleMemberAccessExpression 78:18-78:41
-              ParenthesizedExpression 78:18-78:34
+          InvocationExpression 85:18-85:44
+            SimpleMemberAccessExpression 85:18-85:41
+              ParenthesizedExpression 85:18-85:34
                 OpenParenToken "("
-                RangeExpression 78:19-78:33
-                  NumericLiteralExpression 78:19-78:20
+                RangeExpression 85:19-85:33
+                  NumericLiteralExpression 85:19-85:20
                     NumericLiteralToken "0"
                   DotDotLessThanToken "..<"
-                  SimpleMemberAccessExpression 78:23-78:33
-                    SelfExpression 78:23-78:27
+                  SimpleMemberAccessExpression 85:23-85:33
+                    SelfExpression 85:23-85:27
                       SelfKeyword "self"
                     DotToken "."
-                    IdentifierName 78:28-78:33
+                    IdentifierName 85:28-85:33
                       IdentifierToken "Width"
                 CloseParenToken ")"
               DotToken "."
-              IdentifierName 78:35-78:41
+              IdentifierName 85:35-85:41
                 IdentifierToken "StepBy"
-            ArgumentList 78:41-78:44
+            ArgumentList 85:41-85:44
               OpenParenToken "("
-              Argument 78:42-78:43
-                NumericLiteralExpression 78:42-78:43
+              Argument 85:42-85:43
+                NumericLiteralExpression 85:42-85:43
                   NumericLiteralToken "2"
               CloseParenToken ")"
-          Block 78:45-81:10
+          Block 85:45-88:10
             OpenBraceToken "{"
-            AssignmentStatement 79:13-79:35
-              ElementAccessExpression 79:13-79:23
-                SelfExpression 79:13-79:17
+            AssignmentStatement 86:13-86:35
+              ElementAccessExpression 86:13-86:23
+                SelfExpression 86:13-86:17
                   SelfKeyword "self"
-                BracketedArgumentList 79:17-79:23
+                BracketedArgumentList 86:17-86:23
                   OpenBracketToken "["
-                  Argument 79:18-79:19
-                    IdentifierName 79:18-79:19
+                  Argument 86:18-86:19
+                    IdentifierName 86:18-86:19
                       IdentifierToken "x"
                   CommaToken ","
-                  Argument 79:21-79:22
-                    NumericLiteralExpression 79:21-79:22
+                  Argument 86:21-86:22
+                    NumericLiteralExpression 86:21-86:22
                       NumericLiteralToken "0"
                   CloseBracketToken "]"
               EqualsToken "="
-              SimpleMemberAccessExpression 79:26-79:35
-                IdentifierName 79:26-79:30
+              SimpleMemberAccessExpression 86:26-86:35
+                IdentifierName 86:26-86:30
                   IdentifierToken "Tile"
                 DotToken "."
-                IdentifierName 79:31-79:35
+                IdentifierName 86:31-86:35
                   IdentifierToken "Wall"
-            AssignmentStatement 80:13-80:49
-              ElementAccessExpression 80:13-80:37
-                SelfExpression 80:13-80:17
+            AssignmentStatement 87:13-87:49
+              ElementAccessExpression 87:13-87:37
+                SelfExpression 87:13-87:17
                   SelfKeyword "self"
-                BracketedArgumentList 80:17-80:37
+                BracketedArgumentList 87:17-87:37
                   OpenBracketToken "["
-                  Argument 80:18-80:19
-                    IdentifierName 80:18-80:19
+                  Argument 87:18-87:19
+                    IdentifierName 87:18-87:19
                       IdentifierToken "x"
                   CommaToken ","
-                  Argument 80:21-80:36
-                    SubtractExpression 80:21-80:36
-                      SimpleMemberAccessExpression 80:21-80:32
-                        SelfExpression 80:21-80:25
+                  Argument 87:21-87:36
+                    SubtractExpression 87:21-87:36
+                      SimpleMemberAccessExpression 87:21-87:32
+                        SelfExpression 87:21-87:25
                           SelfKeyword "self"
                         DotToken "."
-                        IdentifierName 80:26-80:32
+                        IdentifierName 87:26-87:32
                           IdentifierToken "Height"
                       MinusToken "-"
-                      NumericLiteralExpression 80:35-80:36
+                      NumericLiteralExpression 87:35-87:36
                         NumericLiteralToken "1"
                   CloseBracketToken "]"
               EqualsToken "="
-              SimpleMemberAccessExpression 80:40-80:49
-                IdentifierName 80:40-80:44
+              SimpleMemberAccessExpression 87:40-87:49
+                IdentifierName 87:40-87:44
                   IdentifierToken "Tile"
                 DotToken "."
-                IdentifierName 80:45-80:49
+                IdentifierName 87:45-87:49
                   IdentifierToken "Wall"
             CloseBraceToken "}"
         CloseBraceToken "}"
-    FunctionDeclaration 85:5-94:6
+    FunctionDeclaration 94:5-103:6
       PublicKeyword "public"
       FuncKeyword "func"
       IdentifierToken "Collect"
-      ParameterList 85:24-85:46
+      ParameterList 94:24-94:46
         OpenParenToken "("
-        SelfParameter 85:25-85:29
+        SelfParameter 94:25-94:29
           SelfKeyword "self"
         CommaToken ","
-        Parameter 85:31-85:37
+        Parameter 94:31-94:37
           IdentifierToken "x"
           ColonToken ":"
-          PredefinedType 85:34-85:37
+          PredefinedType 94:34-94:37
             IntKeyword "int"
         CommaToken ","
-        Parameter 85:39-85:45
+        Parameter 94:39-94:45
           IdentifierToken "y"
           ColonToken ":"
-          PredefinedType 85:42-85:45
+          PredefinedType 94:42-94:45
             IntKeyword "int"
         CloseParenToken ")"
-      ReturnTypeClause 85:47-85:53
+      ReturnTypeClause 94:47-94:53
         MinusGreaterThanToken "->"
-        PredefinedType 85:50-85:53
+        PredefinedType 94:50-94:53
           IntKeyword "int"
-      Block 85:54-94:6
+      Block 94:54-103:6
         OpenBraceToken "{"
-        LocalDeclarationStatement 86:9-86:26
+        LocalDeclarationStatement 95:9-95:26
           VarKeyword "var"
           IdentifierToken "collected"
-          EqualsValueClause 86:23-86:26
+          EqualsValueClause 95:23-95:26
             EqualsToken "="
-            NumericLiteralExpression 86:25-86:26
+            NumericLiteralExpression 95:25-95:26
               NumericLiteralToken "0"
-        ForStatement 87:9-92:10
+        ForStatement 96:9-101:10
           ForKeyword "for"
           IdentifierToken "i"
           InKeyword "in"
-          InvocationExpression 87:18-87:51
-            SimpleMemberAccessExpression 87:18-87:49
-              ParenthesizedExpression 87:18-87:40
+          InvocationExpression 96:18-96:51
+            SimpleMemberAccessExpression 96:18-96:49
+              ParenthesizedExpression 96:18-96:40
                 OpenParenToken "("
-                RangeExpression 87:19-87:39
-                  NumericLiteralExpression 87:19-87:20
+                RangeExpression 96:19-96:39
+                  NumericLiteralExpression 96:19-96:20
                     NumericLiteralToken "0"
                   DotDotLessThanToken "..<"
-                  SimpleMemberAccessExpression 87:23-87:39
-                    SimpleMemberAccessExpression 87:23-87:33
-                      SelfExpression 87:23-87:27
+                  SimpleMemberAccessExpression 96:23-96:39
+                    SimpleMemberAccessExpression 96:23-96:33
+                      SelfExpression 96:23-96:27
                         SelfKeyword "self"
                       DotToken "."
-                      IdentifierName 87:28-87:33
+                      IdentifierName 96:28-96:33
                         IdentifierToken "coins"
                     DotToken "."
-                    IdentifierName 87:34-87:39
+                    IdentifierName 96:34-96:39
                       IdentifierToken "Count"
                 CloseParenToken ")"
               DotToken "."
-              IdentifierName 87:41-87:49
+              IdentifierName 96:41-96:49
                 IdentifierToken "Reversed"
-            ArgumentList 87:49-87:51
+            ArgumentList 96:49-96:51
               OpenParenToken "("
               CloseParenToken ")"
-          Block 87:52-92:10
+          Block 96:52-101:10
             OpenBraceToken "{"
-            IfStatement 88:13-91:14
+            IfStatement 97:13-100:14
               IfKeyword "if"
-              LogicalAndExpression 88:16-88:61
-                EqualsExpression 88:16-88:36
-                  SimpleMemberAccessExpression 88:16-88:31
-                    ElementAccessExpression 88:16-88:29
-                      SimpleMemberAccessExpression 88:16-88:26
-                        SelfExpression 88:16-88:20
+              LogicalAndExpression 97:16-97:61
+                EqualsExpression 97:16-97:36
+                  SimpleMemberAccessExpression 97:16-97:31
+                    ElementAccessExpression 97:16-97:29
+                      SimpleMemberAccessExpression 97:16-97:26
+                        SelfExpression 97:16-97:20
                           SelfKeyword "self"
                         DotToken "."
-                        IdentifierName 88:21-88:26
+                        IdentifierName 97:21-97:26
                           IdentifierToken "coins"
-                      BracketedArgumentList 88:26-88:29
+                      BracketedArgumentList 97:26-97:29
                         OpenBracketToken "["
-                        Argument 88:27-88:28
-                          IdentifierName 88:27-88:28
+                        Argument 97:27-97:28
+                          IdentifierName 97:27-97:28
                             IdentifierToken "i"
                         CloseBracketToken "]"
                     DotToken "."
-                    IdentifierName 88:30-88:31
+                    IdentifierName 97:30-97:31
                       IdentifierToken "X"
                   EqualsEqualsToken "=="
-                  IdentifierName 88:35-88:36
+                  IdentifierName 97:35-97:36
                     IdentifierToken "x"
                 AndKeyword "and"
-                EqualsExpression 88:41-88:61
-                  SimpleMemberAccessExpression 88:41-88:56
-                    ElementAccessExpression 88:41-88:54
-                      SimpleMemberAccessExpression 88:41-88:51
-                        SelfExpression 88:41-88:45
+                EqualsExpression 97:41-97:61
+                  SimpleMemberAccessExpression 97:41-97:56
+                    ElementAccessExpression 97:41-97:54
+                      SimpleMemberAccessExpression 97:41-97:51
+                        SelfExpression 97:41-97:45
                           SelfKeyword "self"
                         DotToken "."
-                        IdentifierName 88:46-88:51
+                        IdentifierName 97:46-97:51
                           IdentifierToken "coins"
-                      BracketedArgumentList 88:51-88:54
+                      BracketedArgumentList 97:51-97:54
                         OpenBracketToken "["
-                        Argument 88:52-88:53
-                          IdentifierName 88:52-88:53
+                        Argument 97:52-97:53
+                          IdentifierName 97:52-97:53
                             IdentifierToken "i"
                         CloseBracketToken "]"
                     DotToken "."
-                    IdentifierName 88:55-88:56
+                    IdentifierName 97:55-97:56
                       IdentifierToken "Y"
                   EqualsEqualsToken "=="
-                  IdentifierName 88:60-88:61
+                  IdentifierName 97:60-97:61
                     IdentifierToken "y"
-              Block 88:62-91:14
+              Block 97:62-100:14
                 OpenBraceToken "{"
-                ExpressionStatement 89:17-89:39
-                  InvocationExpression 89:17-89:39
-                    SimpleMemberAccessExpression 89:17-89:36
-                      SimpleMemberAccessExpression 89:17-89:27
-                        SelfExpression 89:17-89:21
+                ExpressionStatement 98:17-98:39
+                  InvocationExpression 98:17-98:39
+                    SimpleMemberAccessExpression 98:17-98:36
+                      SimpleMemberAccessExpression 98:17-98:27
+                        SelfExpression 98:17-98:21
                           SelfKeyword "self"
                         DotToken "."
-                        IdentifierName 89:22-89:27
+                        IdentifierName 98:22-98:27
                           IdentifierToken "coins"
                       DotToken "."
-                      IdentifierName 89:28-89:36
+                      IdentifierName 98:28-98:36
                         IdentifierToken "RemoveAt"
-                    ArgumentList 89:36-89:39
+                    ArgumentList 98:36-98:39
                       OpenParenToken "("
-                      Argument 89:37-89:38
-                        IdentifierName 89:37-89:38
+                      Argument 98:37-98:38
+                        IdentifierName 98:37-98:38
                           IdentifierToken "i"
                       CloseParenToken ")"
-                AssignmentStatement 90:17-90:31
-                  IdentifierName 90:17-90:26
+                AssignmentStatement 99:17-99:31
+                  IdentifierName 99:17-99:26
                     IdentifierToken "collected"
                   PlusEqualsToken "+="
-                  NumericLiteralExpression 90:30-90:31
+                  NumericLiteralExpression 99:30-99:31
                     NumericLiteralToken "1"
                 CloseBraceToken "}"
             CloseBraceToken "}"
-        ReturnStatement 93:9-93:25
+        ReturnStatement 102:9-102:25
           ReturnKeyword "return"
-          IdentifierName 93:16-93:25
+          IdentifierName 102:16-102:25
             IdentifierToken "collected"
         CloseBraceToken "}"
-    FunctionDeclaration 96:5-108:6
+    FunctionDeclaration 105:5-117:6
       PublicKeyword "public"
       FuncKeyword "func"
       IdentifierToken "Print"
-      ParameterList 96:22-96:28
+      ParameterList 105:22-105:28
         OpenParenToken "("
-        SelfParameter 96:23-96:27
+        SelfParameter 105:23-105:27
           SelfKeyword "self"
         CloseParenToken ")"
-      Block 96:29-108:6
+      Block 105:29-117:6
         OpenBraceToken "{"
-        ExpressionStatement 97:9-97:63
-          InvocationExpression 97:9-97:63
-            SimpleMemberAccessExpression 97:9-97:17
-              IdentifierName 97:9-97:12
+        ExpressionStatement 106:9-106:63
+          InvocationExpression 106:9-106:63
+            SimpleMemberAccessExpression 106:9-106:17
+              IdentifierName 106:9-106:12
                 IdentifierToken "Log"
               DotToken "."
-              IdentifierName 97:13-97:17
+              IdentifierName 106:13-106:17
                 IdentifierToken "Info"
-            ArgumentList 97:17-97:63
+            ArgumentList 106:17-106:63
               OpenParenToken "("
-              Argument 97:18-97:62
-                InterpolatedStringExpression 97:18-97:62
+              Argument 106:18-106:62
+                InterpolatedStringExpression 106:18-106:62
                   InterpolatedStringStartToken "$\""
-                  Interpolation 97:20-97:31
+                  Interpolation 106:20-106:31
                     OpenBraceToken "{"
-                    SimpleMemberAccessExpression 97:21-97:30
-                      SelfExpression 97:21-97:25
+                    SimpleMemberAccessExpression 106:21-106:30
+                      SelfExpression 106:21-106:25
                         SelfKeyword "self"
                       DotToken "."
-                      IdentifierName 97:26-97:30
+                      IdentifierName 106:26-106:30
                         IdentifierToken "Name"
                     CloseBraceToken "}"
-                  InterpolatedStringText 97:31-97:33
+                  InterpolatedStringText 106:31-106:33
                     InterpolatedStringTextToken ": "
-                  Interpolation 97:33-97:45
+                  Interpolation 106:33-106:45
                     OpenBraceToken "{"
-                    SimpleMemberAccessExpression 97:34-97:44
-                      SelfExpression 97:34-97:38
+                    SimpleMemberAccessExpression 106:34-106:44
+                      SelfExpression 106:34-106:38
                         SelfKeyword "self"
                       DotToken "."
-                      IdentifierName 97:39-97:44
+                      IdentifierName 106:39-106:44
                         IdentifierToken "Width"
                     CloseBraceToken "}"
-                  InterpolatedStringText 97:45-97:48
+                  InterpolatedStringText 106:45-106:48
                     InterpolatedStringTextToken " x "
-                  Interpolation 97:48-97:61
+                  Interpolation 106:48-106:61
                     OpenBraceToken "{"
-                    SimpleMemberAccessExpression 97:49-97:60
-                      SelfExpression 97:49-97:53
+                    SimpleMemberAccessExpression 106:49-106:60
+                      SelfExpression 106:49-106:53
                         SelfKeyword "self"
                       DotToken "."
-                      IdentifierName 97:54-97:60
+                      IdentifierName 106:54-106:60
                         IdentifierToken "Height"
                     CloseBraceToken "}"
                   InterpolatedStringEndToken "\""
               CloseParenToken ")"
-        ForStatement 98:9-104:10
+        ForStatement 107:9-113:10
           ForKeyword "for"
           IdentifierToken "y"
           InKeyword "in"
-          RangeExpression 98:18-98:33
-            NumericLiteralExpression 98:18-98:19
+          RangeExpression 107:18-107:33
+            NumericLiteralExpression 107:18-107:19
               NumericLiteralToken "0"
             DotDotLessThanToken "..<"
-            SimpleMemberAccessExpression 98:22-98:33
-              SelfExpression 98:22-98:26
+            SimpleMemberAccessExpression 107:22-107:33
+              SelfExpression 107:22-107:26
                 SelfKeyword "self"
               DotToken "."
-              IdentifierName 98:27-98:33
+              IdentifierName 107:27-107:33
                 IdentifierToken "Height"
-          Block 98:34-104:10
+          Block 107:34-113:10
             OpenBraceToken "{"
-            LocalDeclarationStatement 99:13-99:43
+            LocalDeclarationStatement 108:13-108:43
               LetKeyword "let"
               IdentifierToken "line"
-              EqualsValueClause 99:22-99:43
+              EqualsValueClause 108:22-108:43
                 EqualsToken "="
-                ObjectCreationExpression 99:24-99:43
+                ObjectCreationExpression 108:24-108:43
                   NewKeyword "new"
-                  IdentifierName 99:28-99:41
+                  IdentifierName 108:28-108:41
                     IdentifierToken "StringBuilder"
-                  ArgumentList 99:41-99:43
+                  ArgumentList 108:41-108:43
                     OpenParenToken "("
                     CloseParenToken ")"
-            ForStatement 100:13-102:14
+            ForStatement 109:13-111:14
               ForKeyword "for"
               IdentifierToken "x"
               InKeyword "in"
-              RangeExpression 100:22-100:36
-                NumericLiteralExpression 100:22-100:23
+              RangeExpression 109:22-109:36
+                NumericLiteralExpression 109:22-109:23
                   NumericLiteralToken "0"
                 DotDotLessThanToken "..<"
-                SimpleMemberAccessExpression 100:26-100:36
-                  SelfExpression 100:26-100:30
+                SimpleMemberAccessExpression 109:26-109:36
+                  SelfExpression 109:26-109:30
                     SelfKeyword "self"
                   DotToken "."
-                  IdentifierName 100:31-100:36
+                  IdentifierName 109:31-109:36
                     IdentifierToken "Width"
-              Block 100:37-102:14
+              Block 109:37-111:14
                 OpenBraceToken "{"
-                ExpressionStatement 101:17-101:69
-                  InvocationExpression 101:17-101:69
-                    SimpleMemberAccessExpression 101:17-101:28
-                      IdentifierName 101:17-101:21
+                ExpressionStatement 110:17-110:69
+                  InvocationExpression 110:17-110:69
+                    SimpleMemberAccessExpression 110:17-110:28
+                      IdentifierName 110:17-110:21
                         IdentifierToken "line"
                       DotToken "."
-                      IdentifierName 101:22-101:28
+                      IdentifierName 110:22-110:28
                         IdentifierToken "Append"
-                    ArgumentList 101:28-101:69
+                    ArgumentList 110:28-110:69
                       OpenParenToken "("
-                      Argument 101:29-101:68
-                        IfExpression 101:29-101:68
+                      Argument 110:29-110:68
+                        IfExpression 110:29-110:68
                           IfKeyword "if"
-                          InvocationExpression 101:32-101:49
-                            SimpleMemberAccessExpression 101:32-101:43
-                              SelfExpression 101:32-101:36
+                          InvocationExpression 110:32-110:49
+                            SimpleMemberAccessExpression 110:32-110:43
+                              SelfExpression 110:32-110:36
                                 SelfKeyword "self"
                               DotToken "."
-                              IdentifierName 101:37-101:43
+                              IdentifierName 110:37-110:43
                                 IdentifierToken "IsWall"
-                            ArgumentList 101:43-101:49
+                            ArgumentList 110:43-110:49
                               OpenParenToken "("
-                              Argument 101:44-101:45
-                                IdentifierName 101:44-101:45
+                              Argument 110:44-110:45
+                                IdentifierName 110:44-110:45
                                   IdentifierToken "x"
                               CommaToken ","
-                              Argument 101:47-101:48
-                                IdentifierName 101:47-101:48
+                              Argument 110:47-110:48
+                                IdentifierName 110:47-110:48
                                   IdentifierToken "y"
                               CloseParenToken ")"
                           MinusGreaterThanToken "->"
-                          CharacterLiteralExpression 101:53-101:56
+                          CharacterLiteralExpression 110:53-110:56
                             CharacterLiteralToken "'#'"
                           ElseKeyword "else"
                           MinusGreaterThanToken "->"
-                          CharacterLiteralExpression 101:65-101:68
+                          CharacterLiteralExpression 110:65-110:68
                             CharacterLiteralToken "'.'"
                       CloseParenToken ")"
                 CloseBraceToken "}"
-            ExpressionStatement 103:13-103:38
-              InvocationExpression 103:13-103:38
-                SimpleMemberAccessExpression 103:13-103:21
-                  IdentifierName 103:13-103:16
+            ExpressionStatement 112:13-112:38
+              InvocationExpression 112:13-112:38
+                SimpleMemberAccessExpression 112:13-112:21
+                  IdentifierName 112:13-112:16
                     IdentifierToken "Log"
                   DotToken "."
-                  IdentifierName 103:17-103:21
+                  IdentifierName 112:17-112:21
                     IdentifierToken "Info"
-                ArgumentList 103:21-103:38
+                ArgumentList 112:21-112:38
                   OpenParenToken "("
-                  Argument 103:22-103:37
-                    InvocationExpression 103:22-103:37
-                      SimpleMemberAccessExpression 103:22-103:35
-                        IdentifierName 103:22-103:26
+                  Argument 112:22-112:37
+                    InvocationExpression 112:22-112:37
+                      SimpleMemberAccessExpression 112:22-112:35
+                        IdentifierName 112:22-112:26
                           IdentifierToken "line"
                         DotToken "."
-                        IdentifierName 103:27-103:35
+                        IdentifierName 112:27-112:35
                           IdentifierToken "ToString"
-                      ArgumentList 103:35-103:37
+                      ArgumentList 112:35-112:37
                         OpenParenToken "("
                         CloseParenToken ")"
                   CloseParenToken ")"
             CloseBraceToken "}"
-        ForStatement 105:9-107:10
+        ForStatement 114:9-116:10
           ForKeyword "for"
           IdentifierToken "tile"
           InKeyword "in"
-          CollectionExpression 105:21-105:44
+          CollectionExpression 114:21-114:44
             OpenBracketToken "["
-            SimpleMemberAccessExpression 105:22-105:31
-              IdentifierName 105:22-105:26
+            SimpleMemberAccessExpression 114:22-114:31
+              IdentifierName 114:22-114:26
                 IdentifierToken "Tile"
               DotToken "."
-              IdentifierName 105:27-105:31
+              IdentifierName 114:27-114:31
                 IdentifierToken "Wall"
             CommaToken ","
-            SimpleMemberAccessExpression 105:33-105:43
-              IdentifierName 105:33-105:37
+            SimpleMemberAccessExpression 114:33-114:43
+              IdentifierName 114:33-114:37
                 IdentifierToken "Tile"
               DotToken "."
-              IdentifierName 105:38-105:43
+              IdentifierName 114:38-114:43
                 IdentifierToken "Floor"
             CloseBracketToken "]"
-          Block 105:45-107:10
+          Block 114:45-116:10
             OpenBraceToken "{"
-            ExpressionStatement 106:13-106:52
-              InvocationExpression 106:13-106:52
-                SimpleMemberAccessExpression 106:13-106:21
-                  IdentifierName 106:13-106:16
+            ExpressionStatement 115:13-115:52
+              InvocationExpression 115:13-115:52
+                SimpleMemberAccessExpression 115:13-115:21
+                  IdentifierName 115:13-115:16
                     IdentifierToken "Log"
                   DotToken "."
-                  IdentifierName 106:17-106:21
+                  IdentifierName 115:17-115:21
                     IdentifierToken "Info"
-                ArgumentList 106:21-106:52
+                ArgumentList 115:21-115:52
                   OpenParenToken "("
-                  Argument 106:22-106:51
-                    InterpolatedStringExpression 106:22-106:51
+                  Argument 115:22-115:51
+                    InterpolatedStringExpression 115:22-115:51
                       InterpolatedStringStartToken "$\""
-                      Interpolation 106:24-106:30
+                      Interpolation 115:24-115:30
                         OpenBraceToken "{"
-                        IdentifierName 106:25-106:29
+                        IdentifierName 115:25-115:29
                           IdentifierToken "tile"
                         CloseBraceToken "}"
-                      InterpolatedStringText 106:30-106:32
+                      InterpolatedStringText 115:30-115:32
                         InterpolatedStringTextToken ": "
-                      Interpolation 106:32-106:50
+                      Interpolation 115:32-115:50
                         OpenBraceToken "{"
-                        InvocationExpression 106:33-106:49
-                          SimpleMemberAccessExpression 106:33-106:43
-                            SelfExpression 106:33-106:37
+                        InvocationExpression 115:33-115:49
+                          SimpleMemberAccessExpression 115:33-115:43
+                            SelfExpression 115:33-115:37
                               SelfKeyword "self"
                             DotToken "."
-                            IdentifierName 106:38-106:43
+                            IdentifierName 115:38-115:43
                               IdentifierToken "Count"
-                          ArgumentList 106:43-106:49
+                          ArgumentList 115:43-115:49
                             OpenParenToken "("
-                            Argument 106:44-106:48
-                              IdentifierName 106:44-106:48
+                            Argument 115:44-115:48
+                              IdentifierName 115:44-115:48
                                 IdentifierToken "tile"
                             CloseParenToken ")"
                         CloseBraceToken "}"
@@ -1313,102 +1317,102 @@ CompilationUnit 1:1-122:1
                   CloseParenToken ")"
             CloseBraceToken "}"
         CloseBraceToken "}"
-    FunctionDeclaration 110:5-120:6
+    FunctionDeclaration 119:5-129:6
       FuncKeyword "func"
       IdentifierToken "Count"
-      ParameterList 110:15-110:33
+      ParameterList 119:15-119:33
         OpenParenToken "("
-        SelfParameter 110:16-110:20
+        SelfParameter 119:16-119:20
           SelfKeyword "self"
         CommaToken ","
-        Parameter 110:22-110:32
+        Parameter 119:22-119:32
           IdentifierToken "tile"
           ColonToken ":"
-          IdentifierName 110:28-110:32
+          IdentifierName 119:28-119:32
             IdentifierToken "Tile"
         CloseParenToken ")"
-      ReturnTypeClause 110:34-110:40
+      ReturnTypeClause 119:34-119:40
         MinusGreaterThanToken "->"
-        PredefinedType 110:37-110:40
+        PredefinedType 119:37-119:40
           IntKeyword "int"
-      Block 110:41-120:6
+      Block 119:41-129:6
         OpenBraceToken "{"
-        LocalDeclarationStatement 111:9-111:22
+        LocalDeclarationStatement 120:9-120:22
           VarKeyword "var"
           IdentifierToken "count"
-          EqualsValueClause 111:19-111:22
+          EqualsValueClause 120:19-120:22
             EqualsToken "="
-            NumericLiteralExpression 111:21-111:22
+            NumericLiteralExpression 120:21-120:22
               NumericLiteralToken "0"
-        ForStatement 112:9-118:10
+        ForStatement 121:9-127:10
           ForKeyword "for"
           IdentifierToken "x"
           InKeyword "in"
-          RangeExpression 112:18-112:32
-            NumericLiteralExpression 112:18-112:19
+          RangeExpression 121:18-121:32
+            NumericLiteralExpression 121:18-121:19
               NumericLiteralToken "0"
             DotDotLessThanToken "..<"
-            SimpleMemberAccessExpression 112:22-112:32
-              SelfExpression 112:22-112:26
+            SimpleMemberAccessExpression 121:22-121:32
+              SelfExpression 121:22-121:26
                 SelfKeyword "self"
               DotToken "."
-              IdentifierName 112:27-112:32
+              IdentifierName 121:27-121:32
                 IdentifierToken "Width"
-          Block 112:33-118:10
+          Block 121:33-127:10
             OpenBraceToken "{"
-            ForStatement 113:13-117:14
+            ForStatement 122:13-126:14
               ForKeyword "for"
               IdentifierToken "y"
               InKeyword "in"
-              RangeExpression 113:22-113:37
-                NumericLiteralExpression 113:22-113:23
+              RangeExpression 122:22-122:37
+                NumericLiteralExpression 122:22-122:23
                   NumericLiteralToken "0"
                 DotDotLessThanToken "..<"
-                SimpleMemberAccessExpression 113:26-113:37
-                  SelfExpression 113:26-113:30
+                SimpleMemberAccessExpression 122:26-122:37
+                  SelfExpression 122:26-122:30
                     SelfKeyword "self"
                   DotToken "."
-                  IdentifierName 113:31-113:37
+                  IdentifierName 122:31-122:37
                     IdentifierToken "Height"
-              Block 113:38-117:14
+              Block 122:38-126:14
                 OpenBraceToken "{"
-                IfStatement 114:17-116:18
+                IfStatement 123:17-125:18
                   IfKeyword "if"
-                  EqualsExpression 114:20-114:44
-                    ElementAccessExpression 114:20-114:36
-                      SimpleMemberAccessExpression 114:20-114:30
-                        SelfExpression 114:20-114:24
+                  EqualsExpression 123:20-123:44
+                    ElementAccessExpression 123:20-123:36
+                      SimpleMemberAccessExpression 123:20-123:30
+                        SelfExpression 123:20-123:24
                           SelfKeyword "self"
                         DotToken "."
-                        IdentifierName 114:25-114:30
+                        IdentifierName 123:25-123:30
                           IdentifierToken "tiles"
-                      BracketedArgumentList 114:30-114:36
+                      BracketedArgumentList 123:30-123:36
                         OpenBracketToken "["
-                        Argument 114:31-114:32
-                          IdentifierName 114:31-114:32
+                        Argument 123:31-123:32
+                          IdentifierName 123:31-123:32
                             IdentifierToken "x"
                         CommaToken ","
-                        Argument 114:34-114:35
-                          IdentifierName 114:34-114:35
+                        Argument 123:34-123:35
+                          IdentifierName 123:34-123:35
                             IdentifierToken "y"
                         CloseBracketToken "]"
                     EqualsEqualsToken "=="
-                    IdentifierName 114:40-114:44
+                    IdentifierName 123:40-123:44
                       IdentifierToken "tile"
-                  Block 114:45-116:18
+                  Block 123:45-125:18
                     OpenBraceToken "{"
-                    AssignmentStatement 115:21-115:31
-                      IdentifierName 115:21-115:26
+                    AssignmentStatement 124:21-124:31
+                      IdentifierName 124:21-124:26
                         IdentifierToken "count"
                       PlusEqualsToken "+="
-                      NumericLiteralExpression 115:30-115:31
+                      NumericLiteralExpression 124:30-124:31
                         NumericLiteralToken "1"
                     CloseBraceToken "}"
                 CloseBraceToken "}"
             CloseBraceToken "}"
-        ReturnStatement 119:9-119:21
+        ReturnStatement 128:9-128:21
           ReturnKeyword "return"
-          IdentifierName 119:16-119:21
+          IdentifierName 128:16-128:21
             IdentifierToken "count"
         CloseBraceToken "}"
     CloseBraceToken "}"

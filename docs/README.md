@@ -56,5 +56,6 @@
 | [0032](decisions/0032-struct-copies-var-self-extensions-unmarked-methods.md) | 副本同 C#：数组元素、`Span` 元素、`ref` 返回值能直接改，属性、`List` 的 `[]`、函数返回值是副本；扩展里能写 `var self`；C# 没标 `readonly` 的方法在只读的值或副本上调用、又不用返回值时报错 |
 | [0033](decisions/0033-namespace-aliases-name-clashes-no-static-imports.md) | 同名类型同 C#（两个导入都有、用到时报错；自己命名空间里的优先）；只能给命名空间起别名，写 `import ep.protocol under Pb`；没有静态导入 |
 | [0034](decisions/0034-await-all-any-coroutine-await-using-event-errors.md) | 同时等多个：`await all { case ... }` / `await any { case ... }`（`case let x = 调用 -> 分支`，名字只在分支里，当值用同 `match`，`all` 的值按位置解构）；句柄 `Coroutine`，`Wait.Seconds` 按游戏时间、加 `Wait.Frames`；`await using`、`await for`；事件处理函数的异常记日志、接着通知（修订 ADR-0017） |
+| [0035](decisions/0035-doc-comments-acronyms-interpolation-lines.md) | 文档注释写 `- Parameter 名字:`、`- Returns:`、`- Throws 类型:`，链接写 `` [`类型.成员`] ``；缩略词同 .NET（`UI`、`HP`、`Xml`、`Id`）；插值的 `{ }` 在开始的那一行闭合 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

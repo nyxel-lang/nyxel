@@ -59,7 +59,7 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
    ```nyxel
    var hp: int = 100
 
-   public property Hp: int {
+   public property HP: int {
        get = self.hp
        set(value) { self.hp = Math.Clamp(value, 0, 100) }
    }
@@ -175,7 +175,7 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
   - **Swift 的 `subscript(x: int, y: int) -> T { ... }`**：多一个关键字，返回类型用 `->`，和属性的 `:` 不一致。
   - **Kotlin 的两个函数 `operator func get(self, ...)` / `operator func set(self, ..., value: T)`**：一个东西拆成两处声明，两处可能写得对不上，ADR-0011 因为同样的理由没选分开的 get / set；还要多一个 `operator`。
   - 选 `property self[...]`：索引器在 C# 里本来就是属性，属性的规则全部照搬；声明 `self[x, y]` 和使用 `grid[x, y]` 同形，对应 C# 的 `this[...]`。
-- **`field`：同 C# 14，`property Hp: int = 100 { get; set(value) { field = ... } }`**。好处是少起一个名字，类里的其他方法也没法绕过 setter 直接改值。不选的理由：
+- **`field`：同 C# 14，`property HP: int = 100 { get; set(value) { field = ... } }`**。好处是少起一个名字，类里的其他方法也没法绕过 setter 直接改值。不选的理由：
   - `field` 是凭空出现的名字，和 ADR-0011 不要隐式的 `value`、ADR-0008 “不带接收者的名字只能是局部变量或参数”的方向相反。
   - 要放开“访问器要么都带体要么都不带”，读者要多分辨一种属性。
   - 省下的主要是打字，ADR-0003 里排最后。

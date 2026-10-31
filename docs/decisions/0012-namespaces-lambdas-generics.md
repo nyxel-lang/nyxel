@@ -19,7 +19,7 @@
    - Nyxel 代码里写函数类型统一用 `func(...)`；写 `Func<>` / `Action<>` 给警告，提示改写。
 4. **lambda 是去掉名字的函数**：
    ```nyxel
-   let alive = enemies.Where(func(e) = e.Hp > 0)          // 表达式体
+   let alive = enemies.Where(func(e) = e.HP > 0)          // 表达式体
    self.button.OnClick(func(evt) {                         // 块体
        self.clicks += 1
    })

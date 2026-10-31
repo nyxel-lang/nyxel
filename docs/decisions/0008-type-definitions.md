@@ -28,7 +28,7 @@
    - `init` 不写 `public` 就是私有的（同 C#，与 ADR-0006 一致）。
    - `init` 里的 `self` 是正在构造的对象，不写在参数列表里。
    - 翻译：不带名字的 `init` 是 C# 构造函数；带名字的 `init` 是一个子类也能调用的构造函数（protected，带一个隐藏参数，避免和别的构造函数签名冲突），加一个同名的公开静态方法。所以 C# 那边看到的是 `Point.FromPolar(1, 0.5)`。
-4. **创建值一律写 `new`**：`new Slime(maxHp = 30)`、`new Point.FromPolar(radius = 1, angle = 0.5)`、`new Damage.Burn(Amount = 12, Seconds = 3)`（命名实参的写法见 ADR-0011）、`new List<Enemy>()`。不带数据的 case 是常量，不写 `new`：`Element.Fire`。不带 `new` 的 `名字(...)` 一定是函数调用。
+4. **创建值一律写 `new`**：`new Slime(maxHP = 30)`、`new Point.FromPolar(radius = 1, angle = 0.5)`、`new Damage.Burn(Amount = 12, Seconds = 3)`（命名实参的写法见 ADR-0011）、`new List<Enemy>()`。不带数据的 case 是常量，不写 `new`：`Element.Fire`。不带 `new` 的 `名字(...)` 一定是函数调用。
 5. **成员一律通过接收者访问**：实例成员写 `self.hp`、`self.Die()`；静态成员写 `Slime.AliveCount`、`Slime.Count()`。不带接收者的名字只能是局部变量或参数。私有字段不加前缀。直接写字段名是编译错误，诊断给出 `self.` 或 `类型名.` 的写法。
 6. **实例方法和静态函数靠参数列表区分**：
    - 第一个参数是 `self`（不写类型）的是实例方法，没有 `self` 的是静态函数，不需要 `static` 关键字。

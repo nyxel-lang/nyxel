@@ -16,9 +16,9 @@
    ```nyxel
    public property IsDead: bool { get = self.hp <= 0 }     // 计算属性：访问器带函数体
 
-   public property Hp: int {
+   public property HP: int {
        get { return self.hp }
-       set(value) { self.hp = Math.Clamp(value, 0, self.maxHp) }
+       set(value) { self.hp = Math.Clamp(value, 0, self.maxHP) }
    }
 
    public property Score: int = 0 {        // 自动属性：访问器都不带函数体，由编译器存值

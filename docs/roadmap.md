@@ -24,7 +24,7 @@ M3 以后是草案，随 M1 的语法讨论细化。
 - [x] 核心语法逐项定稿：声明与类型标注、可变性、函数、控制流与表达式、空值、类型定义（class / struct / 枚举 / 联合）、模式匹配、泛型、命名空间与导入、命名约定、注释与文档注释（ADR-0006 到 0017，十三轮讨论；剩下的细节记在 language-reference 各节的“待定”里）
 - [x] docs/design/language-reference.md 初稿 + samples/ 下的示例脚本（八个文件）
 - [x] 词法分析（Lexer）、语法分析（Parser）、语法树、诊断（带错误码和位置）：design/syntax-tree.md、design/diagnostics.md；实现时碰到的细节定在 ADR-0019（四项）、ADR-0020（七项）
-- [ ] language-reference 各节末尾的“待定”逐轮讨论（分组和顺序见 STATUS，可以和 M2 交错进行）：元组与遍历（ADR-0021）、区间与集合（ADR-0022）、空值细节（ADR-0023）、枚举（ADR-0024）；用户提议的 `eval` 块和 `->` 分支（ADR-0025）；language-reference 整体 review 收紧的几处（ADR-0026）；类型成员第一批：创建时设置成员 `with`、`init super(...)`（ADR-0027）；第二批：索引器、enum 的成员和接口、不加 `field` 和事件访问器（ADR-0029）；第三批：运算符 `operator +`、struct 的 `==` 比内容、转换 `operator as`（ADR-0030）；泛型的 `T?` 和 `notnull`、元素是 T 的数组、不声明协变逆变、泛型扩展（ADR-0031）；struct 的副本范围、`var self` 扩展、C# 没标 `readonly` 的方法（ADR-0032）；导入：同名类型、命名空间别名 `under`、没有静态导入（ADR-0033）
+- [ ] language-reference 各节末尾的“待定”逐轮讨论（分组和顺序见 STATUS，可以和 M2 交错进行）：元组与遍历（ADR-0021）、区间与集合（ADR-0022）、空值细节（ADR-0023）、枚举（ADR-0024）；用户提议的 `eval` 块和 `->` 分支（ADR-0025）；language-reference 整体 review 收紧的几处（ADR-0026）；类型成员第一批：创建时设置成员 `with`、`init super(...)`（ADR-0027）；第二批：索引器、enum 的成员和接口、不加 `field` 和事件访问器（ADR-0029）；第三批：运算符 `operator +`、struct 的 `==` 比内容、转换 `operator as`（ADR-0030）；泛型的 `T?` 和 `notnull`、元素是 T 的数组、不声明协变逆变、泛型扩展（ADR-0031）；struct 的副本范围、`var self` 扩展、C# 没标 `readonly` 的方法（ADR-0032）；导入：同名类型、命名空间别名 `under`、没有静态导入（ADR-0033）；协程与资源：`await all` / `await any`、句柄 `Coroutine`、`await using` / `await for`、事件处理函数的异常（ADR-0034）；约定：文档注释的参数和链接、缩略词、插值不跨行（ADR-0035）
 - [x] VSCode 语法高亮（TextMate 语法，覆盖已定的全部关键字；`tools/vscode-dev.cmd` 试用）。关键字表和 Lexer 的一致性有测试
 - [ ] 高亮的分词快照测试（vscode-textmate 跑 samples，比对快照；要在 CI 里装 node）
 - [x] 验收：samples/ 全部能解析，语法树能打印出来（`nyxel parse --tree`，快照测试）；故意写错的样例给出准确位置和可读的错误（ParserErrorTests）
@@ -34,6 +34,7 @@ M3 以后是草案，随 M1 的语法讨论细化。
 架构见 [design/architecture-overview.md](design/architecture-overview.md)。
 
 - [ ] Binder：名字解析、类型检查；.NET 类型信息经 Roslyn 符号模型读取（先写设计文档）
+- [ ] 警告：命名检查（ADR-0006，含缩略词，ADR-0035）、文档注释的检查（参数名、链接、`- Throws` 的类型，ADR-0035）
 - [ ] 降级：绑定树 → C# 语法树，`#line` 跨度映射
 - [ ] 后端：进程内 Roslyn 编译出 dll + pdb；Roslyn 诊断映射回 .nyxel 并按内部错误报出
 - [ ] CLI：`nyxel build` / `nyxel run` / `--emit-cs`
@@ -43,7 +44,7 @@ M3 以后是草案，随 M1 的语法讨论细化。
 ## M3 类型系统与 .NET 互操作（草案）
 
 - [ ] class / struct / 接口 / 泛型 / 空值安全 / 模式匹配完整
-- [ ] 调用任意 C# 库；C# 调用 Nyxel 编出的程序集
+- [ ] 调用任意 C# 库；C# 调用 Nyxel 编出的程序集，文档注释转成 XML 文档文件（ADR-0035）
 - [ ] Nyxel.Sdk：`.nyxelproj` 用 `dotnet build` 构建
 - 待定（启动时列出的问题）：特性（attribute）的写法和使用范围；源生成器能否作用于 Nyxel 代码；反射、动态调用；是否允许 `unsafe` / P/Invoke
 

@@ -1,5 +1,6 @@
 namespace Samples.Common
 
+import System
 import System.Collections.Generic
 import System.Text
 import Engine
@@ -41,7 +42,13 @@ public class TileMap {
         set(value) { self.tiles[x, y] = value }
     }
 
-    /// 从文本读地图。第一行是 "map: 名字"；其余每行一排格子：# 是墙，. 是地面，$ 是放着金币的地面。
+    /// 从文本读地图。
+    ///
+    /// 第一行是 `map: 名字`；其余每行一排格子：`#` 是墙，`.` 是地面，`$` 是放着金币的地面。
+    ///
+    /// - Parameter text: 整个地图文件的内容。
+    /// - Returns: 读出来的地图，宽度按第一排格子定。
+    /// - Throws ArgumentOutOfRangeException: 第一行比 `map: ` 还短时。
     public func Parse(text: string) -> TileMap {
         let lines = text.Split('\n')
         let name = lines[0][5...].Trim()                // 切片：去掉开头的 "map: "
@@ -62,7 +69,7 @@ public class TileMap {
 
     public func IsWall(self, x: int, y: int) -> bool = self[x, y] == Tile.Wall
 
-    /// 上下左右有几面墙。
+    /// 上下左右有几面墙。每一格按 [`TileMap.IsWall`] 判断，地图外面也算墙。
     public func WallsAround(self, x: int, y: int) -> int {
         var count = 0
         for (dx, dy) in TileMap.Neighbors {
@@ -81,7 +88,9 @@ public class TileMap {
         }
     }
 
-    /// 捡起这一格上的金币，返回捡到几枚。
+    /// 捡起 [`x`]、[`y`] 这一格上的金币。
+    ///
+    /// - Returns: 捡到几枚；这一格没有金币时是 0。
     public func Collect(self, x: int, y: int) -> int {
         var collected = 0
         for i in (0..<self.coins.Count).Reversed() {   // 倒着走：删掉一个不会跳过下一个

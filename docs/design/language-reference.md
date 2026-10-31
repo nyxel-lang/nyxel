@@ -23,7 +23,7 @@ let slime = self.World.Spawn<Slime>(
 // 下一行以 . 或 ?. 开头：接着上一行
 let targets = self.enemies
     .Where(func(e) = not e.IsDead)
-    .OrderBy(func(e) = e.Hp)
+    .OrderBy(func(e) = e.HP)
 
 // 下一行以二元运算符开头：接着上一行
 let canAttack = self.cooldown <= 0
@@ -108,12 +108,16 @@ let level = Pb.LogLevel.Warn        // 协议里的 LogLevel；不带前缀的 L
 
 关键字用完整英文单词；只有在主流语言里通用、能读出来的缩写可以例外（`var`、`func`、`enum`、`struct`、`init`）。不用 `fn`、`pub`、`mut`、`impl` 这类缩写。拿不准的细节优先参照 Swift。
 
-## 注释（ADR-0007）
+## 注释（ADR-0007、ADR-0035）
 
 ```nyxel
 /// 在距离最近的出生点生成敌人。
 ///
-/// 文档注释的内容是 Markdown，编译器转成 .NET 的 XML 文档文件。
+/// 文档注释的内容是 Markdown，编译器转成 .NET 的 XML 文档文件。第一段是摘要，补全列表里显示这一句。
+///
+/// - Parameter kind: 生成哪一种。
+/// - Returns: 生成的敌人。出生点由 [`Spawner.NearestPoint`] 找出。
+/// - Throws InvalidOperationException: 场景里一个出生点都没有时。
 public func SpawnNearest(self, kind: EnemyKind) -> Entity {
     // 普通行注释
     ...
@@ -121,7 +125,15 @@ public func SpawnNearest(self, kind: EnemyKind) -> Entity {
 ```
 
 - `//` 行注释，`///` 文档注释（Markdown，写在声明前）。没有 `/* */` 块注释。
-- 待定：文档注释里参数和返回值的写法约定（倾向 Swift 的 `- Parameter name:` / `- Returns:`）。
+- 文档注释的第一段是摘要（XML 的 `<summary>`），其余段落是 `<remarks>`（ADR-0035）。
+- 参数、返回值、会抛的异常写成列表项，放在最后，按这个顺序（ADR-0035）：
+  - `- Parameter 名字: 说明`：每个参数一行，按声明的顺序。函数、`init`、事件、索引器的参数，还有泛型参数（`- Parameter T:`），都这样写。
+  - `- Returns: 说明`。
+  - `- Throws 类型: 说明`：类型的写法同代码。编译器不检查函数是不是真的会抛这个异常（同 C#）。
+  - 都不是必须写的，名字和类型已经说清楚时就不写。
+  - 不用 Swift 的分组写法（`- Parameters:` 下面缩进列出），也不用 C# 的 `<param>`、Javadoc 的 `@param`：编译器给警告并给出这里的写法。
+- 链接到别的代码写成方括号里一个代码片段 `` [`名字`] ``（ADR-0035）：类型直接写名字，成员写 `类型.成员`，参数和泛型参数直接写名字。只有反引号的 `` `x` `` 是普通的代码片段，不是链接。
+- 参数名不存在、链接不到、`- Throws` 后面不是异常类型时给警告。
 
 ## 内置类型与字面量（ADR-0007）
 
@@ -167,12 +179,13 @@ let count = 10                          // 没有上下文 → int（同 C#）
 ## 字符串（ADR-0007）
 
 ```nyxel
-Log.Info($"HP: {self.hp}/{self.maxHp}")
+Log.Info($"HP: {self.hp}/{self.maxHP}")
 Log.Info($"Speed: {speed:F2} m/s")
 let plain = "{ not interpolated }"
 ```
 
-- 插值字符串 `$"..."` 与 C# 完全相同：格式说明符、对齐、`{{` / `}}`。
+- 插值字符串 `$"..."` 与 C# 相同：格式说明符、对齐、`{{` / `}}`。
+- `{ }` 在开始的那一行闭合（ADR-0035）：C# 11 起允许洞跨行，Nyxel 里是编译错误。长的表达式先用 `let` 算出来，再写进 `{ }`。
 - 普通字符串的转义序列与 C# 相同。
 
 ### 原始字符串（ADR-0020）
@@ -201,7 +214,7 @@ let json = $$"""
   - 至少要有一行内容；空字符串写 `""`。
 - `$"""` 可以插值，写 `{x}`；这时文字里不能有 `{`、`}`。要在文字里写大括号就用 `$$"""`：插值写 `{{x}}`，单个 `{`、`}` 是普通字符。`$` 有几个，插值就用几个大括号。格式说明符和对齐同 `$"..."`。
 - 没有逐字字符串 `@"..."`，用原始字符串代替。
-- 待定：插值的 `{ }` 里换行（C# 11 允许，目前是编译错误，`$"..."` 也一样）。
+- 插值的 `{ }` 同样在开始的那一行闭合（ADR-0035）。
 
 ## 数组（ADR-0020）
 
@@ -268,7 +281,7 @@ for dir in [Dir.Up, Dir.Down] {                    // 马上被遍历：不用�
   - `for (dx, dy) in [(0, 1), (1, 0)]` 的元组马上被解构，也不用写名字。
 - 没有展开（C# 12 的 `[..a, ..b]`）：先创建，再 `AddRange`。
 - 没有字典字面量：先创建，再逐个 `prices["sword"] = 100`。
-- C# 的集合初始化器 `new List<int> { 1, 2 }` 是编译错误。对象初始化器 `new Enemy { Hp = 10 }` 写成 `new Enemy() with (Hp = 10)`，见“创建时设置成员”。
+- C# 的集合初始化器 `new List<int> { 1, 2 }` 是编译错误。对象初始化器 `new Enemy { HP = 10 }` 写成 `new Enemy() with (HP = 10)`，见“创建时设置成员”。
 - 待定：展开；字典字面量（等 C# 的字典表达式发布）。
 
 ## 元组（ADR-0021）
@@ -304,12 +317,12 @@ let (quotient, remainder) = Math.DivRem(17, 5)
 
 ```nyxel
 class Slime : Behaviour {
-    let maxHp: int = 100        // 不可变字段：只能在声明处或 init 里赋值
+    let maxHP: int = 100        // 不可变字段：只能在声明处或 init 里赋值
     var hp: int = 100           // 可变字段
 
     func Heal(self, amount: int) {
         let healed = amount * 2         // 局部变量，类型推断为 int
-        self.hp = Math.Min(self.hp + healed, self.maxHp)
+        self.hp = Math.Min(self.hp + healed, self.maxHP)
     }
 }
 ```
@@ -497,7 +510,7 @@ let dir = Vector3.FromAngle(radians = 0.5)
 var onDeath: func(Enemy) = func(e) { self.score += 10 }    // 没有返回值：不写 ->
 let filter: func(Enemy) -> bool = func(e) = e.IsBoss
 
-let alive = enemies.Where(func(e) = e.Hp > 0)
+let alive = enemies.Where(func(e) = e.HP > 0)
 
 self.button.OnClick(func(evt) {
     self.clicks += 1
@@ -808,7 +821,7 @@ let psi = new ProcessStartInfo(fileName = "git")
 - C# 类型的 `required` 成员必须写在 `with` 里，漏了是编译错误，诊断列出缺哪些。
 - 每一项写 `名字 = 值`，同带名字的元组值。
 - `with` 只能跟在 `new 类型(...)` 后面（`()` 不能省）。下一行以 `with` 开头时接着上一行，同 `.`。
-- 没有 C# 的嵌套初始化器（`new A { B = { X = 1 } }`）和集合初始化器（用集合字面量）。C# 的 `new Enemy { Hp = 10 }` 是编译错误，诊断给出 `with` 的写法。
+- 没有 C# 的嵌套初始化器（`new A { B = { X = 1 } }`）和集合初始化器（用集合字面量）。C# 的 `new Enemy { HP = 10 }` 是编译错误，诊断给出 `with` 的写法。
 - Nyxel 自己没有“只能在创建时设置”的成员（C# 的 `init` 访问器、`required`）：创建后不能改用 `let` 字段加 `init` 参数，必须给值由确定初始化检查保证。
 - 待定：`with` 用在已有的值上（复制一份再改几个成员，同 C# 的 `with` 表达式）；Nyxel 自己声明只能在创建时设置的成员。
 
@@ -858,7 +871,7 @@ let target = eval {
     if candidates.Count == 0 {
         give null
     }
-    give candidates.MinBy(func(e) = e.Hp)
+    give candidates.MinBy(func(e) = e.HP)
 } ?? return                         // 函数的出口留在顶层
 ```
 
@@ -1159,7 +1172,7 @@ let level = try -> Level.Load(name)
 - `try` 当语句用时分支写 `{ }`；当值用时分支写 `->`，规则同 `if`（ADR-0025）：每个分支是一个表达式或一条离开语句，`catch`、`finally` 可以写在下一行开头；`finally` 不产生值，照旧写 `finally { 语句 }`。
 - `throw 异常对象` 是语句。在 `catch e` 里 `throw e` 重新抛出同一个异常，保留原来的调用栈（翻译成 C# 的 `throw;`）。
 - `finally` 里不能 `return`。
-- 待定：文档注释里写会抛哪些异常的约定。
+- 文档注释里写会抛的异常：`- Throws 类型: 说明`（ADR-0035，见“注释”）。
 
 ## 资源释放（ADR-0015）
 
@@ -1287,7 +1300,7 @@ class Player : Behaviour {
 
     public property IsDead: bool { get = self.hp <= 0 }     // 计算属性：getter 可以写表达式体
 
-    public property Hp: int {
+    public property HP: int {
         get { return self.hp }
         set(value) { self.hp = Math.Clamp(value, 0, 100) }
     }
@@ -1309,7 +1322,7 @@ interface IDamageable {
 - setter 的新值在括号里命名：`set(value)`。访问器里 `self` 隐式可用。静态属性写 `static property`。
 - 默认用字段；实现接口的属性、对外只读对内可写、值需要计算时用属性。
 - C# 的 `init` 访问器（只能在创建时设置）用 `with` 设，见“创建时设置成员”（ADR-0027）；Nyxel 自己暂不能声明。
-- 没有 C# 14 的 `field` 关键字（ADR-0029）：访问器仍然要么都带体，要么都不带。setter 里要加检查，就写字段加计算属性（上例的 `hp` 和 `Hp`）。
+- 没有 C# 14 的 `field` 关键字（ADR-0029）：访问器仍然要么都带体，要么都不带。setter 里要加检查，就写字段加计算属性（上例的 `hp` 和 `HP`）。
 
 ### 索引器（ADR-0029）
 
@@ -1400,7 +1413,7 @@ match self.state {
 - 没有 `internal`，也没有 C# 的 `protected internal`、`private protected`。
 - 修饰符的顺序固定（ADR-0019）：可见性（`public` / `protected`；访问器上还有 `private`）→ `static` → `abstract` / `sealed` / `virtual` → `override` → `async`。顺序不对、重复都是编译错误，诊断给出正确的写法：`public static var`、`protected override func`、`public override async func`、`sealed override`。
 
-## 命名（ADR-0006）
+## 命名（ADR-0006、ADR-0035）
 
 编译器检查，不符合给警告。
 
@@ -1409,7 +1422,16 @@ match self.state {
 | 类型、方法、属性、`public` / `protected` 字段、命名 init、enum case 和它的数据、元组元素 | PascalCase | `EnemySpawner`、`TakeDamage`、`SpawnInterval`、`FromPolar`、`Burn`、`Seconds`、`Min` |
 | 参数、局部变量、非公开字段 | camelCase，不加前缀 | `amount`、`spawnPoint`、`hp` |
 
-调用 .NET API 时名字原样使用。待定：缩略词的大小写（`Id` / `IO`）。
+缩略词同 .NET 的命名规范（ADR-0035）：两个字母的全大写，三个字母以上的只大写首字母；camelCase 开头的词整个小写。`Id`、`Ok` 是缩写，不是缩略词，写 `Id`、`Ok`。
+
+| PascalCase | camelCase |
+|---|---|
+| `PlayerUI`、`IOError`、`MaxHP`、`EnemyAI` | `uiRoot`、`ioError`、`hp`、`maxHP` |
+| `XmlReader`、`JsonText`、`NpcSpawner`、`Hud` | `xmlText`、`npcCount`、`hud` |
+| `UserId`、`OkButton` | `id`、`userId` |
+
+- 命名检查能查出三个以上大写字母连成的词（`XMLReader` → `XmlReader`、`ReadJSON` → `ReadJson`）和 `ID`、`OK`（`UserID` → `UserId`）。`Hp` 和 `HP` 哪个对查不出来：编译器不知道一个词是不是缩略词，按规则写 `HP`。
+- 重写的成员、实现接口的成员不查，名字跟着基类。调用 .NET API 时名字原样使用。
 
 ## 待定
 

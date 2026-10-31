@@ -50,7 +50,7 @@
          if candidates.Count == 0 {
              give null
          }
-         give candidates.MinBy(func(e) = e.Hp)
+         give candidates.MinBy(func(e) = e.HP)
      } ?? return
      ```
      块里定义的 lambda 有自己的 `return`，不受这条限制。`throw`、`await` 照常可用。

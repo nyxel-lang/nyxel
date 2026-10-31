@@ -69,6 +69,9 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor DollarsWithoutRawString =
         Error("NYX1020", "Several '$' only go before a raw string (\"\"\"...\"\"\"); write a single '$'.");
 
+    public static readonly DiagnosticDescriptor InterpolationSpansLines =
+        Error("NYX1234", "Close the interpolation on the line where it starts; put a longer expression in a 'let' first and write its name between the braces.");
+
     // Syntax.
 
     public static readonly DiagnosticDescriptor Expected =

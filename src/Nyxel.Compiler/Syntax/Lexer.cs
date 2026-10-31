@@ -59,6 +59,9 @@ internal sealed class Lexer
 
         /// <summary>A reported $@"...": read without escapes so that its '\' cause no more errors.</summary>
         public bool IsVerbatim { get; init; }
+
+        /// <summary>A reported hole that goes on to a later line, read as C# 11 reads it (ADR-0035).</summary>
+        public bool SpansLines { get; set; }
     }
 
     /// <summary>A raw string being read (ADR-0020): the quotes that delimit it and whether it spans lines.</summary>
@@ -119,11 +122,17 @@ internal sealed class Lexer
             }
 
             var sawLineBreak = _tokens.Count == 0;
-            var leading = LexTrivia(leading: mode == null, ref sawLineBreak);
+            var leading = LexTrivia(leading: mode == null || mode.SpansLines, ref sawLineBreak);
             if (mode != null && (AtEnd || Current is '\r' or '\n'))
             {
-                AbandonInterpolatedString();
-                continue;
+                if (AtEnd || !HoleClosesOnALaterLine(mode))
+                {
+                    AbandonInterpolatedString();
+                    continue;
+                }
+                _diagnostics.Report(DiagnosticDescriptors.InterpolationSpansLines, new TextSpan(mode.Start, mode.Braces));
+                mode.SpansLines = true;
+                leading = leading.AddRange(LexTrivia(leading: true, ref sawLineBreak));
             }
 
             var start = _position;
@@ -1208,6 +1217,88 @@ internal sealed class Lexer
         {
             AbandonInterpolatedString();
         }
+    }
+
+    /// <summary>
+    /// A hole ran into the end of its line. C# 11 lets a hole go on (ADR-0035): look ahead as code, brackets paired
+    /// and strings, characters and comments skipped, for the '}' that closes it with the end of the string after it
+    /// on the same line. Anything else (a string that doesn't close on its line, an extra ')' or ']', no closing
+    /// quotes after the '}') is a hole that isn't closed. In a multi-line raw string the next line is text.
+    /// </summary>
+    private bool HoleClosesOnALaterLine(Mode hole)
+    {
+        if (hole.Raw is { IsMultiLine: true })
+        {
+            return false;
+        }
+        var depth = hole.Depth;
+        var i = _position;
+        while (i < _text.Length)
+        {
+            var c = _text[i];
+            if (c == '/' && i + 1 < _text.Length && _text[i + 1] == '/')
+            {
+                while (i < _text.Length && _text[i] is not ('\r' or '\n'))
+                {
+                    i++;
+                }
+            }
+            else if (c is '"' or '\'')
+            {
+                i = SkipQuoted(i);
+                if (i < 0)
+                {
+                    return false;
+                }
+            }
+            else if (c is '(' or '[' or '{')
+            {
+                depth++;
+                i++;
+            }
+            else if (c is ')' or ']' || (c == '}' && depth > 0))
+            {
+                if (depth == 0)
+                {
+                    return false;
+                }
+                depth--;
+                i++;
+            }
+            else if (c == '}')
+            {
+                var close = new string('"', hole.Raw?.Quotes ?? 1);
+                var lineEnd = i;
+                while (lineEnd < _text.Length && _text[lineEnd] is not ('\r' or '\n'))
+                {
+                    lineEnd++;
+                }
+                return _text.ToString(TextSpan.FromBounds(i + 1, lineEnd)).Contains(close, StringComparison.Ordinal);
+            }
+            else
+            {
+                i++;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Just after the quote that closes the string or character starting at <paramref name="start"/> on its line, or -1.</summary>
+    private int SkipQuoted(int start)
+    {
+        var quote = _text[start];
+        for (var i = start + 1; i < _text.Length && _text[i] is not ('\r' or '\n'); i++)
+        {
+            if (_text[i] == '\\' && i + 1 < _text.Length && _text[i + 1] is not ('\r' or '\n'))
+            {
+                i++;
+            }
+            else if (_text[i] == quote)
+            {
+                return i + 1;
+            }
+        }
+        return -1;
     }
 
     /// <summary>

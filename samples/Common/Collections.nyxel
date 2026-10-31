@@ -15,7 +15,11 @@ extension<T> List<T> {
         }
     }
 
-    /// 只有这个方法用的 U 写在方法上。
+    /// 把每一项换成另一种值，组成新的列表。只有这个方法用的 U 写在方法上。
+    ///
+    /// - Parameter U: 换成的类型。
+    /// - Parameter convert: 怎么换，按顺序对每一项调用一次。
+    /// - Returns: 新的列表，长度和顺序同原来的。
     public func Map<U>(self, convert: func(T) -> U) -> List<U> {
         let result = new List<U>(self.Count)
         for item in self {
@@ -27,7 +31,9 @@ extension<T> List<T> {
 
 /// 约束照旧写在 <> 里。
 extension<T: IComparable<T>> List<T> {
-    /// 最大的一个。列表不能是空的。
+    /// 最大的一个。
+    ///
+    /// - Throws ArgumentOutOfRangeException: 列表是空的时。
     public func Largest(self) -> T {
         var best = self[0]
         for item in self {

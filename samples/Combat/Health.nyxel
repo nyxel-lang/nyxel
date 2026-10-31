@@ -26,7 +26,10 @@ public struct Health {
     public property Percent: float { get = self.current as float / self.Max }
 
     // var self：struct 的方法修改自己时要写（class 的方法不用，见 Spawner.SpawnWave）。
-    /// 应用一次伤害，返回生命值的实际变化（负数是掉血）。
+    /// 应用一次伤害或治疗。
+    ///
+    /// - Parameter damage: 按它的 [`Damage.Change`] 改变生命值。
+    /// - Returns: 生命值的实际变化，负数是掉血。到 0 或 [`Health.Max`] 就不再变，所以可能比 `damage.Change` 小。
     public func Apply(var self, damage: Damage) -> int {
         let before = self.current
         self.current = Math.Clamp(self.current + damage.Change, 0, self.Max)
