@@ -65,7 +65,7 @@
 
 - `TryXxx` 加 `if not ... { return }` 的写法和 `?? return` 一样，都能让后面的代码拿到非空的值。编译器要实现 .NET 可空标注里和 `out` 有关的那几种。
 - C# 习惯的 `using var x = ...`、`using (...) { }`、文件开头的 `using System` 都会得到编译错误和对应的写法（去掉 `var`、`using x = ...`、`import System`）。
-- 待定：异步资源，写法会是 `await using conn = ...`。
+- 后来定了（ADR-0034）：异步资源写 `await using conn = ...`，异步遍历写 `await for x in xs`。
 
 ## 修订记录
 

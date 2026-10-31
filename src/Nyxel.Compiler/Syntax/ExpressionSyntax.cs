@@ -622,6 +622,101 @@ public sealed class WhenClauseSyntax : SyntaxNode
 }
 
 /// <summary>
+/// <c>await all { case ... }</c> (<see cref="SyntaxKind.AwaitAllExpression"/>) or <c>await any { case ... }</c>
+/// (<see cref="SyntaxKind.AwaitAnyExpression"/>): runs the cases at the same time and waits for all of them, or for
+/// the first to finish (ADR-0034). A statement or a value, decided as for <see cref="MatchExpressionSyntax"/>.
+/// </summary>
+public sealed class AwaitGroupExpressionSyntax : ExpressionSyntax
+{
+    internal AwaitGroupExpressionSyntax(
+        SyntaxKind kind,
+        SyntaxToken awaitKeyword,
+        SyntaxToken groupKeyword,
+        SyntaxToken openBraceToken,
+        SyntaxList<AwaitCaseSyntax> cases,
+        SyntaxToken closeBraceToken)
+        : base(kind)
+    {
+        AwaitKeyword = awaitKeyword;
+        GroupKeyword = groupKeyword;
+        OpenBraceToken = openBraceToken;
+        Cases = cases;
+        CloseBraceToken = closeBraceToken;
+        AdoptChildren();
+    }
+
+    public SyntaxToken AwaitKeyword { get; }
+
+    /// <summary><c>all</c> or <c>any</c>: an identifier token, a keyword only between <c>await</c> and <c>{</c>.</summary>
+    public SyntaxToken GroupKeyword { get; }
+
+    public SyntaxToken OpenBraceToken { get; }
+
+    public SyntaxList<AwaitCaseSyntax> Cases { get; }
+
+    public SyntaxToken CloseBraceToken { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(AwaitKeyword, GroupKeyword, OpenBraceToken, Cases, CloseBraceToken);
+}
+
+/// <summary>
+/// <c>case let name = call -&gt; body</c> in <c>await all</c> / <c>await any</c> (ADR-0034). The declaration in front
+/// and the branch are both optional; a name is only visible in its own branch.
+/// </summary>
+public sealed class AwaitCaseSyntax : SyntaxNode
+{
+    internal AwaitCaseSyntax(
+        SyntaxToken caseKeyword,
+        SyntaxToken? keyword,
+        SyntaxToken? identifier,
+        DeconstructionSyntax? deconstruction,
+        TypeAnnotationSyntax? typeAnnotation,
+        SyntaxToken? equalsToken,
+        ExpressionSyntax expression,
+        SyntaxToken? arrowToken,
+        SyntaxNode? body)
+        : base(SyntaxKind.AwaitCase)
+    {
+        CaseKeyword = caseKeyword;
+        Keyword = keyword;
+        Identifier = identifier;
+        Deconstruction = deconstruction;
+        TypeAnnotation = typeAnnotation;
+        EqualsToken = equalsToken;
+        Expression = expression;
+        ArrowToken = arrowToken;
+        Body = body;
+        AdoptChildren();
+    }
+
+    /// <summary><c>case</c>; missing when a line of the block left it out (NYX1228).</summary>
+    public SyntaxToken CaseKeyword { get; }
+
+    /// <summary><c>let</c> or <c>var</c> when the case names its result, as in a local declaration.</summary>
+    public SyntaxToken? Keyword { get; }
+
+    public SyntaxToken? Identifier { get; }
+
+    /// <summary><c>(min, max)</c> in place of <see cref="Identifier"/>.</summary>
+    public DeconstructionSyntax? Deconstruction { get; }
+
+    public TypeAnnotationSyntax? TypeAnnotation { get; }
+
+    public SyntaxToken? EqualsToken { get; }
+
+    /// <summary>What the case waits for: a call or a handle.</summary>
+    public ExpressionSyntax Expression { get; }
+
+    public SyntaxToken? ArrowToken { get; }
+
+    /// <summary>The branch after '-&gt;', with the same forms as <see cref="MatchArmSyntax.Body"/>.</summary>
+    public SyntaxNode? Body { get; }
+
+    public override IEnumerable<SyntaxNode> GetChildren() =>
+        Children(CaseKeyword, Keyword, Identifier, Deconstruction, TypeAnnotation, EqualsToken, Expression, ArrowToken, Body);
+}
+
+/// <summary>
 /// <c>try -&gt; value catch e: T -&gt; value finally { }</c>, a <c>try</c> used as a value (ADR-0025); the
 /// statement with blocks is <see cref="TryStatementSyntax"/>. <c>finally</c> gives no value and keeps its block.
 /// </summary>

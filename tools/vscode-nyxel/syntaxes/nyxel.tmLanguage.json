@@ -108,6 +108,13 @@
             "2": { "name": "storage.type.accessor.nyxel" }
           }
         },
+        {
+          "match": "\\b(await)[ \\t]+(all|any)(?=[ \\t]*\\{)",
+          "captures": {
+            "1": { "name": "keyword.control.nyxel" },
+            "2": { "name": "keyword.control.nyxel" }
+          }
+        },
         { "name": "keyword.control.nyxel", "match": "\\b(if|else|match|return|throw|continue|break|for|in|while|when|try|catch|finally|await|launch|emit|eval|give)\\b" },
         { "name": "keyword.operator.word.nyxel", "match": "\\b(and|or|not|is|as)\\b" },
         { "name": "keyword.operator.range.nyxel", "match": "\\.\\.<|\\.\\.\\." },

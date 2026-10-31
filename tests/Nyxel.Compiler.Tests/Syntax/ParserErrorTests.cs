@@ -591,4 +591,69 @@ public class ParserErrorTests
         var diagnostics = DiagnosticsOf("class C {\n    func F(self) {\n        let a = 1\n");
         Assert.Equal(["NYX1101 3:18"], diagnostics);
     }
+
+    // await all / await any, await using, await for (ADR-0034) -----------------------------------------------------
+
+    [Theory]
+    [InlineData("await all {\n    self.A()\n    case self.B()\n}", "NYX1228 4:5")]
+    [InlineData("await all {\n    let t = self.A()\n    case self.B()\n}", "NYX1228 4:5")]
+    [InlineData("await all {\n    if a {\n    }\n    case self.A()\n    case self.B()\n}", "NYX1228 4:5")]
+    [InlineData("await all {\n    case await self.A()\n    case self.B()\n}", "NYX1229 4:10")]
+    [InlineData("await all {\n    await self.A()\n    case self.B()\n}", "NYX1228 4:5")]
+    [InlineData("await any {\n    case await all {\n        case self.A()\n        case self.B()\n    }\n    case self.C()\n}", "NYX1229 4:10")]
+    [InlineData("await any {\n    case self.tex = Load()\n    case Wait.Seconds(1)\n}", "NYX1230 4:19")]
+    [InlineData("await all {\n    case self.A()\n}", "NYX1231 3:7")]
+    [InlineData("await any {\n}", "NYX1231 3:7")]
+    [InlineData("await any {\n    case let key = self.WaitKey()\n    case Wait.Seconds(1)\n}", "NYX1232 4:14")]
+    [InlineData("await all {\n    case let (a, b) = self.Scan()\n    case self.B()\n}", "NYX1232 4:14")]
+    [InlineData("let v = await any {\n    case self.A() -> {\n        F()\n    }\n    case self.B() -> 1\n}", "NYX1190 4:22")]
+    [InlineData("let v = await any {\n    case self.A() -> emit self.E()\n    case self.B() -> 1\n}", "NYX1123 4:22")]
+    [InlineData("await any {\n    case self.A() -> let a = 1\n    case self.B()\n}", "NYX1123 4:22")]
+    [InlineData("await any {\n    case self.A() => 1\n    case self.B()\n}", "NYX1152 4:19")]
+    [InlineData("await all { case self.A() case self.B() }", "NYX1106 3:27")]
+    [InlineData("await any\n{\n    case self.A()\n    case self.B()\n}", "NYX1104 4:1")]
+    [InlineData("match x {\n    case 1 -> await using r = Open()\n    case _ -> {}\n}", "NYX1123 4:15")]
+    [InlineData("await using var r = Open()", "NYX1159 3:13")]
+    [InlineData("await using (r) {\n}", "NYX1160 3:13")]
+    [InlineData("for await e in events {\n}", "NYX1233 3:5")]
+    [InlineData("await any {\n    case self.A() -> self.Answer()\n    case Wait.Seconds(1)\n}")]
+    public void AwaitErrors(string statements, params string[] expected) => AssertStatementErrors(statements, expected);
+
+    [Theory]
+    [InlineData("await all {\n    self.A()\n    case self.B()\n}", "Start each line of 'await all { }' with 'case', as in 'case self.FadeIn()'.")]
+    [InlineData("await any {\n    case await self.A()\n    case self.B()\n}", "'await any' waits for each case itself; drop this 'await'.")]
+    [InlineData("await any {\n    case self.tex = Load()\n    case self.B()\n}", "A case can't assign to an existing variable or member: which case finishes first isn't known. Name the result with 'case let name = ...' and assign it in the branch, or after the block.")]
+    [InlineData("await all {\n    case self.A()\n}", "'await all' needs at least two cases; to wait for one thing, write 'await' before it.")]
+    [InlineData("await all {\n    case let tex = Load()\n    case self.B()\n}", "'tex' is only visible in the branch of its case; use it after '->', or take the results out as the value of the block: 'let ... = await all { ... }'.")]
+    [InlineData("let v = await any {\n    case self.A() -> {\n    }\n    case self.B() -> 1\n}", "When 'await any' gives a value, each case is one expression; to run statements first, write '-> eval { ... give value }'.")]
+    [InlineData("let v = match a {\n    case 1 -> {\n    }\n    case _ -> 0\n}", "When 'match' gives a value, each arm is one expression; to run statements first, write '-> eval { ... give value }'.")]
+    [InlineData("await using var r = Open()", "Write 'await using r = ...' without 'var'.")]
+    [InlineData("for await e in events {\n}", "Write 'await for e in ...': a statement that waits starts with 'await', as 'await using' does.")]
+    public void AwaitMessagesSayWhatToWrite(string statements, string message) =>
+        Assert.Equal(message, SyntaxTree.Parse(InMethod(statements)).Diagnostics.Single().Message);
+
+    [Fact]
+    public void ForAwaitIsReadAsAwaitFor()
+    {
+        var source = InMethod("for await e in events {\n}");
+        var tree = SyntaxTree.Parse(source);
+        var loop = Assert.IsType<ForStatementSyntax>(Body(tree).Statements.Single());
+        Assert.True(loop.AwaitKeyword!.IsMissing);
+        Assert.Equal("(ForStatement <missing> for e in events (Block { }))", Compact(loop));
+        Assert.Equal(source, tree.Root.ToFullString());
+        AssertParentsAndSpansConsistent(tree.Root);
+    }
+
+    [Fact]
+    public void LinesWithoutCaseAndAssignmentsAreReadAsCases()
+    {
+        var source = InMethod("await all {\n    self.A()\n    case self.tex = Load()\n}");
+        var tree = SyntaxTree.Parse(source);
+        Assert.Equal(["NYX1228 4:5", "NYX1230 5:19"], tree.Diagnostics.Select(Format));
+        Assert.Equal(
+            "(ExpressionStatement (AwaitAllExpression await all { (AwaitCase <missing> (InvocationExpression (SimpleMemberAccessExpression self . A) (ArgumentList ( )))) (AwaitCase case (InvocationExpression Load (ArgumentList ( )))) }))",
+            Compact(Body(tree).Statements.Single()));
+        Assert.Equal(source, tree.Root.ToFullString());
+        AssertParentsAndSpansConsistent(tree.Root);
+    }
 }

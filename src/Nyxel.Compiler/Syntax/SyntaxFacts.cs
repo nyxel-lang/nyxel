@@ -90,7 +90,7 @@ public static class SyntaxFacts
 
     /// <summary>
     /// Words that are keywords only in one position (property accessors, just before <c>enum</c>, after the
-    /// namespace of an import) and identifiers everywhere else.
+    /// namespace of an import, between <c>await</c> and <c>{</c>) and identifiers everywhere else.
     /// </summary>
     public const string GetContextualKeyword = "get";
 
@@ -99,6 +99,10 @@ public static class SyntaxFacts
     public const string FlagsContextualKeyword = "flags";
 
     public const string UnderContextualKeyword = "under";
+
+    public const string AllContextualKeyword = "all";
+
+    public const string AnyContextualKeyword = "any";
 
     public static SyntaxKind GetKeywordKind(string text) =>
         Keywords.TryGetValue(text, out var kind) ? kind : SyntaxKind.IdentifierToken;

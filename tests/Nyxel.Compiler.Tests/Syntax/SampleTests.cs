@@ -32,7 +32,7 @@ public class SampleTests
     }
 
     [Fact]
-    public void AllFifteenSamplesAreFound() => Assert.Equal(15, Samples().Count);
+    public void AllSixteenSamplesAreFound() => Assert.Equal(16, Samples().Count);
 
     [Theory]
     [MemberData(nameof(Samples))]

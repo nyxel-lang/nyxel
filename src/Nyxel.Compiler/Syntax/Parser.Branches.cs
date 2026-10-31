@@ -20,9 +20,8 @@ internal sealed partial class Parser
     // Where the statement being parsed starts: a 'match' there is a statement, anywhere else a value.
     private int _statementStart = -1;
 
-    // The second half of NYX1123, by what the match is used as.
-    private const string MatchArmStatementInBraces = "put it in braces: '-> { ... }'";
-    private const string MatchArmStatementAsValue = "when 'match' gives a value, each arm is one expression, or 'eval { ... give value }'";
+    // The second half of NYX1123 when the match or 'await' block is a statement.
+    private const string ArmStatementInBraces = "put it in braces: '-> { ... }'";
 
     /// <summary><c>if</c> or <c>try</c> at the start of a statement: the form with blocks.</summary>
     private StatementSyntax ParseBranchingStatement()
@@ -376,7 +375,7 @@ internal sealed partial class Parser
             arrow = Expect(SyntaxKind.MinusGreaterThanToken);
         }
         AllowLineBreak();
-        return new MatchArmSyntax(keyword, pattern, whenClause, arrow, ParseMatchArmBody(asStatement));
+        return new MatchArmSyntax(keyword, pattern, whenClause, arrow, ParseArmBody(asStatement, "match", "arm"));
     }
 
     private WhenClauseSyntax ParseWhenClause()
@@ -386,19 +385,23 @@ internal sealed partial class Parser
     }
 
     /// <summary>
-    /// An expression or a leave; when the match is a statement, also a block or a simple statement: an assignment or
-    /// <c>emit</c> (ADR-0025, ADR-0026). Declarations and statements with blocks of their own written directly after
-    /// '-&gt;' are reported and read into a block with missing braces, so the rest of the match still parses.
+    /// The branch after the '-&gt;' of a match arm or of a case of <c>await all</c> / <c>await any</c>
+    /// (<paramref name="construct"/>, whose branches are called <paramref name="item"/>s in messages). An expression or a
+    /// leave; when the construct is a statement, also a block or a simple statement: an assignment or <c>emit</c>
+    /// (ADR-0025, ADR-0026, ADR-0034). Declarations and statements with blocks of their own written directly after
+    /// '-&gt;' are reported and read into a block with missing braces, so the rest of the construct still parses.
     /// </summary>
-    private SyntaxNode ParseMatchArmBody(bool asStatement)
+    private SyntaxNode ParseArmBody(bool asStatement, string construct, string item)
     {
-        var how = asStatement ? MatchArmStatementInBraces : MatchArmStatementAsValue;
+        var how = asStatement
+            ? ArmStatementInBraces
+            : $"when '{construct}' gives a value, each {item} is one expression, or 'eval {{ ... give value }}'";
         if (Current.Kind == SyntaxKind.OpenBraceToken)
         {
             var block = ParseBlock();
             if (!asStatement)
             {
-                Report(DiagnosticDescriptors.MatchBlockArmAsValue, block.OpenBraceToken.Span);
+                Report(DiagnosticDescriptors.MatchBlockArmAsValue, block.OpenBraceToken.Span, construct, item);
             }
             return block;
         }
@@ -410,11 +413,13 @@ internal sealed partial class Parser
         {
             return new EmitStatementSyntax(NextToken(), ParseExpression());
         }
+        var awaitStatement = Current.Kind == SyntaxKind.AwaitKeyword && IsAwaitStatementAhead();
         if (!AtLineBreak && (Current.Kind is SyntaxKind.LetKeyword or SyntaxKind.VarKeyword or SyntaxKind.EmitKeyword
             or SyntaxKind.UsingKeyword or SyntaxKind.WhileKeyword or SyntaxKind.ForKeyword
-            || (asStatement && IsBranchingStatementAhead())))
+            || awaitStatement || (asStatement && IsBranchingStatementAhead())))
         {
-            Report(DiagnosticDescriptors.MatchArmStatement, Current.Span, $"'{Current.Text}' statement", how);
+            var what = awaitStatement ? $"'await {Peek(1).Text}' statement" : $"'{Current.Text}' statement";
+            Report(DiagnosticDescriptors.MatchArmStatement, Current.Span, what, how);
             var open = Missing(SyntaxKind.OpenBraceToken);
             var statement = ParseStatement();
             List<StatementSyntax> statements = statement == null ? [] : [statement];

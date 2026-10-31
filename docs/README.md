@@ -36,9 +36,9 @@
 | [0012](decisions/0012-namespaces-lambdas-generics.md) | 文件结构 `namespace` → `import` → 声明；每个文件显式 `import`，无全局 / 隐式导入；函数类型 `func(A) -> R` / `func(A)`；lambda `func(e) = 表达式` / `func(e) { }`；函数可用 `= 表达式` 体；泛型 `<T: 约束 and 约束>` |
 | [0013](decisions/0013-default-init-literals-line-continuation.md) | 没写 `init` 自动有公开无参 `init`；`init super(...)` 是第一句，`init self(...)` 委托，`super.方法`；混合运算期望类型往里传但不改变整数运算；续行：括号里、下一行以 `.` / 二元运算符开头、行尾 `=` / `->` |
 | [0014](decisions/0014-conversions-parameters-extensions-exceptions.md) | 显式转换 `x as T`（只做不会因类型不对而失败的转换，向下转换用 `is`）；参数不能重新赋值；`extension 类型 { }` 块（对应 C# 14）；.NET 异常：`try` / `catch e: 类型` / `when` / `finally`，`try` 可当表达式（`try -> a catch e: E -> b`），`catch _: T` |
-| [0015](decisions/0015-ref-out-using-protected.md) | 调用处写 `out let x` / `out 目标` / `out _` / `ref 目标`；自己的函数只在 override / 实现接口时声明 `out` / `ref`；`using x = ...` 释放资源（无块形式、无 `defer`）；加 `protected`，不加 `internal` |
-| [0016](decisions/0016-async-await-launch.md) | 协程：`async func` + `await`（能等任何 .NET 可等待对象，恢复在主线程）；调用必须写 `await` 或 `launch`；`launch obj.M()` 绑定 `obj`，销毁后自动停止（`finally` 照常执行，`catch` 接不住）；热重载停止所有协程 |
-| [0017](decisions/0017-events-and-state-machines.md) | 事件 `event Died(slime: Slime)` + `emit`；`+=` / `-=` 订阅，绑定“执行谁的代码”，销毁或热重载时自动移除；方法可当函数值；实现接口、重写的事件用对方的委托类型；状态机不加语法（enum + match + 协程） |
+| [0015](decisions/0015-ref-out-using-protected.md) | 调用处写 `out let x` / `out 目标` / `out _` / `ref 目标`；自己的函数只在 override / 实现接口时声明 `out` / `ref`；`using x = ...` 释放资源（无块形式、无 `defer`，异步的写 `await using`）；加 `protected`，不加 `internal` |
+| [0016](decisions/0016-async-await-launch.md) | 协程：`async func` + `await`（能等任何 .NET 可等待对象，恢复在主线程）；调用必须写 `await` 或 `launch`；`launch obj.M()` 绑定 `obj`，销毁后自动停止（`finally` 照常执行，`catch` 接不住）；热重载停止所有协程；句柄 `Coroutine`，等待函数 `Wait.Seconds` 等 |
+| [0017](decisions/0017-events-and-state-machines.md) | 事件 `event Died(slime: Slime)` + `emit`；`+=` / `-=` 订阅，绑定“执行谁的代码”，销毁或热重载时自动移除；处理函数抛异常时记日志、接着通知下一个；方法可当函数值；实现接口、重写的事件用对方的委托类型；状态机不加语法（enum + match + 协程） |
 | [0018](decisions/0018-npm-scope.md) | npm scope 用 `@nyxel-lang`（`@nyxel` 被别人注册了），改了 ADR-0001 的这一项 |
 | [0019](decisions/0019-syntax-details-for-parser.md) | 运算符一律放行首（括号里也一样）；修饰符顺序固定；区间优先级比算术低、比比较高；错误码 `NYX` 加四位数字 |
 | [0020](decisions/0020-literals-arrays-blocks.md) | 字符字面量 `'a'`；`0.5` 不省 0；原始字符串 `"""`（没有 `@"..."`）；数组类型 `array<T>`；不能嵌套类型；没有单独的块；赋值运算符可以写在行尾 |
@@ -55,5 +55,6 @@
 | [0031](decisions/0031-generics-nullability-variance-extensions.md) | 写 `T?` 时约束要看得出 T 是 class 还是 struct，加 `notnull` 约束；元素是 T 的数组写 `element`，`array<T?>` 可以直接创建；暂不声明协变 / 逆变，用 .NET 的同 C#；泛型扩展 `extension<T> List<T>` |
 | [0032](decisions/0032-struct-copies-var-self-extensions-unmarked-methods.md) | 副本同 C#：数组元素、`Span` 元素、`ref` 返回值能直接改，属性、`List` 的 `[]`、函数返回值是副本；扩展里能写 `var self`；C# 没标 `readonly` 的方法在只读的值或副本上调用、又不用返回值时报错 |
 | [0033](decisions/0033-namespace-aliases-name-clashes-no-static-imports.md) | 同名类型同 C#（两个导入都有、用到时报错；自己命名空间里的优先）；只能给命名空间起别名，写 `import ep.protocol under Pb`；没有静态导入 |
+| [0034](decisions/0034-await-all-any-coroutine-await-using-event-errors.md) | 同时等多个：`await all { case ... }` / `await any { case ... }`（`case let x = 调用 -> 分支`，名字只在分支里，当值用同 `match`，`all` 的值按位置解构）；句柄 `Coroutine`，`Wait.Seconds` 按游戏时间、加 `Wait.Frames`；`await using`、`await for`；事件处理函数的异常记日志、接着通知（修订 ADR-0017） |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

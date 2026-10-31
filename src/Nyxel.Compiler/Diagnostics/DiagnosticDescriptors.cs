@@ -198,7 +198,7 @@ public static class DiagnosticDescriptors
         Error("NYX1189", "Write the branches of one '{0}' the same way: all with '->' when it gives a value, all in braces when it is a statement.");
 
     public static readonly DiagnosticDescriptor MatchBlockArmAsValue =
-        Error("NYX1190", "When 'match' gives a value, each arm is one expression; to run statements first, write '-> eval {{ ... give value }}'.");
+        Error("NYX1190", "When '{0}' gives a value, each {1} is one expression; to run statements first, write '-> eval {{ ... give value }}'.");
 
     public static readonly DiagnosticDescriptor ArrowBranchesNeedParentheses =
         Error("NYX1191", "Put this '{0}' in parentheses; as an operand or inside another branch it is not clear where it ends.");
@@ -293,6 +293,21 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor DuplicateImportAlias =
         Error("NYX1227", "'{0}' already names another import of this file.");
 
+    public static readonly DiagnosticDescriptor AwaitCaseKeyword =
+        Error("NYX1228", "Start each line of 'await {0} {{ }}' with 'case', as in 'case self.FadeIn()'.");
+
+    public static readonly DiagnosticDescriptor AwaitInCase =
+        Error("NYX1229", "'await {0}' waits for each case itself; drop this 'await'.");
+
+    public static readonly DiagnosticDescriptor AwaitCaseAssignment =
+        Error("NYX1230", "A case can't assign to an existing variable or member: which case finishes first isn't known. Name the result with 'case let name = ...' and assign it in the branch, or after the block.");
+
+    public static readonly DiagnosticDescriptor AwaitGroupCaseCount =
+        Error("NYX1231", "'await {0}' needs at least two cases; to wait for one thing, write 'await' before it.");
+
+    public static readonly DiagnosticDescriptor AwaitCaseNameWithoutBranch =
+        Error("NYX1232", "'{0}' is only visible in the branch of its case; use it after '->', or take the results out as the value of the block: 'let ... = await {1} {{ ... }}'.");
+
     // Habits from C# and other languages, each with the Nyxel way to write it.
 
     public static readonly DiagnosticDescriptor SymbolicLogicalOperator =
@@ -323,7 +338,7 @@ public static class DiagnosticDescriptors
         Error("NYX1158", "Nyxel has no '!' to assert a value is not null; write '?? throw new InvalidOperationException(\"why\")'.");
 
     public static readonly DiagnosticDescriptor UsingVar =
-        Error("NYX1159", "Write 'using {0} = ...' without '{1}'.");
+        Error("NYX1159", "Write '{0} = ...' without '{1}'.");
 
     public static readonly DiagnosticDescriptor UsingBlock =
         Error("NYX1160", "Nyxel has no 'using (...) {{ }}'; write 'using name = ...', which is released at the end of the enclosing block.");
@@ -393,6 +408,9 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor StaticImport =
         Error("NYX1226", "Nyxel has no static imports; write the type name before each member, as in '{0}.Name'.");
+
+    public static readonly DiagnosticDescriptor ForAwait =
+        Error("NYX1233", "Write 'await for {0} in ...': a statement that waits starts with 'await', as 'await using' does.");
 
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);

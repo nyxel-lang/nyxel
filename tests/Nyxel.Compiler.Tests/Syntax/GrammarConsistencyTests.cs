@@ -78,6 +78,8 @@ public partial class GrammarConsistencyTests
             .Append(SyntaxFacts.GetContextualKeyword)
             .Append(SyntaxFacts.SetContextualKeyword)
             .Append(SyntaxFacts.UnderContextualKeyword)
+            .Append(SyntaxFacts.AllContextualKeyword)
+            .Append(SyntaxFacts.AnyContextualKeyword)
             .ToHashSet(StringComparer.Ordinal);
         Assert.All(GrammarWords(), word => Assert.Contains(word, keywords));
     }

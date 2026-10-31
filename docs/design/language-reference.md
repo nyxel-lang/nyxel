@@ -999,6 +999,7 @@ while self.hp > 0 {
   - 步长必须是正数。两个可以连用，按书写顺序生效：`(0..<10).StepBy(4).Reversed()` 是 8、4、0。
 - 区间不是值（ADR-0022）：只能写在 `for ... in` 后面、`case` 后面和切片里。`let r = 0..<10`、把区间传给函数都是编译错误。判断在不在区间里用 `match` 的 `case 1...3` 或比较运算。
 - `break` / `continue` 同 C#。没有循环标签（ADR-0021）：要从里层循环直接跳出外层，就把循环拆成函数，用 `return` 跳出。
+- 异步遍历（`IAsyncEnumerable<T>`）写 `await for 名字 in 集合`，见“协程”（ADR-0034）。
 - 待定：区间作为值（以后有需要再讨论）。
 
 ### 切片（ADR-0022）
@@ -1173,12 +1174,12 @@ func ReadSave(self, path: string) -> string {
 - `using 名字 = 值`：值必须实现 `IDisposable`，在所在块结束时调用它的 `Dispose()`。多个按声明的相反顺序释放；`return`、`break`、异常离开时也一样。值为 `null` 时跳过。
 - `using` 自己引入名字，不写 `let`（同 `for x in`、`catch e: T`）。名字不能重新赋值。需要时可以写类型：`using stream: FileStream = ...`。
 - `using` 只有这一种用法：导入是 `import`，没有块形式的 `using (...) { }`，没有 `defer`。要更早释放，就把用到资源的语句放进 `eval` 块（块结束时释放，ADR-0025）或拆成函数；和 `IDisposable` 无关的清理用 `try` / `finally`。
-- 待定：`await using`（`IAsyncDisposable`）。
+- 异步释放（`IAsyncDisposable`）写 `await using 名字 = 值`，见“协程”（ADR-0034）。
 
-## 协程（ADR-0016）
+## 协程（ADR-0016、ADR-0034）
 
 ```nyxel
-import Nyxel                            // Wait 在 Nyxel.Runtime 里
+import Nyxel                            // Wait、Coroutine 在 Nyxel.Runtime 里
 
 async func Intro(self) {
     self.Camera.Focus(self)
@@ -1193,20 +1194,90 @@ func OnHit(self) {
     launch self.FlashRed()              // 启动，不等
 }
 
-let job = launch self.Load(name = "Forest")
-let level = await job                   // 之后再等结果
+let loading = launch self.Load(name = "Forest")
+let level = await loading               // 之后再等结果
 ```
 
 - `async func` 声明会跨帧的函数，可以有返回值（`-> R`）。lambda 写 `async func(e) { }`，函数类型写 `async func(A) -> R`。重写时 `async` 必须和基类一致。不能有 `out` / `ref` 参数。
 - `await` 只能写在 `async` 函数里，能等 Nyxel 的协程、.NET 的 `Task` / `ValueTask`、任何有 `GetAwaiter` 的对象。恢复后的代码在主线程、下一次调度时执行。
-- 结果可以等待的调用（`async` 函数、返回 `Task` 的 .NET 方法）只能直接写在 `await` 或 `launch` 后面，否则编译错误。
-- `launch 调用` 得到协程的句柄：`job.Stop()` 停止，`await job` 等它完成。
+- 结果可以等待的调用（`async` 函数、返回 `Task` 的 .NET 方法、`Wait` 系列）只能直接写在 `await` 或 `launch` 后面，否则编译错误。
+- `launch 调用` 得到协程的句柄 `Coroutine`（有结果的是 `Coroutine<T>`，C# 那边 `async` 函数的返回类型也是它）：`loading.Stop()` 停止，`await loading` 等它完成。
 - `launch obj.方法()` 的协程绑定在 `obj` 上：`obj` 被引擎销毁后，下一次恢复时自动停止。静态函数和没有生命周期的对象启动的协程不绑定。
-- 停止时 `finally` 和 `using` 的释放照常执行，`catch` 接不住。`await` 一个被停止的协程，等待方也停止。
+- 停止时 `finally`、`using`、`await using` 的释放照常执行，`catch` 接不住。清理里的 `await` 照常等到完成，不会因为绑定对象已经销毁而再停一次。`await` 一个被停止的协程，等待方也停止。
 - `launch` 出去的协程里没被接住的异常交给宿主记日志。
 - 热重载前所有协程都会停止。
-- 等待函数（Nyxel.Runtime，`Nyxel` 命名空间）：`Wait.Seconds(s)`、`Wait.NextFrame()`、`Wait.Until(func() = 条件)`。
-- 待定：同时等多个协程；句柄类型和 `Wait` 系列的最终命名。
+- 等待函数（Nyxel.Runtime，`Nyxel` 命名空间）：
+  - `Wait.Seconds(s)` 按游戏时间计，也就是宿主每帧传进来的时间，游戏暂停时不走。按真实时间计的版本和宿主接口一起定（M4）。
+  - `Wait.NextFrame()`、`Wait.Frames(n)`、`Wait.Until(func() = 条件)`。没有 `Wait.While`，写 `Wait.Until(func() = not ...)`。
+- 待定：等一个事件触发（GDScript 的 `await signal`）。
+
+### 同时等多个（ADR-0034）
+
+```nyxel
+await all {                                  // 都完成才继续
+    case self.Camera.PanTo(target)
+    case self.Dialog.FadeIn()
+}
+
+await any {                                  // 先完成的一项胜出，其余的停止
+    case let key = Input.WaitForAnyKey() -> self.Answer(key)
+    case Wait.Seconds(10) -> self.Answer(Key.None)
+}
+
+await any {                                  // 一边做一边抖屏，蓄力结束就停
+    case self.Boss.Charge()
+    case self.Camera.ShakeForever()
+}
+
+let dodged = await any {                     // 当值用，规则同 match
+    case self.WaitForKey(Key.E) -> true
+    case Wait.Seconds(2) -> false
+}
+
+let (tex, sfx) = await all {                 // 每一项的值按顺序组成元组
+    case let t = Assets.LoadTexture("slime") -> eval {
+        self.loading.Step(name = t.Name)     // 这一项完成就推进度条
+        give t
+    }
+    case Assets.LoadSound("slime")
+}
+```
+
+- 写法：
+  - 每一项写成 `case [let | var 名字 =] 能等待的表达式 [-> 分支]`，一项一行，至少两项。`all`、`any` 只在 `await` 后面紧跟 `{` 时是关键字。
+  - 每一项是调用（`async` 函数、返回 `Task` 的 .NET 方法、`Wait` 系列）或已有的句柄，不写 `await`。不能给已有的变量或字段赋值（`case self.texture = Load()` 是错误），要存就在分支里或块后面赋值。
+  - `case let` / `case var` 同普通的 `let` / `var` 声明，可以写类型、解构。名字只在这一项的分支里可见，块后面用不到，所以起了名字就要写分支。
+  - 分支同 `match`：当语句用时是一条简单语句或 `{ }` 块；当值用时是一个表达式或一条离开语句，要先执行语句就写 `-> eval { ... give 值 }`。
+- 运行：
+  - 各项从上到下依次开始，然后同时进行。它们和 `await 调用` 一样属于当前协程（绑定当前协程的对象），没有自己的句柄，不会被单独停掉。
+  - `all`：每一项完成后执行它的分支，其他项可能还在跑。所有项连同分支都结束后才继续。一项抛异常时，其余的停止，异常从 `await all` 抛出。
+  - `any`：一项先完成或抛异常时，其余的停止（`finally`、`using` 照常执行），然后执行胜出那一项的分支，或者抛出它的异常。
+  - 当前协程被停止时，块里的全部停止。块只停自己启动的：已有的句柄、.NET 的 `Task` 输了只是不再等它。
+- 当值用：
+  - 每一项的值：写了 `->` 是分支的值，没写就是这一项本身的结果。
+  - `any` 的值是胜出那一项的值，各项类型要一致。
+  - `all` 的值是所有项的值按顺序组成的元组：直接解构，或者有期望的类型（同按位置写的元组值）。每一项都要有值，本身没有结果的项要写 `-> 值`。
+- 要拿结果、又要各自独立运行（各自绑定、能单独停止）时，用 `launch` 加 `await` 句柄：`let tex = launch Assets.LoadTexture("slime")`，之后 `await tex`。
+- 每一项是一个子协程，启动时要分配，同 `launch`。用在流程（过场、加载、QTE）里，不放在每帧遍历实体的循环里。
+
+### 异步释放和遍历（ADR-0034）
+
+```nyxel
+async func Upload(self, path: string) {
+    await using conn = await Server.ConnectAsync(self.address)
+    await conn.SendAsync(File.ReadAllBytes(path))
+}   // 离开时等 conn.DisposeAsync() 完成
+
+async func Pump(self, session: RuntimeSession) {
+    await for e in session.Events.ReadAllAsync() {
+        self.Apply(e)
+    }
+}
+```
+
+- 都只能写在 `async` 函数里。会暂停的语句一律以 `await` 开头。
+- `await using 名字 = 值`：值实现 `IAsyncDisposable`（或有 `DisposeAsync`，同 C#），其余同 `using`。只实现了 `IAsyncDisposable` 的写成 `using` 是编译错误；两个都实现的（`FileStream`）两种都能写，各调各的。
+- `await for 名字 in 集合`：遍历 `IAsyncEnumerable<T>`（或有 `GetAsyncEnumerator`，同 C#），可以解构。JS、Swift 的 `for await` 是编译错误。
 
 ## 属性（ADR-0011）
 
@@ -1286,7 +1357,7 @@ slime.Died -= self.OnSlimeDied              // 提前取消
 ```
 
 - `event 名字(参数)` 声明事件，参数写法同函数参数，没有返回值和默认值。可以加 `public`、`protected`、`static`，接口里也能声明。
-- `emit 接收者.事件(实参)` 触发，只有声明事件的类型能 `emit`（子类也不行）。处理函数按订阅顺序同步执行，异常传给 `emit` 的一方。
+- `emit 接收者.事件(实参)` 触发，只有声明事件的类型能 `emit`（子类也不行）。处理函数按订阅顺序同步执行。一个处理函数抛的异常交给宿主记日志，接着通知下一个，`emit` 的一方不受影响（ADR-0034）；C# 写的处理函数、Nyxel 订阅的 C# 和引擎事件也一样。
 - `+=` / `-=` 订阅和取消，C# 和引擎的事件也一样。
 - 订阅绑定在“执行谁的代码”上：`对象.方法` 绑定那个对象，lambda 绑定写它的 `self`。绑定对象被引擎销毁后，订阅在下一次触发时自动移除；热重载时脚本做过的所有订阅都会移除。对 lambda 写 `-=` 是编译错误。
 - C# 那边是普通的 C# `event`。
@@ -1297,7 +1368,7 @@ slime.Died -= self.OnSlimeDied              // 提前取消
       public event PropertyChanged(sender: object?, e: PropertyChangedEventArgs)
   }
   ```
-- 待定：一个处理函数抛异常时是否继续通知其他处理函数。
+- 处理函数不是 `async`（`+= async func(s) { }` 类型不匹配）。要跨帧就在里面 `launch`：`slime.Died += func(s) { launch self.RespawnLater(s) }`。
 
 ## 状态机（ADR-0017）
 

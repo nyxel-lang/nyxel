@@ -134,6 +134,10 @@ internal sealed partial class Parser
             SkipCurrentToken();
             return ParseUnaryExpression();
         }
+        if (Current.Kind == SyntaxKind.AwaitKeyword && !AtLineBreak && IsAwaitGroupAhead())
+        {
+            return ParseAwaitGroup();
+        }
         var kind = Current.Kind switch
         {
             SyntaxKind.MinusToken => SyntaxKind.UnaryMinusExpression,

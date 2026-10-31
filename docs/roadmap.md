@@ -49,7 +49,7 @@ M3 以后是草案，随 M1 的语法讨论细化。
 
 ## M4 游戏脚本特性与宿主（草案）
 
-- [ ] 游戏控制层的语言特性（协程 / 等待、状态机、事件等，具体哪些在 M1 讨论）。已定：协程（ADR-0016）、事件（ADR-0017），状态机不加语法。要实现 Nyxel.Runtime 的调度器、`Job`、`Wait`、生命周期接口、事件订阅的自动移除和热重载清理
+- [ ] 游戏控制层的语言特性（协程 / 等待、状态机、事件等，具体哪些在 M1 讨论）。已定：协程（ADR-0016、ADR-0034）、事件（ADR-0017、ADR-0034），状态机不加语法。要实现 Nyxel.Runtime 的调度器、`Coroutine`、`Wait`、`await all` / `await any` 的子协程、生命周期接口、事件订阅的自动移除、处理函数异常的日志和热重载清理
 - [ ] Nyxel.Host：可卸载 AssemblyLoadContext 加载、热重载、进程内编译
 - [ ] 验收：在一个 native 引擎里跑 Nyxel 脚本（候选：EnginePlayground）
 - [ ] 用户文档 host-integration.md：引擎怎么嵌入 Nyxel（加载、调度器、生命周期接口、热重载）

@@ -50,6 +50,7 @@ internal sealed partial class Parser
             SyntaxKind.IfKeyword or SyntaxKind.TryKeyword => ParseBranchingStatement(),
             SyntaxKind.GiveKeyword => new GiveStatementSyntax(NextToken(), ParseExpression()),
             SyntaxKind.UsingKeyword => ParseUsingDeclaration(),
+            SyntaxKind.AwaitKeyword when IsAwaitStatementAhead() => ParseAwaitStatement(),
             SyntaxKind.WhileKeyword => ParseWhileStatement(),
             SyntaxKind.ForKeyword => ParseForStatement(),
             SyntaxKind.ReturnKeyword => ParseReturnStatement(),
@@ -113,13 +114,17 @@ internal sealed partial class Parser
         return new LocalDeclarationStatementSyntax(keyword, identifier, typeAnnotation, initializer);
     }
 
-    /// <summary><c>using name = value</c> (ADR-0015), with targeted errors for the C# forms.</summary>
-    private UsingDeclarationStatementSyntax ParseUsingDeclaration()
+    /// <summary>
+    /// <c>using name = value</c> (ADR-0015), or <c>await using</c> after <paramref name="awaitKeyword"/> (ADR-0034), with
+    /// targeted errors for the C# forms.
+    /// </summary>
+    private UsingDeclarationStatementSyntax ParseUsingDeclaration(SyntaxToken? awaitKeyword = null)
     {
         var usingKeyword = NextToken();
         if (Current.Kind is SyntaxKind.VarKeyword or SyntaxKind.LetKeyword && Peek(1).Kind == SyntaxKind.IdentifierToken)
         {
-            Report(DiagnosticDescriptors.UsingVar, Current.Span, Peek(1).Text, Current.Text);
+            var spelling = awaitKeyword == null ? "using " : "await using ";
+            Report(DiagnosticDescriptors.UsingVar, Current.Span, spelling + Peek(1).Text, Current.Text);
             SkipCurrentToken();
         }
         else if (At(SyntaxKind.OpenParenToken))
@@ -127,6 +132,7 @@ internal sealed partial class Parser
             Report(DiagnosticDescriptors.UsingBlock, Current.Span);
             SkipToEndOfLine();
             return new UsingDeclarationStatementSyntax(
+                awaitKeyword,
                 usingKeyword,
                 Missing(SyntaxKind.IdentifierToken),
                 null,
@@ -136,14 +142,16 @@ internal sealed partial class Parser
         var typeAnnotation = TryParseTypeAnnotation();
         var initializer = TryParseInitializer()
             ?? new EqualsValueClauseSyntax(Expect(SyntaxKind.EqualsToken), MissingExpression());
-        return new UsingDeclarationStatementSyntax(usingKeyword, identifier, typeAnnotation, initializer);
+        return new UsingDeclarationStatementSyntax(awaitKeyword, usingKeyword, identifier, typeAnnotation, initializer);
     }
 
     private WhileStatementSyntax ParseWhileStatement() => new(NextToken(), ParseHeadExpression(), ParseBlock());
 
-    private ForStatementSyntax ParseForStatement()
+    /// <summary><c>for x in xs { }</c>, or <c>await for</c> after <paramref name="awaitKeyword"/> (ADR-0034).</summary>
+    private ForStatementSyntax ParseForStatement(SyntaxToken? awaitKeyword = null)
     {
         var forKeyword = NextToken();
+        awaitKeyword = ReadForAwait(forKeyword, awaitKeyword);
         SyntaxToken? identifier = null;
         DeconstructionSyntax? deconstruction = null;
         if (At(SyntaxKind.OpenParenToken))
@@ -153,7 +161,7 @@ internal sealed partial class Parser
                 Report(DiagnosticDescriptors.CStyleFor, Current.Span);
                 SkipBalanced();
                 return new ForStatementSyntax(
-                    forKeyword, Missing(SyntaxKind.IdentifierToken), null, Missing(SyntaxKind.InKeyword), MissingExpression(), ParseBlock());
+                    awaitKeyword, forKeyword, Missing(SyntaxKind.IdentifierToken), null, Missing(SyntaxKind.InKeyword), MissingExpression(), ParseBlock());
             }
             deconstruction = ParseDeconstruction();
         }
@@ -163,7 +171,7 @@ internal sealed partial class Parser
         }
         var inKeyword = Expect(SyntaxKind.InKeyword);
         var collection = ParseHeadExpression();
-        return new ForStatementSyntax(forKeyword, identifier, deconstruction, inKeyword, collection, ParseBlock());
+        return new ForStatementSyntax(awaitKeyword, forKeyword, identifier, deconstruction, inKeyword, collection, ParseBlock());
     }
 
     /// <summary>

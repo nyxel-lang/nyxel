@@ -111,18 +111,23 @@ public sealed class DeconstructionSyntax : SyntaxNode
 public sealed class UsingDeclarationStatementSyntax : StatementSyntax
 {
     internal UsingDeclarationStatementSyntax(
+        SyntaxToken? awaitKeyword,
         SyntaxToken usingKeyword,
         SyntaxToken identifier,
         TypeAnnotationSyntax? typeAnnotation,
         EqualsValueClauseSyntax initializer)
         : base(SyntaxKind.UsingDeclarationStatement)
     {
+        AwaitKeyword = awaitKeyword;
         UsingKeyword = usingKeyword;
         Identifier = identifier;
         TypeAnnotation = typeAnnotation;
         Initializer = initializer;
         AdoptChildren();
     }
+
+    /// <summary><c>await</c> of <c>await using</c>, which releases with <c>DisposeAsync</c> (ADR-0034).</summary>
+    public SyntaxToken? AwaitKeyword { get; }
 
     public SyntaxToken UsingKeyword { get; }
 
@@ -132,7 +137,7 @@ public sealed class UsingDeclarationStatementSyntax : StatementSyntax
 
     public EqualsValueClauseSyntax Initializer { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(UsingKeyword, Identifier, TypeAnnotation, Initializer);
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(AwaitKeyword, UsingKeyword, Identifier, TypeAnnotation, Initializer);
 }
 
 /// <summary>An expression used as a statement. Which expressions are allowed here is checked during binding.</summary>
@@ -198,6 +203,7 @@ public sealed class WhileStatementSyntax : StatementSyntax
 public sealed class ForStatementSyntax : StatementSyntax
 {
     internal ForStatementSyntax(
+        SyntaxToken? awaitKeyword,
         SyntaxToken forKeyword,
         SyntaxToken? identifier,
         DeconstructionSyntax? deconstruction,
@@ -206,6 +212,7 @@ public sealed class ForStatementSyntax : StatementSyntax
         BlockSyntax body)
         : base(SyntaxKind.ForStatement)
     {
+        AwaitKeyword = awaitKeyword;
         ForKeyword = forKeyword;
         Identifier = identifier;
         Deconstruction = deconstruction;
@@ -214,6 +221,12 @@ public sealed class ForStatementSyntax : StatementSyntax
         Body = body;
         AdoptChildren();
     }
+
+    /// <summary>
+    /// <c>await</c> of <c>await for</c>, over an <c>IAsyncEnumerable</c> (ADR-0034). After <c>for await</c> (NYX1233) a
+    /// missing one in front of <c>for</c>, the written one skipped.
+    /// </summary>
+    public SyntaxToken? AwaitKeyword { get; }
 
     public SyntaxToken ForKeyword { get; }
 
@@ -227,7 +240,7 @@ public sealed class ForStatementSyntax : StatementSyntax
 
     public BlockSyntax Body { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(ForKeyword, Identifier, Deconstruction, InKeyword, Collection, Body);
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(AwaitKeyword, ForKeyword, Identifier, Deconstruction, InKeyword, Collection, Body);
 }
 
 public sealed class ReturnStatementSyntax : StatementSyntax

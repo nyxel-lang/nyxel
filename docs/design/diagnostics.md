@@ -76,7 +76,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1120` | `try` 后面没有 `catch` 也没有 `finally`（ADR-0014） | |
 | `NYX1121` | 区间连写（ADR-0019） | `0..<1..<2` |
 | `NYX1122` | 在要值的地方赋值（ADR-0011） | `if a = b`、`a = b = c` |
-| `NYX1123` | `match` 分支 `->` 右边直接写 `let`、`using`、循环、`if` / `try` 语句（ADR-0025：当语句用时简单语句和块可以直接写），或当值用时写了 `emit` 等语句；消息按用法说明 | `case 1 -> let a = 2` |
+| `NYX1123` | `match` 分支或 `await all` / `await any` 一项的 `->` 右边直接写 `let`、`using`、`await using`、循环、`if` / `try` 语句（ADR-0025：当语句用时简单语句和块可以直接写），或当值用时写了 `emit` 等语句；消息按用法说明 | `case 1 -> let a = 2` |
 | `NYX1124` | 元组类型的元素没有名字（ADR-0021），每个元组报一次 | `(int, int)` 写成 `(Min: int, Max: int)` |
 | `NYX1125` | 元组、解构只有一个元素 | `(A: int)`、`let (a) = x` |
 | `NYX1126` | 解构里写了类型或嵌套的括号（ADR-0021 只接受名字） | `let (a: int, b) = x`、`let ((a, b), c) = x` |
@@ -95,7 +95,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1186` | `eval` 块是空的，或者最后一句是没有 `give` 的表达式（其他走到末尾的路径在语义分析查） | `eval { ...; r * 2 }` 写成 `give r * 2` |
 | `NYX1188` | `->` 形式的 `if` / `try` 单独当语句 | `if a -> F() else -> G()` 写成 `if a { F() } else { G() }` |
 | `NYX1189` | 同一个 `if` / `try` 的分支两种形式混用 | `if a { } else -> 1`、`if b -> 1 else { 2 }` |
-| `NYX1190` | 当值用的 `match` 有 `{ }` 块分支 | `case 1 -> { ... }` 写成 `case 1 -> eval { ... give 值 }` |
+| `NYX1190` | 当值用的 `match`、`await all` / `await any` 有 `{ }` 块分支 | `case 1 -> { ... }` 写成 `case 1 -> eval { ... give 值 }` |
 | `NYX1191` | `->` 形式的 `if` / `try` 当运算数，或直接写在另一个 `if` / `try` 的分支里（`else if` 不算） | `1 + if b -> 1 else -> 2`、`if a -> if b -> 1 else -> 2 else -> 3`，加括号 |
 | `NYX1192` | `->` 形式的 `if` 没有 `else` | `if b -> 1` |
 | `NYX1194` | `_` 用作名字（ADR-0026：它是保留记号） | `let _ = 1`、`for _ in xs` |
@@ -126,6 +126,11 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1223` | 类型参数前写了 `in` / `out`（ADR-0031：暂不声明协变逆变），按没写读下去 | `interface ISource<out T>` 写成 `interface ISource<T>` |
 | `NYX1224` | `extension` 后面的类型参数没出现在被扩展的类型里（ADR-0031，C# 的 CS9295） | `extension<T, U> List<T>`：`U` 写在用它的方法上 |
 | `NYX1227` | 同一个文件里两个导入用了同一个别名（ADR-0033） | `import A under X` 和 `import B under X` |
+| `NYX1228` | `await all` / `await any` 的一行不以 `case` 开头（ADR-0034）；调用、`let` 这类行照 `case` 读，别的跳过 | `self.FadeIn()` 写成 `case self.FadeIn()` |
+| `NYX1229` | `await all` / `await any` 的一项写了 `await`，包括套在里面的 `await all` | `case await self.Load()` 写成 `case self.Load()` |
+| `NYX1230` | 一项给已有的变量或成员赋值（各项谁先完成不确定）；右边照常读成这一项 | `case self.texture = Load()` 写成 `case let t = Load() -> self.texture = t` |
+| `NYX1231` | `await all` / `await any` 不到两项 | 只等一样东西就写 `await` |
+| `NYX1232` | 一项起了名字但没有 `->` 分支（名字只在自己的分支里可见） | `case let tex = Load()`；要在块后面用，写 `let (a, b) = await all { ... }` |
 
 ### 其他语言的写法
 
@@ -142,7 +147,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1156` | `x is Enemy e` | `x is Enemy`，`x` 自己被收窄（ADR-0010） |
 | `NYX1157` | `a ? b : c` | `if a -> b else -> c`（ADR-0007、0025） |
 | `NYX1158` | `x!` | `x ?? throw new 异常("原因")`（ADR-0009） |
-| `NYX1159` | `using var r = ...` | `using r = ...`（ADR-0015） |
+| `NYX1159` | `using var r = ...`、`await using var r = ...` | `using r = ...`（ADR-0015）、`await using r = ...`（ADR-0034） |
 | `NYX1160` | `using (...) { }` | `using r = ...`，在所在块结束时释放（ADR-0015） |
 | `NYX1161` | 文件开头的 `using System` | `import System`（ADR-0012） |
 | `NYX1162` | `for (var i = 0; ...; ...)`、`for (x in xs)` | `for i in 0..<n`、`for x in xs`（ADR-0010） |
@@ -168,7 +173,8 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1225` | 别名写成 `using Pb = ep.protocol`（C#）、`import Pb = ep.protocol`、`import ep.protocol as Pb`（Python、Kotlin）；`=` 的整行跳过，`as` 的按 `under` 读 | `import ep.protocol under Pb`，类型写成 `Pb.LogLevel`（ADR-0033） |
 | `NYX1226` | 静态导入 `using static System.MathF`（C#）、`import static`（Java），整行跳过 | 成员前面写类型名：`MathF.Sqrt(x)`（ADR-0033） |
 | `NYX1222` | C# 的转换 `public static explicit operator float(Fixed f)`、`implicit operator`，整个声明跳过 | `public operator as(f: Fixed) -> float = ...`，用 `x as float` 转换；`implicit` 的消息说明 Nyxel 没有隐式转换（ADR-0030） |
+| `NYX1233` | `for await e in xs`（JS / TS、Swift），按 `await for` 读 | `await for e in xs`（ADR-0034） |
 
 ## 不在语法阶段报的
 
-语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）、运算符的参数至少一个是所在的类型、转换的源和目标有一个是所在的类型且不是基类或接口、`<` 返回 bool、同一个运算符按操作数类型有没有重复（ADR-0030）、写 `T?` 的约束够不够、没约束的 T 的值用成员前有没有检查、可空类型能不能代入有约束的 T、元素是 T 的数组能不能直接创建（ADR-0031）、表达式是存储还是副本（在副本和只读的值上赋值、调用 `var self` 方法）、没标 `readonly` 的 C# 方法的返回值有没有用上、`var self` 扩展的被扩展类型是不是 struct（ADR-0032）、同名类型的查找和冲突、`under` 前面是不是命名空间、别名和看得见的名字重名（ADR-0033）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。
+语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）、运算符的参数至少一个是所在的类型、转换的源和目标有一个是所在的类型且不是基类或接口、`<` 返回 bool、同一个运算符按操作数类型有没有重复（ADR-0030）、写 `T?` 的约束够不够、没约束的 T 的值用成员前有没有检查、可空类型能不能代入有约束的 T、元素是 T 的数组能不能直接创建（ADR-0031）、表达式是存储还是副本（在副本和只读的值上赋值、调用 `var self` 方法）、没标 `readonly` 的 C# 方法的返回值有没有用上、`var self` 扩展的被扩展类型是不是 struct（ADR-0032）、同名类型的查找和冲突、`under` 前面是不是命名空间、别名和看得见的名字重名（ADR-0033）、`await all` / `await any` / `await using` / `await for` 写在 `async` 函数里、每一项能等待、当值用时每一项都有值且 `any` 各项类型一致、`all` 的元组被解构或有期望的类型、`await using` 的类型实现 `IAsyncDisposable`（只实现了它的写成 `using` 时提示 `await using`）、`await for` 的集合能异步遍历、`+= async func` 的类型不匹配（ADR-0034）等。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。

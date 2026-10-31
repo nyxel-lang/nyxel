@@ -1,0 +1,98 @@
+namespace Samples.Enemies
+
+import System.Collections.Generic
+import System.IO
+import System.Text.Json
+import Engine
+import Nyxel
+import Samples.Combat
+
+/// Boss 登场：镜头移过去、念台词（按键到下一句，Esc 跳过）、蓄力时抖屏，最后一次闪避 QTE。
+public class BossIntro : Behaviour {
+    public var ConfigPath: string = "boss/config.json"
+    public var LinesPath: string = "boss/intro.txt"
+    public var Boss: Slime? = null           // 在编辑器里指定
+    public var Player: Player? = null
+    var lines: List<string> = new List<string>()
+
+    protected override func OnEnable(self) {
+        launch self.Play()          // 绑定在这个对象上：它被销毁时，整段登场一起停止
+    }
+
+    async func Play(self) {
+        let boss = self.Boss ?? return
+        let player = self.Player ?? return
+
+        // 配置和台词同时读，两样都好了再开始
+        let (config, lineCount) = await all {
+            case self.LoadConfig()
+            case self.LoadLines()
+        }
+        Log.Info($"{config.Title}: {lineCount} lines")
+
+        await all {                 // 镜头移过去的同时，标题淡入
+            case self.Camera.PanTo(target = boss.Position, seconds = 1.5)
+            case self.Hud.ShowTitle(text = config.Title)
+        }
+
+        for line in self.lines {
+            self.Hud.Say(line)
+            let skipRest = await any {      // 按 Esc 跳过剩下的台词；按别的键、或者 4 秒后到下一句
+                case let key = Input.WaitForAnyKey() -> key == Key.Escape
+                case Wait.Seconds(4) -> false
+            }
+            if skipRest {
+                break
+            }
+        }
+
+        await any {                 // 蓄力期间一直抖屏，蓄力一结束抖屏就停
+            case boss.Charge(seconds = config.ChargeSeconds)
+            case self.Camera.ShakeForever(strength = 0.2)
+        }
+
+        let dodged = await any {    // 1 秒内按 E 闪开
+            case Input.WaitForKey(Key.E) -> eval {
+                self.Hud.Flash(text = "Dodge!")
+                give true
+            }
+            case Wait.Seconds(1) -> false
+        }
+        if not dodged {
+            player.TakeDamage(damage = new Damage.Physical(Amount = config.OpeningHit))
+        }
+    }
+
+    async func LoadConfig(self) -> BossConfig {
+        await using stream = File.OpenRead(self.ConfigPath)     // 离开时等 DisposeAsync 完成
+        return await JsonSerializer.DeserializeAsync<BossConfig>(stream)
+            ?? throw new InvalidDataException($"{self.ConfigPath} is empty")
+    }
+
+    /// 一行一句，跳过空行；返回读到了几句。
+    async func LoadLines(self) -> int {
+        await for line in File.ReadLinesAsync(self.LinesPath) {
+            if line.Length > 0 {
+                self.lines.Add(line)
+            }
+        }
+        return self.lines.Count
+    }
+}
+
+public class BossConfig {
+    public property Title: string = "" {
+        get
+        set
+    }
+
+    public property ChargeSeconds: float = 3 {
+        get
+        set
+    }
+
+    public property OpeningHit: int = 20 {
+        get
+        set
+    }
+}

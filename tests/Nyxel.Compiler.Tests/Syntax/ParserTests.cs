@@ -666,6 +666,37 @@ public class ParserTests
         Assert.Equal(3, member.GetFirstToken().LeadingTrivia.Count(t => t.Kind == SyntaxKind.DocCommentTrivia));
     }
 
+    // await all / await any, await using, await for (ADR-0034) -----------------------------------------------------
+
+    [Theory]
+    [InlineData(
+        "await all {\n    case self.A()\n    case self.B()\n}",
+        "(ExpressionStatement (AwaitAllExpression await all { (AwaitCase case (InvocationExpression (SimpleMemberAccessExpression self . A) (ArgumentList ( )))) (AwaitCase case (InvocationExpression (SimpleMemberAccessExpression self . B) (ArgumentList ( )))) }))")]
+    [InlineData(
+        "await any {\n    case let key = Input.WaitForAnyKey() -> self.Answer(key)\n    case Wait.Seconds(10) -> return\n}",
+        "(ExpressionStatement (AwaitAnyExpression await any { (AwaitCase case let key = (InvocationExpression (SimpleMemberAccessExpression Input . WaitForAnyKey) (ArgumentList ( ))) -> (InvocationExpression (SimpleMemberAccessExpression self . Answer) (ArgumentList ( (Argument key) )))) (AwaitCase case (InvocationExpression (SimpleMemberAccessExpression Wait . Seconds) (ArgumentList ( (Argument 10) ))) -> (ReturnExpression return)) }))")]
+    [InlineData(
+        "await any {\n    case var p: Path = self.Find() -> {\n        self.Follow(p)\n    }\n    case let (a, b) = self.Scan() -> self.Show(a, b)\n    case loading -> self.done = true\n}",
+        "(ExpressionStatement (AwaitAnyExpression await any { (AwaitCase case var p (TypeAnnotation : Path) = (InvocationExpression (SimpleMemberAccessExpression self . Find) (ArgumentList ( ))) -> (Block { (ExpressionStatement (InvocationExpression (SimpleMemberAccessExpression self . Follow) (ArgumentList ( (Argument p) )))) })) (AwaitCase case let (Deconstruction ( a , b )) = (InvocationExpression (SimpleMemberAccessExpression self . Scan) (ArgumentList ( ))) -> (InvocationExpression (SimpleMemberAccessExpression self . Show) (ArgumentList ( (Argument a) , (Argument b) )))) (AwaitCase case loading -> (AssignmentStatement (SimpleMemberAccessExpression self . done) = true)) }))")]
+    [InlineData(
+        "let (tex, sfx) = await all {\n    case let t = Load(a) -> eval {\n        give t\n    }\n    case Load(b)\n}",
+        "(DeconstructionDeclarationStatement let (Deconstruction ( tex , sfx )) (EqualsValueClause = (AwaitAllExpression await all { (AwaitCase case let t = (InvocationExpression Load (ArgumentList ( (Argument a) ))) -> (EvalExpression eval (Block { (GiveStatement give t) }))) (AwaitCase case (InvocationExpression Load (ArgumentList ( (Argument b) )))) })))")]
+    [InlineData("await using conn = Open()", "(UsingDeclarationStatement await using conn (EqualsValueClause = (InvocationExpression Open (ArgumentList ( )))))")]
+    [InlineData("await for e in events { }", "(ForStatement await for e in events (Block { }))")]
+    [InlineData("await for (k, v) in self.Pairs() { }", "(ForStatement await for (Deconstruction ( k , v )) in (InvocationExpression (SimpleMemberAccessExpression self . Pairs) (ArgumentList ( ))) (Block { }))")]
+    public void AwaitStatements(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
+
+    [Fact]
+    public void AwaitAnyGivesAValueLikeMatch() => Assert.Equal(
+        "(AwaitAnyExpression await any { (AwaitCase case (InvocationExpression (SimpleMemberAccessExpression self . WaitForKey) (ArgumentList ( (Argument (SimpleMemberAccessExpression Key . E)) ))) -> true) (AwaitCase case (InvocationExpression (SimpleMemberAccessExpression Wait . Seconds) (ArgumentList ( (Argument 2) ))) -> false) })",
+        Compact(ParseExpression("await any {\n    case self.WaitForKey(Key.E) -> true\n    case Wait.Seconds(2) -> false\n}")));
+
+    [Theory]
+    [InlineData("let any = all + 1", "(LocalDeclarationStatement let any (EqualsValueClause = (AddExpression all + 1)))")]
+    [InlineData("await all", "(ExpressionStatement (AwaitExpression await all))")]
+    [InlineData("await any.Done()", "(ExpressionStatement (AwaitExpression await (InvocationExpression (SimpleMemberAccessExpression any . Done) (ArgumentList ( )))))")]
+    public void AllAndAnyAreNamesExceptBeforeABrace(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
+
     // Tree invariants ---------------------------------------------------------------------------------------------
 
     [Fact]
