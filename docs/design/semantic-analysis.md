@@ -1,6 +1,6 @@
 # 语义分析（Binder）
 
-编译流水线的第二段（architecture-overview.md）：语法树加引用的程序集 → Binder → 符号和绑定树（含语义诊断）→ 降级。本文是工程设计，写在实现之前，实现时按实际情况更新；语言规则以 language-reference 和 ADR 为准。代码将放在 `src/Nyxel.Compiler/Symbols/` 和 `src/Nyxel.Compiler/Binding/`。
+编译流水线的第二段（architecture-overview.md）：语法树加引用的程序集 → Binder → 符号和绑定树（含语义诊断）→ 降级（lowering.md）。本文是工程设计，实现时按实际情况更新；语言规则以 language-reference 和 ADR 为准。代码将放在 `src/Nyxel.Compiler/Symbols/` 和 `src/Nyxel.Compiler/Binding/`。
 
 语法分析只知道代码的形状：`self.NearestTo(point = other.Position)` 是在 `self` 上调用一个叫 `NearestTo` 的成员，带一个叫 `point` 的实参。语义分析回答它是什么意思、对不对：`NearestTo` 是哪个方法，有没有叫 `point` 的参数，`other.Position` 是什么类型、能不能传过去，返回值是什么类型。为什么不把这些交给 Roslyn，见 ADR-0004：有些 Nyxel 的规则 C# 没有（`let` 不能重新赋值，翻译成 C# 后 Roslyn 不会报），有些写法翻译之前就要知道类型（`let x: float = 1 / 2` 是 0.5，要写成 `1f / 2f`），报错也要用 Nyxel 的术语、指向 .nyxel。
 
@@ -69,7 +69,10 @@ Symbol（Name、Kind、ContainingSymbol、Accessibility、Locations）
 
 规则以 language-reference 为准（ADR-0008、ADR-0012、ADR-0033），这里是实现方式。
 
-- 作用域是一串链起来的 `Binder`，查名字时从里往外：块（局部变量）→ 函数（参数、类型参数）→ 类型（类型参数、嵌套类型）→ 文件（导入、别名）→ 命名空间 → 全局。
+- 查名字时从里往外：块（局部变量）→ 函数（参数）→ 文件（导入、别名）→ 命名空间 → 全局。
+  - 函数里的作用域是 `MethodBinder` 的一个作用域栈，每个块压一层；同名检查（ADR-0036）就是声明时把整个栈查一遍。
+  - 文件那一层是 `ImportScope`：所在命名空间和外层的类型，然后是导入的命名空间、`under` 别名，再是命名空间名；两个导入都有同一个类型时报 NYX2006。
+  - 类型参数等泛型做到时再加进来。
 - 不带接收者的名字只找局部变量和参数（ADR-0008），成员一律经 `self.` 或类型名。所以类型的 Binder 只提供类型参数和嵌套类型，不提供字段和方法。
 - `x.Name` 看 `x` 是什么：命名空间里找类型和子命名空间；类型上找静态成员、enum case、嵌套类型；值上找实例成员，找不到再找导入的扩展。
 - 同一个名字既可能是类型也可能是值时（`Slime.Killed` 里的 `Slime`），先按值找，找不到再按类型找，同 C#。
@@ -96,7 +99,8 @@ Symbol（Name、Kind、ContainingSymbol、Accessibility、Locations）
 - 分步做：
   - 第一步（M2 的第一条线）：按名字和实参个数找候选，命名实参、可选参数、隐式转换（上面那些），按“更好的转换”选出一个。没有泛型推断。
   - 之后：泛型推断（包括 lambda：先从别的实参推出 `TSource`，再用它绑定 lambda 体、推返回类型）、扩展方法（经典的 `this` 静态方法和 C# 14 的 extension 块）、`params`、C# 定义的隐式转换。LINQ 要到这一步才能用。
-- 还没实现的情况报“这种写法还不支持”（一个通用的错误码，消息写明是哪种写法），不猜。随着实现补全，它出现的地方逐个消失。
+- 字面量实参分两步：先完全按 C# 的转换选（整数字面量能转成放得下它的整数类型，小数字面量是 `double`），C# 能选出来的调用和 C# 选的一样（`Math.Max(1, 2.5)` 是 `double` 的那个）；一个都不适用时，才允许小数字面量转成 `float` / `decimal` 参数（`MathF.Sqrt(2.5)`、`new Vector3(0, 1.5, 0)`，ADR-0013）。选定以后，字面量按参数的类型重新绑定。几个重载都适用时字面量该是什么类型（`Math.Max(x, 0.5)`，`x` 是 `float`，按 C# 选的是 `double`），是还没讨论的语言问题。
+- 还没实现的情况报“这种写法还不支持”（NYX2001，消息写明是哪种写法），不猜。随着实现补全，它出现的地方逐个消失。
 - 选错了的兜底：降级出的 C# 交给 Roslyn 时，Roslyn 会按自己的规则再选一遍。两边不一致导致的错误按内部错误报出（ADR-0004），说明对照测试漏了一种情况，要补上。
 
 为什么不直接问 Roslyn，见“备选方案”。
@@ -177,6 +181,23 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
   - 插值字符串；`array<T>` 的创建和下标。
 - **之后逐步加**：属性、struct、enum（带数据的、flags）、`match`、空值和收窄、lambda 和泛型推断、扩展、继承和接口、`try` / `catch`、`using`、`eval`、`with`、运算符、索引器、事件、协程。每加一块，补上对应 ADR 留下的检查。
 - **验收的程序**：hello world、FizzBuzz、递归的斐波那契、用 `array<bool>` 的素数筛、对 `List<int>` 排序，放在 tests/…/Programs/。断点在 VSCode 里手动验证（debug-mapping.md“还没验证”）。
+
+## 实现状态
+
+第一条线已经打通（2026-10-31）：tests/…/Programs/ 的五个程序编译、运行、输出正确，异常堆栈指向 .nyxel 的行。代码：
+
+- `Symbols/`：`Symbol` 和各种类型、成员；`SymbolTable` 包装 Roslyn 读出的元数据，管数组类型；源码符号在 `SourceSymbols.cs`；`SymbolDisplay` 用 Nyxel 的写法显示名字。
+- `Binding/`：`Declarer`（第 1 到 4 遍）、`ImportScope`、`MethodBinder`（第 5 遍，按语句、表达式、调用分文件）、`Conversions`、`FlowAnalysis`、绑定树的节点和打印。
+- `NyxelCompilation`：`Create`、`GetDiagnostics`、`EmitCSharp`、`Emit`。
+- 语义诊断 NYX2001 到 NYX2053（diagnostics.md“语义”）。
+- 测试：`BinderTests`、`SemanticErrorTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
+
+和设计不同、或者还没做到的：
+
+- 元数据里引用类型的可空标注先忽略，都当作不会是 null；`T?` 本身报 NYX2001。按 ADR-0009，没有标注的程序集的返回值应当是 `T?`，随“空值和收窄”一步实现。
+- 没有初始值的局部变量（`var x: int`）报 NYX2001，要先有局部变量的确定赋值。`let` / `var` 字段在 `init` 里的确定赋值已经有了（NYX2050）。
+- 元数据的类型只看 public 的；嵌套类型、泛型方法、扩展方法、事件、`params` 的展开形式还不支持。
+- 收窄还没有，随“空值和收窄”一步实现。
 
 ## 写设计时定下的语言规则
 

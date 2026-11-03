@@ -1,0 +1,9 @@
+namespace Programs
+
+import System
+
+class Hello {
+    func Main() {
+        Console.WriteLine("Hello, Nyxel")
+    }
+}

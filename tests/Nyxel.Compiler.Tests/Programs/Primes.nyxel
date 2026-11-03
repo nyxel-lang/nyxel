@@ -1,0 +1,27 @@
+namespace Programs
+
+import System
+
+/// The sieve of Eratosthenes on an array<bool>.
+class Primes {
+    func Main() {
+        let limit = 50
+        let composite = new array<bool>(limit)
+        var found = 0
+        var line = ""
+        for i in 2..<limit {
+            if composite[i] {
+                continue
+            }
+            line += $"{i} "
+            found += 1
+            var multiple = i * i
+            while multiple < limit {
+                composite[multiple] = true
+                multiple += i
+            }
+        }
+        Console.WriteLine(line.Trim())
+        Console.WriteLine($"{found} primes below {limit}")
+    }
+}

@@ -1,0 +1,22 @@
+namespace Programs
+
+import System
+
+class FizzBuzz {
+    func Say(n: int) -> string {
+        if n % 15 == 0 {
+            return "FizzBuzz"
+        } else if n % 3 == 0 {
+            return "Fizz"
+        } else if n % 5 == 0 {
+            return "Buzz"
+        }
+        return n.ToString()
+    }
+
+    func Main() {
+        for n in 1...15 {
+            Console.WriteLine(FizzBuzz.Say(n))
+        }
+    }
+}

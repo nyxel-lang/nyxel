@@ -75,6 +75,75 @@ public class CliTests
         Assert.Contains("Usage: nyxel parse", error, StringComparison.Ordinal);
     }
 
+    private const string Hello = """
+        import System
+
+        class Hello {
+            func Main(args: array<string>) -> int {
+                Console.WriteLine($"Hello, {args.Length} args")
+                return 3
+            }
+        }
+
+        """;
+
+    [Fact]
+    public void RunCompilesAndRunsMainWithItsArguments()
+    {
+        var files = new Dictionary<string, string> { ["hello.nyxel"] = Hello };
+        var (code, output, error) = RunWithFiles(files, "run", "hello.nyxel", "--", "a", "b");
+
+        Assert.Equal(3, code);
+        Assert.Equal("Hello, 2 args", output.TrimEnd());
+        Assert.Empty(error);
+    }
+
+    [Fact]
+    public void BuildReportsSemanticErrors()
+    {
+        var files = new Dictionary<string, string>
+        {
+            ["bad.nyxel"] = """
+                class C {
+                    func F() {
+                        let a = cuont
+                    }
+                }
+
+                """,
+        };
+        var (code, output, _) = RunWithFiles(files, "build", "bad.nyxel");
+
+        Assert.Equal(1, code);
+        Assert.EndsWith("bad.nyxel(3,17): error NYX2002: There is no local variable or parameter named 'cuont'.", output.TrimEnd(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildEmitsCSharpOrWritesTheAssembly()
+    {
+        var files = new Dictionary<string, string> { ["hello.nyxel"] = Hello };
+        var (code, output, _) = RunWithFiles(files, "build", "--exe", "--emit-cs", "hello.nyxel");
+        Assert.Equal(0, code);
+        Assert.Contains("global::System.Console.WriteLine($\"Hello, {(args.Length)} args\");", output, StringComparison.Ordinal);
+
+        var directory = Directory.CreateTempSubdirectory("nyxel-cli-");
+        try
+        {
+            // The output directory doesn't exist yet: build creates it.
+            var outputDirectory = Path.Combine(directory.FullName, "out");
+            var dll = Path.Combine(outputDirectory, "hello.dll");
+            (code, output, _) = RunWithFiles(files, "build", "--exe", "-o", dll, "hello.nyxel");
+            Assert.Equal(0, code);
+            Assert.True(File.Exists(dll), output);
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "hello.pdb")));
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "hello.runtimeconfig.json")));
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
     [Fact]
     public void UnknownCommandFailsOnStderr()
     {

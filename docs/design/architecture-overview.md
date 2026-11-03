@@ -19,7 +19,7 @@
 
 诊断从前端报出：错误码稳定、用 Nyxel 术语、位置指向 .nyxel（格式和错误码见 diagnostics.md）。`--emit-cs` 输出降级后的 C#，用于查看和快照测试。
 
-各阶段的设计：语法见 syntax-tree.md；语义分析见 semantic-analysis.md；调试映射见 debug-mapping.md；降级在实现时写。
+各阶段的设计：语法见 syntax-tree.md；语义分析见 semantic-analysis.md；降级和后端见 lowering.md；调试映射见 debug-mapping.md。
 
 ## 组件
 

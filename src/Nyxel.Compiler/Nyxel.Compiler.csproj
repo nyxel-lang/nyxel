@@ -11,4 +11,8 @@
     <!-- Back end: lowered C# syntax trees are compiled in-process by Roslyn (ADR-0004). -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The binder tests look at bound trees and symbols directly. -->
+    <InternalsVisibleTo Include="Nyxel.Compiler.Tests" />
+  </ItemGroup>
 </Project>

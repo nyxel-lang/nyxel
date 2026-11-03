@@ -30,6 +30,16 @@ public static class Program
             return Parse(args[1..], stdout, stderr, readFile);
         }
 
+        if (args[0] == "build")
+        {
+            return BuildCommands.Build(args[1..], stdout, stderr, readFile);
+        }
+
+        if (args[0] == "run")
+        {
+            return BuildCommands.RunProgram(args[1..], stdout, stderr, readFile);
+        }
+
         stderr.WriteLine($"nyxel: unknown command '{args[0]}'. Run 'nyxel --help' for usage.");
         return 1;
     }
@@ -96,6 +106,10 @@ public static class Program
         stdout.WriteLine();
         stdout.WriteLine("Commands:");
         stdout.WriteLine("  parse [--tree] <file>...   Check the syntax of .nyxel files; --tree prints the syntax tree");
+        stdout.WriteLine("  build [--exe] [--emit-cs] [-o <file.dll>] <file>...");
+        stdout.WriteLine("                             Compile to an assembly; --exe for a program that starts at Main,");
+        stdout.WriteLine("                             --emit-cs prints the C# it is lowered to");
+        stdout.WriteLine("  run <file>... [-- <args>]  Compile and run a program that starts at Main");
         stdout.WriteLine("  --version                  Print the version");
         stdout.WriteLine("  --help                     Print this help");
     }

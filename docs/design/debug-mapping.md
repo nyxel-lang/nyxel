@@ -48,7 +48,22 @@
 
 - 包装成内部错误时用 `GetMessage(CultureInfo.InvariantCulture)`：Roslyn 的消息跟随系统 UI 语言（本机是中文）。
 
+## 在调试器里
+
+2026-11-02 在 VSCode 的 C# 调试器（ms-dotnettools.csharp）里手动验证过，程序是 tests/Nyxel.Compiler.Tests/Programs/Fibonacci.nyxel：
+
+- 断点停在 .nyxel 的行上，当前语句高亮的是它的跨度（`if` 是开头到条件结束，调用是整条语句）。
+- 单步进入、跳出都按 .nyxel 的行走；跳出后变量面板显示被调函数的返回值。
+- 变量面板显示参数和局部变量，类型按 C# 的写法显示（`n [int]`）；调用堆栈显示 C# 的签名和 .nyxel 的行列（`Fibonacci.Fib(int n) 行 7`，7:9）。
+- 缺口：降级生成的临时变量（`for` 的 `__nyxel_i1`、`__nyxel_end2`）也出现在变量面板里。Roslyn 自己合成的局部变量在 PDB 里带 `DebuggerHidden` 标记，调试器不显示；从 C# 源码没法设这个标记，以后考虑生成 PDB 后把 `__nyxel_` 开头的局部变量补上标记。
+
+自己验证的步骤：
+
+1. `nyxel build --exe -o build/tmp/fib/Fibonacci.dll <文件>`（写出 dll、pdb 和 runtimeconfig.json）。
+2. 用 `tools\vscode-dev.cmd .` 打开仓库根目录（扩展声明了 `contributes.breakpoints`，没有它 VSCode 不让在 .nyxel 里打断点）。
+3. `.vscode/launch.json` 里加一个 `"type": "coreclr"`、`"request": "launch"` 的配置，`program` 指向那个 dll；在 .nyxel 里打断点，F5。
+
 ## 还没验证
 
-- 真实调试器（VSCode 的 C# 调试器、Rider）在 .nyxel 上停断点。扩展已声明 `contributes.breakpoints`；等有能跑的 .nyxel 程序时，作为 M2 验收的一部分手动验证。
+- Rider 的调试器。
 - 可卸载 ALC 卸载后确实被回收（测试只调用了 `Unload()`），留给 M4 热重载。

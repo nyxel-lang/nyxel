@@ -1,0 +1,59 @@
+namespace Programs
+
+import System
+import System.Collections.Generic
+
+/// Insertion sort of a List<int>, with a class that keeps the list and an average in a float.
+class Sorter {
+    let numbers: List<int>
+    var steps: int = 0
+
+    public init(numbers: List<int>) {
+        self.numbers = numbers
+    }
+
+    public func Sort(self) -> int {
+        for i in 1..<self.numbers.Count {
+            let current = self.numbers[i]
+            var j = i - 1
+            while j >= 0 and self.numbers[j] > current {
+                self.numbers[j + 1] = self.numbers[j]
+                j -= 1
+                self.steps += 1
+            }
+            self.numbers[j + 1] = current
+        }
+        return self.steps
+    }
+
+    public func Average(self) -> float {
+        var total = 0
+        for n in self.numbers {
+            total += n
+        }
+        return total as float / self.numbers.Count
+    }
+
+    func Main() {
+        let numbers = new List<int>()
+        numbers.Add(5)
+        numbers.Add(3)
+        numbers.Add(8)
+        numbers.Add(1)
+        numbers.Add(9)
+        numbers.Add(2)
+        let sorter = new Sorter(numbers = numbers)
+        let steps = sorter.Sort()
+        var text = ""
+        for n in numbers {
+            if text.Length > 0 {
+                text += ", "
+            }
+            text += n.ToString()
+        }
+        Console.WriteLine(text)
+        Console.WriteLine($"{steps} moves, average {sorter.Average():F2}")
+        let half: float = 1 / 2
+        Console.WriteLine(half)
+    }
+}

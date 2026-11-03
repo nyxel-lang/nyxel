@@ -40,9 +40,9 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
 
 - 一键：`cmd //c 'tools\build.cmd --test'`（Git Bash 里这样调）。`--release` 走 Release，`--pack` 输出 NuGet 包到 build/packages。`--test` 也跑高亮快照（tools/vscode-nyxel 的 `npm test`，要 node；没装 npm 时跳过并提示）。
 - dotnet 一律用 `"/c/Program Files/dotnet/dotnet.exe"` 全路径：PATH 上的 dotnet 可能是没有 SDK 的纯运行时。
-- VSCode 扩展试用：`cmd //c 'tools\vscode-dev.cmd'`，开一个加载了 tools/vscode-nyxel 的新窗口并打开 samples/（会在用户屏幕上弹窗）。
-- CLI 冒烟：`"/c/Program Files/dotnet/dotnet.exe" build/dotnet/bin/Nyxel.Cli/debug/nyxel.dll --version`；检查语法：同一个 dll 加 `parse [--tree] samples/*/*.nyxel`。
-- 语法树快照（tests/Nyxel.Compiler.Tests/Syntax/Snapshots）：树的形状有意改变后，`NYXEL_UPDATE_SNAPSHOTS=1` 跑一次测试重新生成，看 diff 再提交。
+- VSCode 扩展试用：`cmd //c 'tools\vscode-dev.cmd'`，开一个加载了 tools/vscode-nyxel 的新窗口并打开 samples/（会在用户屏幕上弹窗；末尾加 `.` 打开仓库根目录）。在 .nyxel 上打断点调试的步骤见 docs/design/debug-mapping.md“在调试器里”。
+- CLI 冒烟：`"/c/Program Files/dotnet/dotnet.exe" build/dotnet/bin/Nyxel.Cli/debug/nyxel.dll --version`；检查语法：同一个 dll 加 `parse [--tree] samples/*/*.nyxel`；编译运行：`run tests/Nyxel.Compiler.Tests/Programs/Fibonacci.nyxel`，看降级出的 C#：`build --exe --emit-cs <文件>`。
+- 语法树快照（tests/Nyxel.Compiler.Tests/Syntax/Snapshots）和降级出的 C# 快照（tests/Nyxel.Compiler.Tests/Programs/*.g.cs）：有意改变后，`NYXEL_UPDATE_SNAPSHOTS=1` 跑一次测试重新生成，看 diff 再提交。Programs/ 里每个程序还有期望的输出 `.out`，新加程序时一起写。
 - 高亮快照（tools/vscode-nyxel/test/snapshots）：VSCode 自己的 TextMate 引擎给每个样例和 test/cases 里的文件分词，记下每个记号的作用域。改了语法文件或样例后，在 tools/vscode-nyxel 里 `NYXEL_UPDATE_SNAPSHOTS=1 npm test` 重新生成，看 diff 再提交（第一次先 `npm ci`）。样例覆盖不到的写法加进 test/cases/Literals.nyxel。
 - 提交（参照 EnginePlayground）：开发都在 `dev` 分支上。每轮改动结束就在 dev 上提交一次（`git add -A` + commit，标题 `wip: <这轮做了什么>`，不要求能编过），方便用户逐次看 diff；提交前看一眼 `git status`。main 只在用户说"整理合并"时动：
   1. 先按"收工前"清单更新文档、`tools\build.cmd --test` 全绿，在 dev 上提交（整理时改的东西也要先进 dev，main 只从 dev 搬内容）。

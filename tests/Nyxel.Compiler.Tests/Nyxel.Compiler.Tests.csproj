@@ -11,6 +11,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Programs/*.g.cs are snapshots of lowered C# (ProgramTests), not part of this project. -->
+    <Compile Remove="Programs/**" />
+    <None Include="Programs/**" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../../src/Nyxel.Compiler/Nyxel.Compiler.csproj" />
   </ItemGroup>
 </Project>

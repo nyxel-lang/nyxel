@@ -18,6 +18,13 @@ public sealed record DiagnosticDescriptor(string Id, DiagnosticSeverity Severity
 /// <summary>Where a diagnostic points: a span in one source text.</summary>
 public readonly record struct Location(SourceText Text, TextSpan Span)
 {
+    private static readonly SourceText NoText = SourceText.From("");
+
+    /// <summary>For problems of the whole program, such as a missing entry point.</summary>
+    public static Location None { get; } = new(NoText, default);
+
+    public bool IsNone => ReferenceEquals(Text, NoText);
+
     public LinePositionSpan LineSpan => Text.GetLinePositionSpan(Span);
 }
 
@@ -48,6 +55,10 @@ public sealed class Diagnostic
     {
         var start = Location.LineSpan.Start;
         var severity = Severity == DiagnosticSeverity.Error ? "error" : "warning";
+        if (Location.IsNone)
+        {
+            return $"{severity} {Id}: {Message}";
+        }
         return $"{Location.Text.Path}({start.Line + 1},{start.Character + 1}): {severity} {Id}: {Message}";
     }
 }

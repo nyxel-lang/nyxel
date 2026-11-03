@@ -415,6 +415,167 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ForAwait =
         Error("NYX1233", "Write 'await for {0} in ...': a statement that waits starts with 'await', as 'await using' does.");
 
+    // Semantic analysis (docs/design/semantic-analysis.md).
+
+    public static readonly DiagnosticDescriptor NotSupportedYet =
+        Error("NYX2001", "{0} is not supported by the compiler yet.");
+
+    public static readonly DiagnosticDescriptor UndefinedName =
+        Error("NYX2002", "There is no local variable or parameter named '{0}'.");
+
+    public static readonly DiagnosticDescriptor MemberNeedsReceiver =
+        Error("NYX2003", "'{0}' is a member of '{1}'; write '{2}.{0}'.");
+
+    public static readonly DiagnosticDescriptor TypeNotFound =
+        Error("NYX2004", "There is no type named '{0}'; check the spelling and the imports.");
+
+    public static readonly DiagnosticDescriptor NamespaceNotFound =
+        Error("NYX2005", "There is no namespace named '{0}'.");
+
+    public static readonly DiagnosticDescriptor AmbiguousType =
+        Error("NYX2006", "'{0}' could be '{1}' or '{2}'; write the full name, or import one of the namespaces under an alias.");
+
+    public static readonly DiagnosticDescriptor MemberNotFound =
+        Error("NYX2007", "'{1}' has no member named '{0}'.");
+
+    public static readonly DiagnosticDescriptor CannotConvert =
+        Error("NYX2008", "A value of type '{0}' can't be used where '{1}' is expected.");
+
+    public static readonly DiagnosticDescriptor NoValue =
+        Error("NYX2009", "'{0}' returns nothing, so there is no value to use.");
+
+    public static readonly DiagnosticDescriptor TypeIsNotValue =
+        Error("NYX2010", "'{0}' is a type, not a value.");
+
+    public static readonly DiagnosticDescriptor NamespaceIsNotValue =
+        Error("NYX2011", "'{0}' is a namespace, not a value.");
+
+    public static readonly DiagnosticDescriptor FunctionIsNotValue =
+        Error("NYX2012", "'{0}' is a function; call it with '(...)'.");
+
+    public static readonly DiagnosticDescriptor NoMatchingOverload =
+        Error("NYX2013", "No overload of '{0}' takes ({1}).");
+
+    public static readonly DiagnosticDescriptor AmbiguousCall =
+        Error("NYX2014", "The call could be '{0}' or '{1}'; convert an argument with 'as' to choose.");
+
+    public static readonly DiagnosticDescriptor NoSuchParameter =
+        Error("NYX2015", "'{0}' has no parameter named '{1}'.");
+
+    public static readonly DiagnosticDescriptor StaticMemberOnValue =
+        Error("NYX2016", "'{0}' is static; write '{1}.{0}'.");
+
+    public static readonly DiagnosticDescriptor InstanceMemberOnType =
+        Error("NYX2017", "'{0}' needs a value of '{1}'; write it after a value, not after the type name.");
+
+    public static readonly DiagnosticDescriptor CreateWithNew =
+        Error("NYX2018", "'{0}' is a type; create a value with 'new {0}(...)'.");
+
+    public static readonly DiagnosticDescriptor NotCallable =
+        Error("NYX2019", "This is not a function and can't be called.");
+
+    public static readonly DiagnosticDescriptor SelfNotAvailable =
+        Error("NYX2020", "'self' is only available in functions that take 'self' and in 'init'.");
+
+    public static readonly DiagnosticDescriptor OperatorNotDefined =
+        Error("NYX2021", "Operator '{0}' can't be applied to '{1}' and '{2}'.");
+
+    public static readonly DiagnosticDescriptor UnaryOperatorNotDefined =
+        Error("NYX2022", "Operator '{0}' can't be applied to '{1}'.");
+
+    public static readonly DiagnosticDescriptor DecimalLiteralForInteger =
+        Error("NYX2023", "'{0}' is not a whole number, but '{1}' is expected here.");
+
+    public static readonly DiagnosticDescriptor ConstantOutOfRange =
+        Error("NYX2024", "The value {0} doesn't fit in '{1}'.");
+
+    public static readonly DiagnosticDescriptor ConstantDivisionByZero =
+        Error("NYX2025", "Division by zero.");
+
+    public static readonly DiagnosticDescriptor AssignToLet =
+        Error("NYX2026", "'{0}' is declared with 'let' and can't be assigned again; declare it with 'var'.");
+
+    public static readonly DiagnosticDescriptor AssignToParameter =
+        Error("NYX2027", "Parameters can't be assigned; copy '{0}' into a 'var' first.");
+
+    public static readonly DiagnosticDescriptor NotAssignable =
+        Error("NYX2028", "This can't be assigned to: only variables, fields, properties with a setter and elements can.");
+
+    public static readonly DiagnosticDescriptor PropertyHasNoSetter =
+        Error("NYX2029", "'{0}' can't be set.");
+
+    public static readonly DiagnosticDescriptor PropertyHasNoGetter =
+        Error("NYX2030", "'{0}' can't be read.");
+
+    public static readonly DiagnosticDescriptor NameAlreadyDeclared =
+        Error("NYX2031", "'{0}' is already declared on line {1}; choose another name.");
+
+    public static readonly DiagnosticDescriptor DuplicateTypeName =
+        Error("NYX2032", "The namespace '{1}' already has a type named '{0}'.");
+
+    public static readonly DiagnosticDescriptor DuplicateMemberName =
+        Error("NYX2033", "'{1}' already has a member named '{0}'; functions can't be overloaded.");
+
+    public static readonly DiagnosticDescriptor NotAllPathsReturn =
+        Error("NYX2034", "Not every path through '{0}' returns a value; end it with 'return'.");
+
+    public static readonly DiagnosticDescriptor ReturnValueFromVoid =
+        Error("NYX2035", "'{0}' returns nothing; write 'return' without a value.");
+
+    public static readonly DiagnosticDescriptor ReturnWithoutValue =
+        Error("NYX2036", "'{0}' returns '{1}'; write 'return' with a value.");
+
+    public static readonly DiagnosticDescriptor JumpOutsideLoop =
+        Error("NYX2037", "'{0}' can only be used inside a loop.");
+
+    public static readonly DiagnosticDescriptor ExpressionNotStatement =
+        Error("NYX2038", "This value isn't used; only calls and 'new' can stand alone as statements.");
+
+    public static readonly DiagnosticDescriptor NotIterable =
+        Error("NYX2039", "A value of type '{0}' can't be walked with 'for ... in'.");
+
+    public static readonly DiagnosticDescriptor RangeNotIntegral =
+        Error("NYX2040", "A range in 'for' needs whole numbers, not '{0}'.");
+
+    public static readonly DiagnosticDescriptor CannotCreate =
+        Error("NYX2041", "Can't create a value of '{0}': {1}.");
+
+    public static readonly DiagnosticDescriptor AsNotAllowed =
+        Error("NYX2042", "'{0}' can't be converted to '{1}' with 'as'.");
+
+    public static readonly DiagnosticDescriptor AsMightFail =
+        Error("NYX2043", "'as' can't convert '{0}' to '{1}' because it might fail; check it with 'if x is {1}' instead.");
+
+    public static readonly DiagnosticDescriptor Inaccessible =
+        Error("NYX2044", "'{0}' is {1} and can't be used here.");
+
+    public static readonly DiagnosticDescriptor NoEntryPoint =
+        Error("NYX2045", "The program has no entry point; add 'func Main()' without 'self' to a type.");
+
+    public static readonly DiagnosticDescriptor MultipleEntryPoints =
+        Error("NYX2046", "The program has more than one 'Main': '{0}' and '{1}'.");
+
+    public static readonly DiagnosticDescriptor BadEntryPointSignature =
+        Error("NYX2047", "Write 'Main' as 'func Main()' or 'func Main(args: array<string>)', with '-> int' to return an exit code.");
+
+    public static readonly DiagnosticDescriptor AsyncEntryPoint =
+        Error("NYX2048", "'Main' can't be 'async' yet: coroutines need a host to drive them.");
+
+    public static readonly DiagnosticDescriptor FieldNeedsInitialValue =
+        Error("NYX2049", "'{0}' has no initial value; give it one here, or set it in an 'init'.");
+
+    public static readonly DiagnosticDescriptor FieldNotSetInInit =
+        Error("NYX2050", "This 'init' doesn't set '{0}' on every path.");
+
+    public static readonly DiagnosticDescriptor IndexCount =
+        Error("NYX2051", "'{0}' takes {1} index(es), not {2}.");
+
+    public static readonly DiagnosticDescriptor NotIndexable =
+        Error("NYX2052", "A value of type '{0}' can't be indexed with '[...]'.");
+
+    public static readonly DiagnosticDescriptor InternalError =
+        Error("NYX2053", "Internal compiler error: the generated C# doesn't compile ({0}: {1}). Please report it.");
+
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);
 }

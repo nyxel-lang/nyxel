@@ -2,7 +2,9 @@
 
 Language support for [Nyxel](https://github.com/nyxel-lang/nyxel) (`.nyxel` files).
 
-Current state: file association, `//` comment toggling, breakpoints allowed in `.nyxel` files, and highlighting for the parts of the syntax decided so far (comments, strings and `$"..."` interpolation, numbers, declaration keywords and modifiers, `new`, `self`, control keywords, built-in type names). The grammar grows with the language reference. The language server (nyxel-lsp) and debugging come later and will add a TypeScript client under `src/`.
+Current state: file association, `//` comment toggling, breakpoints allowed in `.nyxel` files, and highlighting for the parts of the syntax decided so far (comments, strings and `$"..."` interpolation, numbers, declaration keywords and modifiers, `new`, `self`, control keywords, built-in type names). The grammar grows with the language reference. The language server (nyxel-lsp) comes later and will add a TypeScript client under `src/`.
+
+Debugging uses the C# debugger (the C# extension, `ms-dotnettools.csharp`): build with `nyxel build --exe -o <file.dll>`, launch the dll with a `coreclr` configuration, and set breakpoints in the `.nyxel` files. The steps are in `docs/design/debug-mapping.md` ("在调试器里").
 
 ## Trying it locally
 

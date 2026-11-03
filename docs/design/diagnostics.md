@@ -176,6 +176,66 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1222` | C# 的转换 `public static explicit operator float(Fixed f)`、`implicit operator`，整个声明跳过 | `public operator as(f: Fixed) -> float = ...`，用 `x as float` 转换；`implicit` 的消息说明 Nyxel 没有隐式转换（ADR-0030） |
 | `NYX1233` | `for await e in xs`（JS / TS、Swift），按 `await for` 读 | `await for e in xs`（ADR-0034） |
 
+### 语义
+
+语义分析（design/semantic-analysis.md）报的错误。
+
+| 错误码 | 什么时候 | 例子 |
+|---|---|---|
+| `NYX2001` | 第一条线（semantic-analysis.md）还没实现的写法；消息写明是哪种 | `match`、`try`、lambda、泛型函数的调用 |
+| `NYX2002` | 名字不是局部变量或参数（不带接收者的名字只能是它们，ADR-0008） | `count` 拼错 |
+| `NYX2003` | 名字是所在类型的成员，但没写接收者 | `hp` 写成 `self.hp`，`Helper()` 写成 `Program.Helper()` |
+| `NYX2004` | 类型名找不到 | `Lsit<int>`；没写 `import System.Collections.Generic` |
+| `NYX2005` | 命名空间找不到 | `import System.Colections` |
+| `NYX2006` | 导入的两个命名空间都有这个类型（ADR-0033） | 写全名，或者给一个命名空间起别名 |
+| `NYX2007` | 类型、命名空间里没有这个成员 | `list.Lenght` |
+| `NYX2008` | 值的类型不能用在要求的类型上（没有隐式转换） | `let n: int = "3"` |
+| `NYX2009` | 用了没有返回值的函数的值 | `let x = Console.WriteLine("a")` |
+| `NYX2010` | 类型名用在要值的地方 | `let t = Console` |
+| `NYX2011` | 命名空间用在要值的地方 | `let s = System` |
+| `NYX2012` | 函数没调用就当值用 | `let f = self.Update` 写成 `self.Update()` |
+| `NYX2013` | 没有一个重载能接受这些实参 | `Math.Max(1, 2, 3)` |
+| `NYX2014` | 两个重载一样好，选不出来 | 用 `as` 转换一个实参 |
+| `NYX2015` | 命名实参的名字不是参数 | `self.Spawn(cout = 3)` |
+| `NYX2016` | 在值上用静态成员 | `text.Join(...)` 写成 `string.Join(...)` |
+| `NYX2017` | 在类型名上用实例成员 | `string.Length` 写在一个字符串值后面 |
+| `NYX2018` | 像调用函数一样写类型名（创建值要写 `new`，ADR-0008） | `Slime()` 写成 `new Slime()` |
+| `NYX2019` | 调用的不是函数 | `self.hp()` |
+| `NYX2020` | 没有 `self` 的函数里用了 `self` | 静态函数里写 `self.hp` |
+| `NYX2021` | 二元运算符不能用在这两个类型上 | `true + 1`、`"a" < "b"` |
+| `NYX2022` | 一元运算符不能用在这个类型上 | `-"a"`、`not 1` |
+| `NYX2023` | 要整数的地方写了小数字面量（ADR-0013） | `let b: int = self.wave * 1.5` |
+| `NYX2024` | 常量超出类型的范围（ADR-0014） | `let b: byte = 300` |
+| `NYX2025` | 常量除以零 | `let x = 1 / 0` |
+| `NYX2026` | 给 `let` 重新赋值（ADR-0006）；`let` 字段只能在声明处和 `init` 里赋值 | 改成 `var` |
+| `NYX2027` | 给参数赋值（ADR-0014） | 先 `var x = 参数` |
+| `NYX2028` | 赋值的左边不能赋值 | `1 = x`、`self.Name() = x` |
+| `NYX2029` | 属性、索引器没有能用的 setter | `text.Length = 3` |
+| `NYX2030` | 属性、索引器没有能用的 getter |  |
+| `NYX2031` | 局部变量、参数和看得见的同名（ADR-0036） | 内层块里再 `let speed`；lambda 参数和外层同名 |
+| `NYX2032` | 同一个命名空间里两个同名的类型 |  |
+| `NYX2033` | 同一个类型里两个同名的成员（函数不能重载，ADR-0011） |  |
+| `NYX2034` | 有返回值的函数不是每条路径都 `return`（ADR-0007） |  |
+| `NYX2035` | 没有返回值的函数 `return` 了一个值 |  |
+| `NYX2036` | 有返回值的函数写了不带值的 `return` |  |
+| `NYX2037` | 循环外面写了 `break` / `continue` |  |
+| `NYX2038` | 单独一行的表达式不是调用或 `new`，值没有用上 | `a + b` 单独一行 |
+| `NYX2039` | `for ... in` 后面的值不能遍历 | `for c in 3` |
+| `NYX2040` | `for` 的区间不是整数 | `for x in 0.5..<2` |
+| `NYX2041` | 不能创建这个类型的值：静态类、抽象类、接口 | `new Console()` |
+| `NYX2042` | `as` 不能做这种转换（ADR-0014） | `"3" as int` |
+| `NYX2043` | 可能失败的向下转换写了 `as`（ADR-0014） | `other as Projectile` 写成 `if other is Projectile` |
+| `NYX2044` | 成员是私有或受保护的 |  |
+| `NYX2045` | 输出可执行程序，但没有 `Main`（ADR-0036） | 加 `func Main()` |
+| `NYX2046` | 有两个以上 `Main`（ADR-0036） |  |
+| `NYX2047` | `Main` 的参数或返回类型不对（ADR-0036） | `func Main(args: array<string>) -> int` |
+| `NYX2048` | `async func Main`（ADR-0036） |  |
+| `NYX2049` | 没有初始值的字段，类却没有 `init`（ADR-0013） | 给字段初始值，或者写 `init` |
+| `NYX2050` | `init` 不是每条路径都给没有初始值的字段赋了值 |  |
+| `NYX2051` | 数组下标、创建时的长度个数和维数不一致 | `grid[1]` 写成 `grid[x, y]` |
+| `NYX2052` | 不能用 `[...]` 取元素的值 | `count[0]` |
+| `NYX2053` | 编译器内部错误：降级出的 C# 编译不过（ADR-0004 的兜底）。出现一次说明前端漏了一项检查 | 报告这个问题 |
+
 ## 不在语法阶段报的
 
 语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）、运算符的参数至少一个是所在的类型、转换的源和目标有一个是所在的类型且不是基类或接口、`<` 返回 bool、同一个运算符按操作数类型有没有重复（ADR-0030）、写 `T?` 的约束够不够、没约束的 T 的值用成员前有没有检查、可空类型能不能代入有约束的 T、元素是 T 的数组能不能直接创建（ADR-0031）、表达式是存储还是副本（在副本和只读的值上赋值、调用 `var self` 方法）、没标 `readonly` 的 C# 方法的返回值有没有用上、`var self` 扩展的被扩展类型是不是 struct（ADR-0032）、同名类型的查找和冲突、`under` 前面是不是命名空间、别名和看得见的名字重名（ADR-0033）、`await all` / `await any` / `await using` / `await for` 写在 `async` 函数里、每一项能等待、当值用时每一项都有值且 `any` 各项类型一致、`all` 的元组被解构或有期望的类型、`await using` 的类型实现 `IAsyncDisposable`（只实现了它的写成 `using` 时提示 `await using`）、`await for` 的集合能异步遍历、`+= async func` 的类型不匹配（ADR-0034）等。命名检查（ADR-0006，含缩略词的规则）和文档注释的检查（参数名、链接、`- Throws` 的类型，ADR-0035）是警告，也在语义分析里。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。

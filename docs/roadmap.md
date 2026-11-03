@@ -33,13 +33,13 @@ M3 以后是草案，随 M1 的语法讨论细化。
 
 架构见 [design/architecture-overview.md](design/architecture-overview.md)。
 
-- [ ] Binder：名字解析、类型检查；.NET 类型信息经 Roslyn 符号模型读取（设计见 design/semantic-analysis.md，先打通“第一条线”再逐步加宽）
+- [ ] Binder：名字解析、类型检查；.NET 类型信息经 Roslyn 符号模型读取（设计见 design/semantic-analysis.md）。第一条线已打通（2026-10-31），接着逐步加宽
 - [ ] 警告：命名检查（ADR-0006，含缩略词，ADR-0035）、文档注释的检查（参数名、链接、`- Throws` 的类型，ADR-0035）
-- [ ] 降级：绑定树 → C# 语法树，`#line` 跨度映射
-- [ ] 后端：进程内 Roslyn 编译出 dll + pdb；Roslyn 诊断映射回 .nyxel 并按内部错误报出
-- [ ] CLI：`nyxel build` / `nyxel run` / `--emit-cs`
-- [ ] 快照测试：.nyxel → 生成的 C# 逐字比较
-- [ ] 验收：hello world 和几个算法小程序能跑，断点能停在 .nyxel 源码行上
+- [ ] 降级：绑定树 → C#，`#line` 跨度映射（design/lowering.md）。第一条线的写法都有了，随 Binder 加宽
+- [x] 后端：进程内 Roslyn 编译出 dll + pdb（嵌入 .nyxel）；Roslyn 诊断映射回 .nyxel 并按内部错误报出（NYX2053）
+- [x] CLI：`nyxel build [--exe] [--emit-cs]` / `nyxel run`
+- [x] 快照测试：.nyxel → 生成的 C# 逐字比较（tests/Nyxel.Compiler.Tests/Programs/*.g.cs）
+- [x] 验收：hello world 和几个算法小程序能跑（Programs/ 的五个）、断点能停在 .nyxel 源码行上（2026-11-02 在 VSCode 里验证，design/debug-mapping.md“在调试器里”）
 
 ## M3 类型系统与 .NET 互操作（草案）
 
