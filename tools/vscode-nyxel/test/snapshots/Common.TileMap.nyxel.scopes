@@ -1,0 +1,168 @@
+> namespace Samples.Common
+  "namespace"=keyword.other.namespace
+> import System
+  "import"=keyword.other.namespace
+> import System.Collections.Generic
+  "import"=keyword.other.namespace
+> import System.Text
+  "import"=keyword.other.namespace
+> import Engine
+  "import"=keyword.other.namespace
+> public enum Tile : byte {                       // 一格只占 1 字节
+  "public"=storage.modifier  |  "enum"=storage.type  |  "byte"=storage.type.primitive  |  "// 一格只占 1 字节"=comment.line.double-slash
+> case Floor
+  "case"=storage.type
+> case Wall
+  "case"=storage.type
+> /// 格子地图：map[x, y] 是一格，存在二维数组里；y 从上往下数。
+  "/// 格子地图：map[x, y] 是一格，存在二维数组里；y 从上往下数。"=comment.line.documentation
+> public class TileMap {
+  "public"=storage.modifier  |  "class"=storage.type
+> static let Neighbors: array<(X: int, Y: int)> = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+  "static"=storage.modifier  |  "let"=storage.type  |  "array"=storage.type.array  |  "int"=storage.type.primitive  |  "int"=storage.type.primitive  |  "0"=constant.numeric.decimal  |  "1"=constant.numeric.decimal  |  "1"=constant.numeric.decimal  |  "0"=constant.numeric.decimal  |  "0"=constant.numeric.decimal  |  "1"=constant.numeric.decimal  |  "1"=constant.numeric.decimal  |  "0"=constant.numeric.decimal
+> public let Name: string
+  "public"=storage.modifier  |  "let"=storage.type  |  "string"=storage.type.primitive
+> let tiles: array2d<Tile>
+  "let"=storage.type  |  "array2d"=storage.type.array
+> let coins: List<(X: int, Y: int)> = []
+  "let"=storage.type  |  "int"=storage.type.primitive  |  "int"=storage.type.primitive
+> init(name: string, width: int, height: int) {
+  "init"=storage.type  |  "string"=storage.type.primitive  |  "int"=storage.type.primitive  |  "int"=storage.type.primitive
+> self.Name = name
+  "self"=variable.language.self
+> self.tiles = new array2d<Tile>(width, height)   // 不带数据的 enum：一开始全是第一个 case，Floor
+  "self"=variable.language.self  |  "new"=keyword.other.new  |  "array2d"=storage.type.array  |  "// 不带数据的 enum：一开始全是第一个 case，Floor"=comment.line.double-slash
+> public property Width: int {
+  "public"=storage.modifier  |  "property"=storage.type  |  "int"=storage.type.primitive
+> get { return self.tiles.GetLength(0) }
+  "get"=storage.type.accessor  |  "return"=keyword.control  |  "self"=variable.language.self  |  "0"=constant.numeric.decimal
+> public property Height: int {
+  "public"=storage.modifier  |  "property"=storage.type  |  "int"=storage.type.primitive
+> get { return self.tiles.GetLength(1) }
+  "get"=storage.type.accessor  |  "return"=keyword.control  |  "self"=variable.language.self  |  "1"=constant.numeric.decimal
+> /// 索引器：map[x, y]。读地图外面得到墙。
+  "/// 索引器：map[x, y]。读地图外面得到墙。"=comment.line.documentation
+> public property self[x: int, y: int]: Tile {
+  "public"=storage.modifier  |  "property"=storage.type  |  "self"=variable.language.self  |  "int"=storage.type.primitive  |  "int"=storage.type.primitive
+> get {
+  "get"=storage.type.accessor
+> if x < 0 or y < 0 or x >= self.Width or y >= self.Height {
+  "if"=keyword.control  |  "0"=constant.numeric.decimal  |  "or"=keyword.operator.word  |  "0"=constant.numeric.decimal  |  "or"=keyword.operator.word  |  "self"=variable.language.self  |  "or"=keyword.operator.word  |  "self"=variable.language.self
+> return Tile.Wall
+  "return"=keyword.control
+> return self.tiles[x, y]
+  "return"=keyword.control  |  "self"=variable.language.self
+> set(value) { self.tiles[x, y] = value }
+  "set"=storage.type.accessor  |  "self"=variable.language.self
+> /// 从文本读地图。
+  "/// 从文本读地图。"=comment.line.documentation
+> ///
+  "///"=comment.line.documentation
+> /// 第一行是 `map: 名字`；其余每行一排格子：`#` 是墙，`.` 是地面，`$` 是放着金币的地面。
+  "/// 第一行是 `map: 名字`；其余每行一排格子：`#` 是墙，`.` 是地面，`$` 是放着金币的地面。"=comment.line.documentation
+> ///
+  "///"=comment.line.documentation
+> /// - Parameter text: 整个地图文件的内容。
+  "/// - Parameter text: 整个地图文件的内容。"=comment.line.documentation
+> /// - Returns: 读出来的地图，宽度按第一排格子定。
+  "/// - Returns: 读出来的地图，宽度按第一排格子定。"=comment.line.documentation
+> /// - Throws ArgumentOutOfRangeException: 第一行比 `map: ` 还短时。
+  "/// - Throws ArgumentOutOfRangeException: 第一行比 `map: ` 还短时。"=comment.line.documentation
+> public func Parse(text: string) -> TileMap {
+  "public"=storage.modifier  |  "func"=storage.type  |  "string"=storage.type.primitive  |  "->"=keyword.operator.arrow
+> let lines = text.Split('\n')
+  "let"=storage.type  |  "'"=string.quoted.single  |  "\\n"=string.quoted.single constant.character.escape  |  "'"=string.quoted.single
+> let name = lines[0][5...].Trim()                // 切片：去掉开头的 "map: "
+  "let"=storage.type  |  "0"=constant.numeric.decimal  |  "5"=constant.numeric.decimal  |  "..."=keyword.operator.range  |  "// 切片：去掉开头的 \"map: \""=comment.line.double-slash
+> let rows = lines[1...]                          // 第 1 行到最后
+  "let"=storage.type  |  "1"=constant.numeric.decimal  |  "..."=keyword.operator.range  |  "// 第 1 行到最后"=comment.line.double-slash
+> let map = new TileMap(name = name, width = rows[0].Length, height = rows.Length)
+  "let"=storage.type  |  "new"=keyword.other.new  |  "0"=constant.numeric.decimal
+> for y in 0..<rows.Length {
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range
+> for x in 0..<rows[y].Length {
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range
+> let c = rows[y][x]
+  "let"=storage.type
+> if c == '#' {
+  "if"=keyword.control  |  "'"=string.quoted.single  |  "#"=string.quoted.single  |  "'"=string.quoted.single
+> } else if c == '$' {
+  "else"=keyword.control  |  "if"=keyword.control  |  "'"=string.quoted.single  |  "$"=string.quoted.single  |  "'"=string.quoted.single
+> return map
+  "return"=keyword.control
+> public func IsWall(self, x: int, y: int) -> bool = self[x, y] == Tile.Wall
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "int"=storage.type.primitive  |  "int"=storage.type.primitive  |  "->"=keyword.operator.arrow  |  "bool"=storage.type.primitive  |  "self"=variable.language.self
+> /// 上下左右有几面墙。每一格按 [`TileMap.IsWall`] 判断，地图外面也算墙。
+  "/// 上下左右有几面墙。每一格按 [`TileMap.IsWall`] 判断，地图外面也算墙。"=comment.line.documentation
+> public func WallsAround(self, x: int, y: int) -> int {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "int"=storage.type.primitive  |  "int"=storage.type.primitive  |  "->"=keyword.operator.arrow  |  "int"=storage.type.primitive
+> var count = 0
+  "var"=storage.type  |  "0"=constant.numeric.decimal
+> for (dx, dy) in TileMap.Neighbors {
+  "for"=keyword.control  |  "in"=keyword.control
+> if self.IsWall(x + dx, y + dy) {
+  "if"=keyword.control  |  "self"=variable.language.self
+> count += 1
+  "1"=constant.numeric.decimal
+> return count
+  "return"=keyword.control
+> /// 沿上下两边每隔一格立一根柱子。
+  "/// 沿上下两边每隔一格立一根柱子。"=comment.line.documentation
+> public func AddPillars(self) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> for x in (0..<self.Width).StepBy(2) {          // 0, 2, 4, ...
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range  |  "self"=variable.language.self  |  "2"=constant.numeric.decimal  |  "// 0, 2, 4, ..."=comment.line.double-slash
+> self[x, 0] = Tile.Wall
+  "self"=variable.language.self  |  "0"=constant.numeric.decimal
+> self[x, self.Height - 1] = Tile.Wall
+  "self"=variable.language.self  |  "self"=variable.language.self  |  "1"=constant.numeric.decimal
+> /// 捡起 [`x`]、[`y`] 这一格上的金币。
+  "/// 捡起 [`x`]、[`y`] 这一格上的金币。"=comment.line.documentation
+> ///
+  "///"=comment.line.documentation
+> /// - Returns: 捡到几枚；这一格没有金币时是 0。
+  "/// - Returns: 捡到几枚；这一格没有金币时是 0。"=comment.line.documentation
+> public func Collect(self, x: int, y: int) -> int {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "int"=storage.type.primitive  |  "int"=storage.type.primitive  |  "->"=keyword.operator.arrow  |  "int"=storage.type.primitive
+> var collected = 0
+  "var"=storage.type  |  "0"=constant.numeric.decimal
+> for i in (0..<self.coins.Count).Reversed() {   // 倒着走：删掉一个不会跳过下一个
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range  |  "self"=variable.language.self  |  "// 倒着走：删掉一个不会跳过下一个"=comment.line.double-slash
+> if self.coins[i].X == x and self.coins[i].Y == y {
+  "if"=keyword.control  |  "self"=variable.language.self  |  "and"=keyword.operator.word  |  "self"=variable.language.self
+> self.coins.RemoveAt(i)
+  "self"=variable.language.self
+> collected += 1
+  "1"=constant.numeric.decimal
+> return collected
+  "return"=keyword.control
+> public func Print(self) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> Log.Info($"{self.Name}: {self.Width} x {self.Height}")
+  "$\""=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".Name"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  ": "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".Width"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " x "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".Height"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "\""=string.quoted.double.interpolated
+> for y in 0..<self.Height {
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range  |  "self"=variable.language.self
+> let line = new StringBuilder()
+  "let"=storage.type  |  "new"=keyword.other.new
+> for x in 0..<self.Width {
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range  |  "self"=variable.language.self
+> line.Append(if self.IsWall(x, y) -> '#' else -> '.')
+  "if"=keyword.control  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "'"=string.quoted.single  |  "#"=string.quoted.single  |  "'"=string.quoted.single  |  "else"=keyword.control  |  "->"=keyword.operator.arrow  |  "'"=string.quoted.single  |  "."=string.quoted.single  |  "'"=string.quoted.single
+> for tile in [Tile.Wall, Tile.Floor] {           // 没有期望的类型，但马上被遍历：不用写类型
+  "for"=keyword.control  |  "in"=keyword.control  |  "// 没有期望的类型，但马上被遍历：不用写类型"=comment.line.double-slash
+> Log.Info($"{tile}: {self.Count(tile)}")
+  "$\""=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "tile"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  ": "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".Count(tile)"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "\""=string.quoted.double.interpolated
+> func Count(self, tile: Tile) -> int {
+  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "int"=storage.type.primitive
+> var count = 0
+  "var"=storage.type  |  "0"=constant.numeric.decimal
+> for x in 0..<self.Width {
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range  |  "self"=variable.language.self
+> for y in 0..<self.Height {
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range  |  "self"=variable.language.self
+> if self.tiles[x, y] == tile {
+  "if"=keyword.control  |  "self"=variable.language.self
+> count += 1
+  "1"=constant.numeric.decimal
+> return count
+  "return"=keyword.control

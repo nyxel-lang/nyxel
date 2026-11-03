@@ -1,0 +1,71 @@
+// Highlighting cases the samples don't cover: literals, escapes, raw strings, and the contextual keywords.
+/// A doc comment, with `code` and a [`Link`].
+//// Four slashes are an ordinary comment.
+namespace Cases.Literals
+
+import System.Text.Json under Json
+
+public flags enum Layers {
+    case None = 0
+    case Ground = 0b0000_0001
+    case Water = 0x02
+}
+
+class Literals {
+    var hits: array<RaycastHit?> = new array<RaycastHit?>(16)
+
+    public property Count: int { get = self.count }
+
+    public property Name: string = "" {
+        get
+        private set
+    }
+
+    func Strings(self) {
+        let parts = line.Split(',')
+        let quote = '\''
+        let tab = '\t'
+        let letter = '\x41'
+        let escaped = "a \"quoted\" word\n"
+        let braces = $"literal {{braces}} and a {self.Name,8:F2} hole"
+        let nested = $"outer {F($"inner {self.Count}")} done"
+        let pattern = """\d+\.\d+"""
+        let help = """
+            Usage: "spawn" {kind}
+            """
+        let json = $$"""
+            { "hp": {{self.hp}}, "name": "{{self.Name}}" }
+            """
+        let report = $"""Wave {self.wave}: {self.alive.Count:D2} alive"""
+    }
+
+    func Numbers(self) {
+        let big = 1_000_000
+        let ratio = 1.5e-3
+        let mask = 0xFF_FF
+        for i in 0..<10 {
+            continue
+        }
+        for i in 1...3 {
+            break
+        }
+    }
+
+    async func Contextual(self) {
+        let all = 1                     // all and any are names here
+        let any = all + 1
+        await all {
+            case self.FadeIn()
+            case self.PanTo(target = self.Position)
+        }
+        let first = await any {
+            case let key = Input.WaitForAnyKey() -> key
+            case Wait.Seconds(2) -> Key.None
+        }
+        await using stream = File.OpenRead(path)
+        await for line in File.ReadLinesAsync(path) {
+            _ = line
+        }
+        super.Contextual()
+    }
+}

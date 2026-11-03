@@ -1,0 +1,104 @@
+> // Highlighting cases the samples don't cover: literals, escapes, raw strings, and the contextual keywords.
+  "// Highlighting cases the samples don't cover: literals, escapes, raw strings, and the contextual keywords."=comment.line.double-slash
+> /// A doc comment, with `code` and a [`Link`].
+  "/// A doc comment, with `code` and a [`Link`]."=comment.line.documentation
+> //// Four slashes are an ordinary comment.
+  "//// Four slashes are an ordinary comment."=comment.line.double-slash
+> namespace Cases.Literals
+  "namespace"=keyword.other.namespace
+> import System.Text.Json under Json
+  "import"=keyword.other.namespace  |  "under"=keyword.other.namespace
+> public flags enum Layers {
+  "public"=storage.modifier  |  "flags"=storage.modifier  |  "enum"=storage.type
+> case None = 0
+  "case"=storage.type  |  "0"=constant.numeric.decimal
+> case Ground = 0b0000_0001
+  "case"=storage.type  |  "0b0000_0001"=constant.numeric.binary
+> case Water = 0x02
+  "case"=storage.type  |  "0x02"=constant.numeric.hex
+> class Literals {
+  "class"=storage.type
+> var hits: array<RaycastHit?> = new array<RaycastHit?>(16)
+  "var"=storage.type  |  "array"=storage.type.array  |  "new"=keyword.other.new  |  "array"=storage.type.array  |  "16"=constant.numeric.decimal
+> public property Count: int { get = self.count }
+  "public"=storage.modifier  |  "property"=storage.type  |  "int"=storage.type.primitive  |  "get"=storage.type.accessor  |  "self"=variable.language.self
+> public property Name: string = "" {
+  "public"=storage.modifier  |  "property"=storage.type  |  "string"=storage.type.primitive  |  "\""=string.quoted.double  |  "\""=string.quoted.double
+> get
+  "get"=storage.type.accessor
+> private set
+  "private"=storage.modifier  |  "set"=storage.type.accessor
+> func Strings(self) {
+  "func"=storage.type  |  "self"=variable.language.self
+> let parts = line.Split(',')
+  "let"=storage.type  |  "'"=string.quoted.single  |  ","=string.quoted.single  |  "'"=string.quoted.single
+> let quote = '\''
+  "let"=storage.type  |  "'"=string.quoted.single  |  "\\'"=string.quoted.single constant.character.escape  |  "'"=string.quoted.single
+> let tab = '\t'
+  "let"=storage.type  |  "'"=string.quoted.single  |  "\\t"=string.quoted.single constant.character.escape  |  "'"=string.quoted.single
+> let letter = '\x41'
+  "let"=storage.type  |  "'"=string.quoted.single  |  "\\x41"=string.quoted.single constant.character.escape  |  "'"=string.quoted.single
+> let escaped = "a \"quoted\" word\n"
+  "let"=storage.type  |  "\""=string.quoted.double  |  "a "=string.quoted.double  |  "\\\""=string.quoted.double constant.character.escape  |  "quoted"=string.quoted.double  |  "\\\""=string.quoted.double constant.character.escape  |  " word"=string.quoted.double  |  "\\n"=string.quoted.double constant.character.escape  |  "\""=string.quoted.double
+> let braces = $"literal {{braces}} and a {self.Name,8:F2} hole"
+  "let"=storage.type  |  "$\""=string.quoted.double.interpolated  |  "literal "=string.quoted.double.interpolated  |  "{{"=string.quoted.double.interpolated constant.character.escape.brace  |  "braces"=string.quoted.double.interpolated  |  "}}"=string.quoted.double.interpolated constant.character.escape.brace  |  " and a "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".Name,"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "8"=string.quoted.double.interpolated meta.interpolation meta.embedded.line constant.numeric.decimal  |  ":F2"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " hole"=string.quoted.double.interpolated  |  "\""=string.quoted.double.interpolated
+> let nested = $"outer {F($"inner {self.Count}")} done"
+  "let"=storage.type  |  "$\""=string.quoted.double.interpolated  |  "outer "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "F("=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "$\""=string.quoted.double.interpolated meta.interpolation meta.embedded.line string.quoted.double.interpolated  |  "inner "=string.quoted.double.interpolated meta.interpolation meta.embedded.line string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation meta.embedded.line string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".Count"=string.quoted.double.interpolated meta.interpolation meta.embedded.line string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation meta.embedded.line string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "\""=string.quoted.double.interpolated meta.interpolation meta.embedded.line string.quoted.double.interpolated  |  ")"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " done"=string.quoted.double.interpolated  |  "\""=string.quoted.double.interpolated
+> let pattern = """\d+\.\d+"""
+  "let"=storage.type  |  "\"\"\""=string.quoted.triple  |  "\\d+\\.\\d+"=string.quoted.triple  |  "\"\"\""=string.quoted.triple
+> let help = """
+  "let"=storage.type  |  "\"\"\""=string.quoted.triple
+> Usage: "spawn" {kind}
+  "            Usage: \"spawn\" {kind}"=string.quoted.triple
+> """
+  "\"\"\""=string.quoted.triple
+> let json = $$"""
+  "let"=storage.type  |  "$$\"\"\""=string.quoted.triple.interpolated
+> { "hp": {{self.hp}}, "name": "{{self.Name}}" }
+  "            { \"hp\": "=string.quoted.triple.interpolated  |  "{{"=string.quoted.triple.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.triple.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".hp"=string.quoted.triple.interpolated meta.interpolation meta.embedded.line  |  "}}"=string.quoted.triple.interpolated meta.interpolation punctuation.definition.interpolation.end  |  ", \"name\": \""=string.quoted.triple.interpolated  |  "{{"=string.quoted.triple.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.triple.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".Name"=string.quoted.triple.interpolated meta.interpolation meta.embedded.line  |  "}}"=string.quoted.triple.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "\" }"=string.quoted.triple.interpolated
+> """
+  "\"\"\""=string.quoted.triple.interpolated
+> let report = $"""Wave {self.wave}: {self.alive.Count:D2} alive"""
+  "let"=storage.type  |  "$\"\"\""=string.quoted.triple.interpolated  |  "Wave "=string.quoted.triple.interpolated  |  "{"=string.quoted.triple.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.triple.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".wave"=string.quoted.triple.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.triple.interpolated meta.interpolation punctuation.definition.interpolation.end  |  ": "=string.quoted.triple.interpolated  |  "{"=string.quoted.triple.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.triple.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".alive.Count:D2"=string.quoted.triple.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.triple.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " alive"=string.quoted.triple.interpolated  |  "\"\"\""=string.quoted.triple.interpolated
+> func Numbers(self) {
+  "func"=storage.type  |  "self"=variable.language.self
+> let big = 1_000_000
+  "let"=storage.type  |  "1_000_000"=constant.numeric.decimal
+> let ratio = 1.5e-3
+  "let"=storage.type  |  "1.5e-3"=constant.numeric.decimal
+> let mask = 0xFF_FF
+  "let"=storage.type  |  "0xFF_FF"=constant.numeric.hex
+> for i in 0..<10 {
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range  |  "10"=constant.numeric.decimal
+> continue
+  "continue"=keyword.control
+> for i in 1...3 {
+  "for"=keyword.control  |  "in"=keyword.control  |  "1"=constant.numeric.decimal  |  "..."=keyword.operator.range  |  "3"=constant.numeric.decimal
+> break
+  "break"=keyword.control
+> async func Contextual(self) {
+  "async"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> let all = 1                     // all and any are names here
+  "let"=storage.type  |  "1"=constant.numeric.decimal  |  "// all and any are names here"=comment.line.double-slash
+> let any = all + 1
+  "let"=storage.type  |  "1"=constant.numeric.decimal
+> await all {
+  "await"=keyword.control  |  "all"=keyword.control
+> case self.FadeIn()
+  "case"=storage.type  |  "self"=variable.language.self
+> case self.PanTo(target = self.Position)
+  "case"=storage.type  |  "self"=variable.language.self  |  "self"=variable.language.self
+> let first = await any {
+  "let"=storage.type  |  "await"=keyword.control  |  "any"=keyword.control
+> case let key = Input.WaitForAnyKey() -> key
+  "case"=storage.type  |  "let"=storage.type  |  "->"=keyword.operator.arrow
+> case Wait.Seconds(2) -> Key.None
+  "case"=storage.type  |  "2"=constant.numeric.decimal  |  "->"=keyword.operator.arrow
+> await using stream = File.OpenRead(path)
+  "await"=keyword.control  |  "using"=storage.modifier
+> await for line in File.ReadLinesAsync(path) {
+  "await"=keyword.control  |  "for"=keyword.control  |  "in"=keyword.control
+> _ = line
+  "_"=variable.language.discard
+> super.Contextual()
+  "super"=variable.language.super

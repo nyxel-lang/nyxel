@@ -1,0 +1,112 @@
+> namespace Samples.Enemies
+  "namespace"=keyword.other.namespace
+> import System
+  "import"=keyword.other.namespace
+> import System.Collections.Generic
+  "import"=keyword.other.namespace
+> import System.Linq
+  "import"=keyword.other.namespace
+> import System.Numerics
+  "import"=keyword.other.namespace
+> import Engine
+  "import"=keyword.other.namespace
+> import Nyxel
+  "import"=keyword.other.namespace
+> import Samples.Combat
+  "import"=keyword.other.namespace
+> import Samples.Common
+  "import"=keyword.other.namespace
+> /// 按波次在自己周围一圈生成史莱姆。
+  "/// 按波次在自己周围一圈生成史莱姆。"=comment.line.documentation
+> public class Spawner : Behaviour {
+  "public"=storage.modifier  |  "class"=storage.type
+> public var WaveCount: int = 3
+  "public"=storage.modifier  |  "var"=storage.type  |  "int"=storage.type.primitive  |  "3"=constant.numeric.decimal
+> public var PerWave: int = 4
+  "public"=storage.modifier  |  "var"=storage.type  |  "int"=storage.type.primitive  |  "4"=constant.numeric.decimal
+> public var Interval: float = 5
+  "public"=storage.modifier  |  "var"=storage.type  |  "float"=storage.type.primitive  |  "5"=constant.numeric.decimal
+> public var BaseSpeed: float = 2
+  "public"=storage.modifier  |  "var"=storage.type  |  "float"=storage.type.primitive  |  "2"=constant.numeric.decimal
+> public var SpeedPerWave: float = 0.5
+  "public"=storage.modifier  |  "var"=storage.type  |  "float"=storage.type.primitive  |  "0.5"=constant.numeric.decimal
+> var alive: List<Slime> = new List<Slime>()
+  "var"=storage.type  |  "new"=keyword.other.new
+> public property Wave: int = 0 {
+  "public"=storage.modifier  |  "property"=storage.type  |  "int"=storage.type.primitive  |  "0"=constant.numeric.decimal
+> get
+  "get"=storage.type.accessor
+> private set
+  "private"=storage.modifier  |  "set"=storage.type.accessor
+> public property AliveCount: int {
+  "public"=storage.modifier  |  "property"=storage.type  |  "int"=storage.type.primitive
+> get { return self.alive.Count }
+  "get"=storage.type.accessor  |  "return"=keyword.control  |  "self"=variable.language.self
+> protected override func OnEnable(self) {
+  "protected"=storage.modifier  |  "override"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> launch self.RunWaves()        // 绑定在这个刷怪器上：它被销毁时，波次流程自动停止
+  "launch"=keyword.control  |  "self"=variable.language.self  |  "// 绑定在这个刷怪器上：它被销毁时，波次流程自动停止"=comment.line.double-slash
+> /// 刷一波，等这一波清完，歇一会儿，再刷下一波。
+  "/// 刷一波，等这一波清完，歇一会儿，再刷下一波。"=comment.line.documentation
+> async func RunWaves(self) {
+  "async"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> while self.Wave < self.WaveCount {
+  "while"=keyword.control  |  "self"=variable.language.self  |  "self"=variable.language.self
+> self.SpawnWave()
+  "self"=variable.language.self
+> await Wait.Until(func() = self.AliveCount == 0)
+  "await"=keyword.control  |  "func"=storage.type  |  "self"=variable.language.self  |  "0"=constant.numeric.decimal
+> await Wait.Seconds(self.Interval)
+  "await"=keyword.control  |  "self"=variable.language.self
+> Log.Info("all waves cleared")
+  "\""=string.quoted.double  |  "all waves cleared"=string.quoted.double  |  "\""=string.quoted.double
+> func SpawnWave(self) {
+  "func"=storage.type  |  "self"=variable.language.self
+> // 每一波的圈比上一波大一点
+  "// 每一波的圈比上一波大一点"=comment.line.double-slash
+> let radius: float = 3 + self.Wave * 0.5
+  "let"=storage.type  |  "float"=storage.type.primitive  |  "3"=constant.numeric.decimal  |  "self"=variable.language.self  |  "0.5"=constant.numeric.decimal
+> for i in 0..<self.PerWave {
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range  |  "self"=variable.language.self
+> let angle = MathF.Tau * i / self.PerWave
+  "let"=storage.type  |  "self"=variable.language.self
+> let offset = Vector3.FromAngle(radians = angle) * radius
+  "let"=storage.type
+> let slime = self.World.Spawn<Slime>(position = self.Position + offset)
+  "let"=storage.type  |  "self"=variable.language.self  |  "self"=variable.language.self
+> slime.Speed = self.BaseSpeed + self.Wave * self.SpeedPerWave
+  "self"=variable.language.self  |  "self"=variable.language.self  |  "self"=variable.language.self
+> slime.Died += self.OnSlimeDied      // 绑定 self：刷怪器先被销毁时，订阅自动移除
+  "self"=variable.language.self  |  "// 绑定 self：刷怪器先被销毁时，订阅自动移除"=comment.line.double-slash
+> self.alive.Add(slime)
+  "self"=variable.language.self
+> self.Wave += 1
+  "self"=variable.language.self  |  "1"=constant.numeric.decimal
+> Log.Info($"wave {self.Wave}/{self.WaveCount}: {self.AliveCount} alive")
+  "$\""=string.quoted.double.interpolated  |  "wave "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".Wave"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "/"=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".WaveCount"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  ": "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".AliveCount"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " alive"=string.quoted.double.interpolated  |  "\""=string.quoted.double.interpolated
+> func OnSlimeDied(self, slime: Slime) {
+  "func"=storage.type  |  "self"=variable.language.self
+> self.alive.Remove(slime)
+  "self"=variable.language.self
+> /// 离某个点最近的、还活着的史莱姆；一个都没有时是 null。
+  "/// 离某个点最近的、还活着的史莱姆；一个都没有时是 null。"=comment.line.documentation
+> public func NearestTo(self, point: Vector3) -> Slime? {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow
+> return self.alive
+  "return"=keyword.control  |  "self"=variable.language.self
+> .Where(func(s) = not s.IsDead)
+  "func"=storage.type  |  "not"=keyword.operator.word
+> .MinBy(func(s) = Vector3.Distance(s.Position, point))
+  "func"=storage.type
+> public override func OnTriggerEnter(self, other: Collider) {
+  "public"=storage.modifier  |  "override"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> if other is not Projectile {
+  "if"=keyword.control  |  "is"=keyword.operator.word  |  "not"=keyword.operator.word
+> return
+  "return"=keyword.control
+> // 从这里开始 other 是 Projectile
+  "// 从这里开始 other 是 Projectile"=comment.line.double-slash
+> let target = self.NearestTo(point = other.Position) ?? return
+  "let"=storage.type  |  "self"=variable.language.self  |  "return"=keyword.control
+> target.TakeDamage(damage = new Damage.Burn(Amount = other.Power, Seconds = 2))
+  "new"=keyword.other.new  |  "2"=constant.numeric.decimal

@@ -43,3 +43,25 @@ jobs:
         with:
           name: packages
           path: build/packages/*.nupkg
+
+  highlighting:
+    runs-on: ubuntu-26.04
+    defaults:
+      run:
+        working-directory: tools/vscode-nyxel
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/vscode-nyxel/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Highlighting snapshots
+        run: npm test

@@ -1,0 +1,36 @@
+> namespace Samples.Common
+  "namespace"=keyword.other.namespace
+> import Game.Protocol under Wire         // 网络协议生成的代码，里面也有一个 Team
+  "import"=keyword.other.namespace  |  "under"=keyword.other.namespace  |  "// 网络协议生成的代码，里面也有一个 Team"=comment.line.double-slash
+> /// 自己的阵营，和协议里的 Wire.Team 同名。
+  "/// 自己的阵营，和协议里的 Wire.Team 同名。"=comment.line.documentation
+> /// 不带前缀的 Team 就是这一个：自己命名空间里的类型优先于导入的。
+  "/// 不带前缀的 Team 就是这一个：自己命名空间里的类型优先于导入的。"=comment.line.documentation
+> public enum Team {
+  "public"=storage.modifier  |  "enum"=storage.type
+> case Red
+  "case"=storage.type
+> case Blue
+  "case"=storage.type
+> case Neutral
+  "case"=storage.type
+> /// 协议的类型和自己的类型互相转换：Wire.Team 是协议里的，Team 是自己的。
+  "/// 协议的类型和自己的类型互相转换：Wire.Team 是协议里的，Team 是自己的。"=comment.line.documentation
+> public class TeamMapping {
+  "public"=storage.modifier  |  "class"=storage.type
+> public func FromWire(team: Wire.Team) -> Team = match team {
+  "public"=storage.modifier  |  "func"=storage.type  |  "->"=keyword.operator.arrow  |  "match"=keyword.control
+> case Red -> Team.Red
+  "case"=storage.type  |  "->"=keyword.operator.arrow
+> case Blue -> Team.Blue
+  "case"=storage.type  |  "->"=keyword.operator.arrow
+> case _ -> Team.Neutral                  // 协议以后加的阵营先当中立
+  "case"=storage.type  |  "_"=variable.language.discard  |  "->"=keyword.operator.arrow  |  "// 协议以后加的阵营先当中立"=comment.line.double-slash
+> public func ToWire(team: Team) -> Wire.Team = match team {
+  "public"=storage.modifier  |  "func"=storage.type  |  "->"=keyword.operator.arrow  |  "match"=keyword.control
+> case Red -> Wire.Team.Red
+  "case"=storage.type  |  "->"=keyword.operator.arrow
+> case Blue -> Wire.Team.Blue
+  "case"=storage.type  |  "->"=keyword.operator.arrow
+> case Neutral -> Wire.Team.None
+  "case"=storage.type  |  "->"=keyword.operator.arrow

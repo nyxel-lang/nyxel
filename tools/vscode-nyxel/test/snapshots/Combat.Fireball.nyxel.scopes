@@ -1,0 +1,44 @@
+> namespace Samples.Combat
+  "namespace"=keyword.other.namespace
+> import Engine
+  "import"=keyword.other.namespace
+> /// 火球：飞得越久越大，打中目标造成灼烧。
+  "/// 火球：飞得越久越大，打中目标造成灼烧。"=comment.line.documentation
+> public class Fireball : Projectile {
+  "public"=storage.modifier  |  "class"=storage.type
+> public let StartRadius: float
+  "public"=storage.modifier  |  "let"=storage.type  |  "float"=storage.type.primitive
+> var age: float = 0
+  "var"=storage.type  |  "float"=storage.type.primitive  |  "0"=constant.numeric.decimal
+> public init(power: int, radius: float) {
+  "public"=storage.modifier  |  "init"=storage.type  |  "int"=storage.type.primitive  |  "float"=storage.type.primitive
+> init super(power = power)
+  "init"=storage.type  |  "super"=variable.language.super
+> self.StartRadius = radius
+  "self"=variable.language.self
+> /// 威力和半径都取较小固定值的火球。
+  "/// 威力和半径都取较小固定值的火球。"=comment.line.documentation
+> public init Small() {
+  "public"=storage.modifier  |  "init"=storage.type
+> init self(power = 5, radius = 0.5)
+  "init"=storage.type  |  "self"=variable.language.self  |  "5"=constant.numeric.decimal  |  "0.5"=constant.numeric.decimal
+> public property Radius: float {
+  "public"=storage.modifier  |  "property"=storage.type  |  "float"=storage.type.primitive
+> get { return self.StartRadius + self.age * 0.5 }
+  "get"=storage.type.accessor  |  "return"=keyword.control  |  "self"=variable.language.self  |  "self"=variable.language.self  |  "0.5"=constant.numeric.decimal
+> public override func Update(self, dt: float) {
+  "public"=storage.modifier  |  "override"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "float"=storage.type.primitive
+> super.Update(dt = dt)
+  "super"=variable.language.super
+> self.age += dt
+  "self"=variable.language.self
+> /// 打中目标时的伤害：威力越大烧得越久。
+  "/// 打中目标时的伤害：威力越大烧得越久。"=comment.line.documentation
+> public func ToDamage(self) -> Damage {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow
+> return new Damage.Burn(
+  "return"=keyword.control  |  "new"=keyword.other.new
+> Amount = self.Power,
+  "self"=variable.language.self
+> Seconds = 1 + self.Power * 0.2)
+  "1"=constant.numeric.decimal  |  "self"=variable.language.self  |  "0.2"=constant.numeric.decimal

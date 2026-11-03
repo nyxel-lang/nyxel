@@ -1,0 +1,26 @@
+> namespace Samples.Common
+  "namespace"=keyword.other.namespace
+> import System
+  "import"=keyword.other.namespace
+> import System.Numerics
+  "import"=keyword.other.namespace
+> /// 给 System.Numerics.Vector3 加的游戏常用方法。
+  "/// 给 System.Numerics.Vector3 加的游戏常用方法。"=comment.line.documentation
+> extension Vector3 {
+  "extension"=storage.type
+> /// 去掉高度分量。
+  "/// 去掉高度分量。"=comment.line.documentation
+> public func Flat(self) -> Vector3 = new Vector3(self.X, 0, self.Z)
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "new"=keyword.other.new  |  "self"=variable.language.self  |  "0"=constant.numeric.decimal  |  "self"=variable.language.self
+> /// 水平面上的距离，忽略高度差。
+  "/// 水平面上的距离，忽略高度差。"=comment.line.documentation
+> public func HorizontalDistance(self, other: Vector3) -> float =
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "float"=storage.type.primitive
+> (self - other).Flat().Length()
+  "self"=variable.language.self
+> /// 水平面上指向某个角度的单位向量。没有 self：通过 Vector3.FromAngle(...) 调用。
+  "/// 水平面上指向某个角度的单位向量。没有 self：通过 Vector3.FromAngle(...) 调用。"=comment.line.documentation
+> public func FromAngle(radians: float) -> Vector3 {
+  "public"=storage.modifier  |  "func"=storage.type  |  "float"=storage.type.primitive  |  "->"=keyword.operator.arrow
+> return new Vector3(MathF.Cos(radians), 0, MathF.Sin(radians))
+  "return"=keyword.control  |  "new"=keyword.other.new  |  "0"=constant.numeric.decimal

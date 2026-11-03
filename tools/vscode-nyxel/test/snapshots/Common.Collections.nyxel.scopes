@@ -1,0 +1,100 @@
+> namespace Samples.Common
+  "namespace"=keyword.other.namespace
+> import System
+  "import"=keyword.other.namespace
+> import System.Collections.Generic
+  "import"=keyword.other.namespace
+> /// 给所有 List<T> 加的方法，T 是什么都行。类型参数写在 extension 后面，后面的类型再用它。
+  "/// 给所有 List<T> 加的方法，T 是什么都行。类型参数写在 extension 后面，后面的类型再用它。"=comment.line.documentation
+> extension<T> List<T> {
+  "extension"=storage.type
+> /// 原地打乱顺序：洗牌、随机刷怪顺序。
+  "/// 原地打乱顺序：洗牌、随机刷怪顺序。"=comment.line.documentation
+> public func Shuffle(self, rng: Random) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> for i in 1..<self.Count {
+  "for"=keyword.control  |  "in"=keyword.control  |  "1"=constant.numeric.decimal  |  "..<"=keyword.operator.range  |  "self"=variable.language.self
+> let j = rng.Next(i + 1)
+  "let"=storage.type  |  "1"=constant.numeric.decimal
+> let picked = self[j]
+  "let"=storage.type  |  "self"=variable.language.self
+> self[j] = self[i]
+  "self"=variable.language.self  |  "self"=variable.language.self
+> self[i] = picked
+  "self"=variable.language.self
+> /// 把每一项换成另一种值，组成新的列表。只有这个方法用的 U 写在方法上。
+  "/// 把每一项换成另一种值，组成新的列表。只有这个方法用的 U 写在方法上。"=comment.line.documentation
+> ///
+  "///"=comment.line.documentation
+> /// - Parameter U: 换成的类型。
+  "/// - Parameter U: 换成的类型。"=comment.line.documentation
+> /// - Parameter convert: 怎么换，按顺序对每一项调用一次。
+  "/// - Parameter convert: 怎么换，按顺序对每一项调用一次。"=comment.line.documentation
+> /// - Returns: 新的列表，长度和顺序同原来的。
+  "/// - Returns: 新的列表，长度和顺序同原来的。"=comment.line.documentation
+> public func Map<U>(self, convert: func(T) -> U) -> List<U> {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "func"=storage.type  |  "->"=keyword.operator.arrow  |  "->"=keyword.operator.arrow
+> let result = new List<U>(self.Count)
+  "let"=storage.type  |  "new"=keyword.other.new  |  "self"=variable.language.self
+> for item in self {
+  "for"=keyword.control  |  "in"=keyword.control  |  "self"=variable.language.self
+> return result
+  "return"=keyword.control
+> /// 约束照旧写在 <> 里。
+  "/// 约束照旧写在 <> 里。"=comment.line.documentation
+> extension<T: IComparable<T>> List<T> {
+  "extension"=storage.type
+> /// 最大的一个。
+  "/// 最大的一个。"=comment.line.documentation
+> ///
+  "///"=comment.line.documentation
+> /// - Throws ArgumentOutOfRangeException: 列表是空的时。
+  "/// - Throws ArgumentOutOfRangeException: 列表是空的时。"=comment.line.documentation
+> public func Largest(self) -> T {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow
+> var best = self[0]
+  "var"=storage.type  |  "self"=variable.language.self  |  "0"=constant.numeric.decimal
+> for item in self {
+  "for"=keyword.control  |  "in"=keyword.control  |  "self"=variable.language.self
+> if item.CompareTo(best) > 0 {
+  "if"=keyword.control  |  "0"=constant.numeric.decimal
+> return best
+  "return"=keyword.control
+> /// 最近的几条，满了挤掉最早的一条（聊天框、最近拾取的物品）。
+  "/// 最近的几条，满了挤掉最早的一条（聊天框、最近拾取的物品）。"=comment.line.documentation
+> /// 要写 T?，约束里得看得出 T 是 class 还是 struct：这里是 T: class，T? 就是“可能是 null”。
+  "/// 要写 T?，约束里得看得出 T 是 class 还是 struct：这里是 T: class，T? 就是“可能是 null”。"=comment.line.documentation
+> public class RecentList<T: class> {
+  "public"=storage.modifier  |  "class"=storage.type  |  "class"=storage.type
+> let items: array<T?>
+  "let"=storage.type  |  "array"=storage.type.array
+> var next: int = 0
+  "var"=storage.type  |  "int"=storage.type.primitive  |  "0"=constant.numeric.decimal
+> init(capacity: int) {
+  "init"=storage.type  |  "int"=storage.type.primitive
+> self.items = new array<T?>(capacity)           // 元素是 T?：可以直接创建，一开始全是 null
+  "self"=variable.language.self  |  "new"=keyword.other.new  |  "array"=storage.type.array  |  "// 元素是 T?：可以直接创建，一开始全是 null"=comment.line.double-slash
+> public func Add(self, item: T) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> self.items[self.next] = item
+  "self"=variable.language.self  |  "self"=variable.language.self
+> self.next = (self.next + 1) % self.items.Length
+  "self"=variable.language.self  |  "self"=variable.language.self  |  "1"=constant.numeric.decimal  |  "self"=variable.language.self
+> /// 最近加进来的一条；还没加过是 null。
+  "/// 最近加进来的一条；还没加过是 null。"=comment.line.documentation
+> public func Latest(self) -> T? = self.items[(self.next + self.items.Length - 1) % self.items.Length]
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "self"=variable.language.self  |  "self"=variable.language.self  |  "self"=variable.language.self  |  "1"=constant.numeric.decimal  |  "self"=variable.language.self
+> /// 按种类计数（击杀统计）。K 当 Dictionary 的键，键不能是 null，所以写 K: notnull。
+  "/// 按种类计数（击杀统计）。K 当 Dictionary 的键，键不能是 null，所以写 K: notnull。"=comment.line.documentation
+> public class Tally<K: notnull> {
+  "public"=storage.modifier  |  "class"=storage.type
+> let counts: Dictionary<K, int> = new Dictionary<K, int>()
+  "let"=storage.type  |  "int"=storage.type.primitive  |  "new"=keyword.other.new  |  "int"=storage.type.primitive
+> public func Add(self, key: K) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> self.counts[key] = self.Count(key) + 1
+  "self"=variable.language.self  |  "self"=variable.language.self  |  "1"=constant.numeric.decimal
+> /// 没记过的是 0：.NET 的 GetValueOrDefault 在值是 int 时返回 0，不是 null。
+  "/// 没记过的是 0：.NET 的 GetValueOrDefault 在值是 int 时返回 0，不是 null。"=comment.line.documentation
+> public func Count(self, key: K) -> int = self.counts.GetValueOrDefault(key)
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "int"=storage.type.primitive  |  "self"=variable.language.self

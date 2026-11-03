@@ -1,0 +1,70 @@
+> namespace Samples.Common
+  "namespace"=keyword.other.namespace
+> import System.IO
+  "import"=keyword.other.namespace
+> import Engine
+  "import"=keyword.other.namespace
+> /// 把最高分存在一个文本文件里。
+  "/// 把最高分存在一个文本文件里。"=comment.line.documentation
+> public class HighScore {
+  "public"=storage.modifier  |  "class"=storage.type
+> let path: string
+  "let"=storage.type  |  "string"=storage.type.primitive
+> public init(path: string) {
+  "public"=storage.modifier  |  "init"=storage.type  |  "string"=storage.type.primitive
+> self.path = path
+  "self"=variable.language.self
+> /// 读不到或文件损坏时当作 0 分。
+  "/// 读不到或文件损坏时当作 0 分。"=comment.line.documentation
+> public func Load(self) -> int {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "int"=storage.type.primitive
+> let text = try -> File.ReadAllText(self.path) catch e: FileNotFoundException -> return 0
+  "let"=storage.type  |  "try"=keyword.control  |  "->"=keyword.operator.arrow  |  "self"=variable.language.self  |  "catch"=keyword.control  |  "->"=keyword.operator.arrow  |  "return"=keyword.control  |  "0"=constant.numeric.decimal
+> if not int.TryParse(text, out let score) {
+  "if"=keyword.control  |  "not"=keyword.operator.word  |  "int"=storage.type.primitive  |  "out"=storage.modifier  |  "let"=storage.type
+> Log.Warn($"存档损坏，已忽略：{self.path}")
+  "$\""=string.quoted.double.interpolated  |  "存档损坏，已忽略："=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".path"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "\""=string.quoted.double.interpolated
+> return 0
+  "return"=keyword.control  |  "0"=constant.numeric.decimal
+> return score
+  "return"=keyword.control
+> /// 和最高分比，给出评价。
+  "/// 和最高分比，给出评价。"=comment.line.documentation
+> public func Rate(self, score: int) -> string {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "int"=storage.type.primitive  |  "->"=keyword.operator.arrow  |  "string"=storage.type.primitive
+> let best = self.Load()
+  "let"=storage.type  |  "self"=variable.language.self
+> let rating = eval {
+  "let"=storage.type  |  "eval"=keyword.control
+> if best == 0 {
+  "if"=keyword.control  |  "0"=constant.numeric.decimal
+> give "首次记录"
+  "give"=keyword.control  |  "\""=string.quoted.double  |  "首次记录"=string.quoted.double  |  "\""=string.quoted.double
+> let ratio = score as float / best
+  "let"=storage.type  |  "as"=keyword.operator.word  |  "float"=storage.type.primitive
+> if ratio >= 1 {
+  "if"=keyword.control  |  "1"=constant.numeric.decimal
+> give "新纪录！"
+  "give"=keyword.control  |  "\""=string.quoted.double  |  "新纪录！"=string.quoted.double  |  "\""=string.quoted.double
+> give if ratio >= 0.8 -> "接近纪录" else -> "继续加油"
+  "give"=keyword.control  |  "if"=keyword.control  |  "0.8"=constant.numeric.decimal  |  "->"=keyword.operator.arrow  |  "\""=string.quoted.double  |  "接近纪录"=string.quoted.double  |  "\""=string.quoted.double  |  "else"=keyword.control  |  "->"=keyword.operator.arrow  |  "\""=string.quoted.double  |  "继续加油"=string.quoted.double  |  "\""=string.quoted.double
+> }   // ratio 只在块里可见
+  "// ratio 只在块里可见"=comment.line.double-slash
+> Log.Info($"{score} 分：{rating}")
+  "$\""=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "score"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " 分："=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "rating"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "\""=string.quoted.double.interpolated
+> return rating
+  "return"=keyword.control
+> public func Save(self, score: int) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "int"=storage.type.primitive
+> // FileStreamOptions 只有无参 init，靠设属性配置：创建时用 with 一起设好
+  "// FileStreamOptions 只有无参 init，靠设属性配置：创建时用 with 一起设好"=comment.line.double-slash
+> let options = new FileStreamOptions() with (Mode = FileMode.Create, Access = FileAccess.Write)
+  "let"=storage.type  |  "new"=keyword.other.new  |  "with"=keyword.other.new
+> try {
+  "try"=keyword.control
+> using writer = new StreamWriter(self.path, options)
+  "using"=storage.modifier  |  "new"=keyword.other.new  |  "self"=variable.language.self
+> } catch e: IOException {
+  "catch"=keyword.control
+> Log.Warn($"保存最高分失败：{e.Message}")
+  "$\""=string.quoted.double.interpolated  |  "保存最高分失败："=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "e.Message"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "\""=string.quoted.double.interpolated

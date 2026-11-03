@@ -19,3 +19,7 @@ To keep the extension active in every window instead, link the folder into the V
 ```powershell
 New-Item -ItemType Junction -Path "$env:USERPROFILE\.vscode\extensions\nyxel-lang.nyxel-lang-0.0.1" -Target "$PWD\tools\vscode-nyxel"
 ```
+
+## Tests
+
+`npm test` tokenizes every file in `samples/` and in `test/cases/` with VSCode's own TextMate engine (`vscode-textmate` and `vscode-oniguruma`) and compares the scopes of each token with `test/snapshots/`. Run `npm ci` once first. After an intended change to the grammar or a sample, regenerate the snapshots with `NYXEL_UPDATE_SNAPSHOTS=1 npm test` and review the diff. `tools\build.cmd --test` and CI run the same test.

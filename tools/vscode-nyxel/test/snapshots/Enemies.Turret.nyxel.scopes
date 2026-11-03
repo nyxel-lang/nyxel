@@ -1,0 +1,126 @@
+> namespace Samples.Enemies
+  "namespace"=keyword.other.namespace
+> import System.Numerics
+  "import"=keyword.other.namespace
+> import Engine
+  "import"=keyword.other.namespace
+> import Samples.Combat
+  "import"=keyword.other.namespace
+> /// 炮塔会打哪些目标。flags：一个值可以同时包含几种，每种占一个二进制位。
+  "/// 炮塔会打哪些目标。flags：一个值可以同时包含几种，每种占一个二进制位。"=comment.line.documentation
+> public flags enum TargetKind {
+  "public"=storage.modifier  |  "flags"=storage.modifier  |  "enum"=storage.type
+> case None = 0
+  "case"=storage.type  |  "0"=constant.numeric.decimal
+> case Player = 1
+  "case"=storage.type  |  "1"=constant.numeric.decimal
+> case Enemy = 2
+  "case"=storage.type  |  "2"=constant.numeric.decimal
+> case Creature = TargetKind.Player | TargetKind.Enemy
+  "case"=storage.type
+> /// 炮塔型号。值会写进存档：每个 case 都写明，以后插入新型号也不会改掉旧的值。
+  "/// 炮塔型号。值会写进存档：每个 case 都写明，以后插入新型号也不会改掉旧的值。"=comment.line.documentation
+> public enum TurretModel : byte {
+  "public"=storage.modifier  |  "enum"=storage.type  |  "byte"=storage.type.primitive
+> case Basic = 1
+  "case"=storage.type  |  "1"=constant.numeric.decimal
+> case Heavy = 2
+  "case"=storage.type  |  "2"=constant.numeric.decimal
+> case Laser = 3
+  "case"=storage.type  |  "3"=constant.numeric.decimal
+> /// 发现目标后要瞄准几秒才开火。
+  "/// 发现目标后要瞄准几秒才开火。"=comment.line.documentation
+> public func AimTime(self) -> float {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "float"=storage.type.primitive
+> return match self {
+  "return"=keyword.control  |  "match"=keyword.control  |  "self"=variable.language.self
+> case Basic -> 1
+  "case"=storage.type  |  "->"=keyword.operator.arrow  |  "1"=constant.numeric.decimal
+> case Heavy -> 1.5
+  "case"=storage.type  |  "->"=keyword.operator.arrow  |  "1.5"=constant.numeric.decimal
+> case Laser -> 0.2
+  "case"=storage.type  |  "->"=keyword.operator.arrow  |  "0.2"=constant.numeric.decimal
+> /// 炮塔的状态。struct enum 是值类型：每帧切换状态也不在堆上分配。
+  "/// 炮塔的状态。struct enum 是值类型：每帧切换状态也不在堆上分配。"=comment.line.documentation
+> struct enum TurretState {
+  "struct"=storage.type  |  "enum"=storage.type
+> case Idle
+  "case"=storage.type
+> case Aiming(Target: Behaviour, Since: float)
+  "case"=storage.type  |  "float"=storage.type.primitive
+> case Reloading(Until: float)
+  "case"=storage.type  |  "float"=storage.type.primitive
+> /// 自动炮塔：发现目标后瞄准一会儿再开火，开火后装弹。
+  "/// 自动炮塔：发现目标后瞄准一会儿再开火，开火后装弹。"=comment.line.documentation
+> public class Turret : Behaviour {
+  "public"=storage.modifier  |  "class"=storage.type
+> public var Targets: TargetKind = TargetKind.Creature
+  "public"=storage.modifier  |  "var"=storage.type
+> public var Model: TurretModel = TurretModel.Basic
+  "public"=storage.modifier  |  "var"=storage.type
+> public var Range: float = 10
+  "public"=storage.modifier  |  "var"=storage.type  |  "float"=storage.type.primitive  |  "10"=constant.numeric.decimal
+> var state: TurretState = TurretState.Idle
+  "var"=storage.type
+> var time: float = 0
+  "var"=storage.type  |  "float"=storage.type.primitive  |  "0"=constant.numeric.decimal
+> public property IsBusy: bool {
+  "public"=storage.modifier  |  "property"=storage.type  |  "bool"=storage.type.primitive
+> get { return self.state is not TurretState.Idle }
+  "get"=storage.type.accessor  |  "return"=keyword.control  |  "self"=variable.language.self  |  "is"=keyword.operator.word  |  "not"=keyword.operator.word
+> public override func Update(self, dt: float) {
+  "public"=storage.modifier  |  "override"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "float"=storage.type.primitive
+> self.time += dt
+  "self"=variable.language.self
+> match self.state {
+  "match"=keyword.control  |  "self"=variable.language.self
+> case Idle -> {
+  "case"=storage.type  |  "->"=keyword.operator.arrow
+> let target = self.FindTarget() ?? return
+  "let"=storage.type  |  "self"=variable.language.self  |  "return"=keyword.control
+> self.state = new TurretState.Aiming(Target = target, Since = self.time)
+  "self"=variable.language.self  |  "new"=keyword.other.new  |  "self"=variable.language.self
+> case Aiming(target, since) -> {         // 按位置取出，名字自己起
+  "case"=storage.type  |  "->"=keyword.operator.arrow  |  "// 按位置取出，名字自己起"=comment.line.double-slash
+> if self.time - since >= self.Model.AimTime() {
+  "if"=keyword.control  |  "self"=variable.language.self  |  "self"=variable.language.self
+> self.Fire(target)
+  "self"=variable.language.self
+> self.state = new TurretState.Reloading(Until = self.time + 2)
+  "self"=variable.language.self  |  "new"=keyword.other.new  |  "self"=variable.language.self  |  "2"=constant.numeric.decimal
+> case Reloading(until) when self.time >= until -> {
+  "case"=storage.type  |  "when"=keyword.control  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow
+> self.state = TurretState.Idle
+  "self"=variable.language.self
+> case Reloading -> {}
+  "case"=storage.type  |  "->"=keyword.operator.arrow
+> func FindTarget(self) -> Behaviour? {
+  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow
+> if self.Targets.HasFlag(TargetKind.Player) {
+  "if"=keyword.control  |  "self"=variable.language.self
+> let player = self.World.FindNearest<Player>(self.Position)
+  "let"=storage.type  |  "self"=variable.language.self  |  "self"=variable.language.self
+> if player != null and self.InRange(player) {
+  "if"=keyword.control  |  "null"=constant.language  |  "and"=keyword.operator.word  |  "self"=variable.language.self
+> return player
+  "return"=keyword.control
+> if self.Targets.HasFlag(TargetKind.Enemy) {
+  "if"=keyword.control  |  "self"=variable.language.self
+> let slime = self.World.FindNearest<Slime>(self.Position)
+  "let"=storage.type  |  "self"=variable.language.self  |  "self"=variable.language.self
+> if slime != null and self.InRange(slime) {
+  "if"=keyword.control  |  "null"=constant.language  |  "and"=keyword.operator.word  |  "self"=variable.language.self
+> return slime
+  "return"=keyword.control
+> return null
+  "return"=keyword.control  |  "null"=constant.language
+> func InRange(self, other: Behaviour) -> bool {
+  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "bool"=storage.type.primitive
+> return Vector3.Distance(self.Position, other.Position) <= self.Range
+  "return"=keyword.control  |  "self"=variable.language.self  |  "self"=variable.language.self
+> func Fire(self, target: Behaviour) {
+  "func"=storage.type  |  "self"=variable.language.self
+> if target is IDamageable {
+  "if"=keyword.control  |  "is"=keyword.operator.word
+> target.TakeDamage(damage = new Damage.Physical(Amount = 10))
+  "new"=keyword.other.new  |  "10"=constant.numeric.decimal

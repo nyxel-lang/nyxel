@@ -1,0 +1,128 @@
+> namespace Samples.Enemies
+  "namespace"=keyword.other.namespace
+> import System.Collections.Generic
+  "import"=keyword.other.namespace
+> import System.IO
+  "import"=keyword.other.namespace
+> import System.Text.Json
+  "import"=keyword.other.namespace
+> import Engine
+  "import"=keyword.other.namespace
+> import Nyxel
+  "import"=keyword.other.namespace
+> import Samples.Combat
+  "import"=keyword.other.namespace
+> /// Boss 登场：镜头移过去、念台词（按键到下一句，Esc 跳过）、蓄力时抖屏，最后一次闪避 QTE。
+  "/// Boss 登场：镜头移过去、念台词（按键到下一句，Esc 跳过）、蓄力时抖屏，最后一次闪避 QTE。"=comment.line.documentation
+> public class BossIntro : Behaviour {
+  "public"=storage.modifier  |  "class"=storage.type
+> public var ConfigPath: string = "boss/config.json"
+  "public"=storage.modifier  |  "var"=storage.type  |  "string"=storage.type.primitive  |  "\""=string.quoted.double  |  "boss/config.json"=string.quoted.double  |  "\""=string.quoted.double
+> public var LinesPath: string = "boss/intro.txt"
+  "public"=storage.modifier  |  "var"=storage.type  |  "string"=storage.type.primitive  |  "\""=string.quoted.double  |  "boss/intro.txt"=string.quoted.double  |  "\""=string.quoted.double
+> public var Boss: Slime? = null           // 在编辑器里指定
+  "public"=storage.modifier  |  "var"=storage.type  |  "null"=constant.language  |  "// 在编辑器里指定"=comment.line.double-slash
+> public var Player: Player? = null
+  "public"=storage.modifier  |  "var"=storage.type  |  "null"=constant.language
+> var lines: List<string> = new List<string>()
+  "var"=storage.type  |  "string"=storage.type.primitive  |  "new"=keyword.other.new  |  "string"=storage.type.primitive
+> protected override func OnEnable(self) {
+  "protected"=storage.modifier  |  "override"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> launch self.Play()          // 绑定在这个对象上：它被销毁时，整段登场一起停止
+  "launch"=keyword.control  |  "self"=variable.language.self  |  "// 绑定在这个对象上：它被销毁时，整段登场一起停止"=comment.line.double-slash
+> async func Play(self) {
+  "async"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> let boss = self.Boss ?? return
+  "let"=storage.type  |  "self"=variable.language.self  |  "return"=keyword.control
+> let player = self.Player ?? return
+  "let"=storage.type  |  "self"=variable.language.self  |  "return"=keyword.control
+> // 配置和台词同时读，两样都好了再开始
+  "// 配置和台词同时读，两样都好了再开始"=comment.line.double-slash
+> let (config, lineCount) = await all {
+  "let"=storage.type  |  "await"=keyword.control  |  "all"=keyword.control
+> case self.LoadConfig()
+  "case"=storage.type  |  "self"=variable.language.self
+> case self.LoadLines()
+  "case"=storage.type  |  "self"=variable.language.self
+> Log.Info($"{config.Title}: {lineCount} lines")
+  "$\""=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "config.Title"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  ": "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "lineCount"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " lines"=string.quoted.double.interpolated  |  "\""=string.quoted.double.interpolated
+> await all {                 // 镜头移过去的同时，标题淡入
+  "await"=keyword.control  |  "all"=keyword.control  |  "// 镜头移过去的同时，标题淡入"=comment.line.double-slash
+> case self.Camera.PanTo(target = boss.Position, seconds = 1.5)
+  "case"=storage.type  |  "self"=variable.language.self  |  "1.5"=constant.numeric.decimal
+> case self.Hud.ShowTitle(text = config.Title)
+  "case"=storage.type  |  "self"=variable.language.self
+> for line in self.lines {
+  "for"=keyword.control  |  "in"=keyword.control  |  "self"=variable.language.self
+> self.Hud.Say(line)
+  "self"=variable.language.self
+> let skipRest = await any {      // 按 Esc 跳过剩下的台词；按别的键、或者 4 秒后到下一句
+  "let"=storage.type  |  "await"=keyword.control  |  "any"=keyword.control  |  "// 按 Esc 跳过剩下的台词；按别的键、或者 4 秒后到下一句"=comment.line.double-slash
+> case let key = Input.WaitForAnyKey() -> key == Key.Escape
+  "case"=storage.type  |  "let"=storage.type  |  "->"=keyword.operator.arrow
+> case Wait.Seconds(4) -> false
+  "case"=storage.type  |  "4"=constant.numeric.decimal  |  "->"=keyword.operator.arrow  |  "false"=constant.language
+> if skipRest {
+  "if"=keyword.control
+> break
+  "break"=keyword.control
+> await any {                 // 蓄力期间一直抖屏，蓄力一结束抖屏就停
+  "await"=keyword.control  |  "any"=keyword.control  |  "// 蓄力期间一直抖屏，蓄力一结束抖屏就停"=comment.line.double-slash
+> case boss.Charge(seconds = config.ChargeSeconds)
+  "case"=storage.type
+> case self.Camera.ShakeForever(strength = 0.2)
+  "case"=storage.type  |  "self"=variable.language.self  |  "0.2"=constant.numeric.decimal
+> let dodged = await any {    // 1 秒内按 E 闪开
+  "let"=storage.type  |  "await"=keyword.control  |  "any"=keyword.control  |  "// 1 秒内按 E 闪开"=comment.line.double-slash
+> case Input.WaitForKey(Key.E) -> eval {
+  "case"=storage.type  |  "->"=keyword.operator.arrow  |  "eval"=keyword.control
+> self.Hud.Flash(text = "Dodge!")
+  "self"=variable.language.self  |  "\""=string.quoted.double  |  "Dodge!"=string.quoted.double  |  "\""=string.quoted.double
+> give true
+  "give"=keyword.control  |  "true"=constant.language
+> case Wait.Seconds(1) -> false
+  "case"=storage.type  |  "1"=constant.numeric.decimal  |  "->"=keyword.operator.arrow  |  "false"=constant.language
+> if not dodged {
+  "if"=keyword.control  |  "not"=keyword.operator.word
+> player.TakeDamage(damage = new Damage.Physical(Amount = config.OpeningHit))
+  "new"=keyword.other.new
+> async func LoadConfig(self) -> BossConfig {
+  "async"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow
+> await using stream = File.OpenRead(self.ConfigPath)     // 离开时等 DisposeAsync 完成
+  "await"=keyword.control  |  "using"=storage.modifier  |  "self"=variable.language.self  |  "// 离开时等 DisposeAsync 完成"=comment.line.double-slash
+> return await JsonSerializer.DeserializeAsync<BossConfig>(stream)
+  "return"=keyword.control  |  "await"=keyword.control
+> ?? throw new InvalidDataException($"{self.ConfigPath} is empty")
+  "throw"=keyword.control  |  "new"=keyword.other.new  |  "$\""=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "self"=string.quoted.double.interpolated meta.interpolation meta.embedded.line variable.language.self  |  ".ConfigPath"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " is empty"=string.quoted.double.interpolated  |  "\""=string.quoted.double.interpolated
+> /// 一行一句，跳过空行；返回读到了几句。
+  "/// 一行一句，跳过空行；返回读到了几句。"=comment.line.documentation
+> async func LoadLines(self) -> int {
+  "async"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "int"=storage.type.primitive
+> await for line in File.ReadLinesAsync(self.LinesPath) {
+  "await"=keyword.control  |  "for"=keyword.control  |  "in"=keyword.control  |  "self"=variable.language.self
+> if line.Length > 0 {
+  "if"=keyword.control  |  "0"=constant.numeric.decimal
+> self.lines.Add(line)
+  "self"=variable.language.self
+> return self.lines.Count
+  "return"=keyword.control  |  "self"=variable.language.self
+> public class BossConfig {
+  "public"=storage.modifier  |  "class"=storage.type
+> public property Title: string = "" {
+  "public"=storage.modifier  |  "property"=storage.type  |  "string"=storage.type.primitive  |  "\""=string.quoted.double  |  "\""=string.quoted.double
+> get
+  "get"=storage.type.accessor
+> set
+  "set"=storage.type.accessor
+> public property ChargeSeconds: float = 3 {
+  "public"=storage.modifier  |  "property"=storage.type  |  "float"=storage.type.primitive  |  "3"=constant.numeric.decimal
+> get
+  "get"=storage.type.accessor
+> set
+  "set"=storage.type.accessor
+> public property OpeningHit: int = 20 {
+  "public"=storage.modifier  |  "property"=storage.type  |  "int"=storage.type.primitive  |  "20"=constant.numeric.decimal
+> get
+  "get"=storage.type.accessor
+> set
+  "set"=storage.type.accessor

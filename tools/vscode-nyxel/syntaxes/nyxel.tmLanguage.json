@@ -13,7 +13,7 @@
   "repository": {
     "comments": {
       "patterns": [
-        { "name": "comment.line.documentation.nyxel", "match": "///.*$" },
+        { "name": "comment.line.documentation.nyxel", "match": "///(?!/).*$" },
         { "name": "comment.line.double-slash.nyxel", "match": "//.*$" }
       ]
     },
@@ -102,7 +102,7 @@
     "keywords": {
       "patterns": [
         {
-          "match": "^\\s*(?:(public|private)\\s+)?(get|set)\\b",
+          "match": "(?:^|(?<=\\{))\\s*(?:(public|private)\\s+)?(get|set)\\b",
           "captures": {
             "1": { "name": "storage.modifier.nyxel" },
             "2": { "name": "storage.type.accessor.nyxel" }

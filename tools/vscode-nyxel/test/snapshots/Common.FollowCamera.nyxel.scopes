@@ -1,0 +1,40 @@
+> namespace Samples.Common
+  "namespace"=keyword.other.namespace
+> import System.Numerics
+  "import"=keyword.other.namespace
+> import Engine
+  "import"=keyword.other.namespace
+> /// 平滑跟随目标的相机。
+  "/// 平滑跟随目标的相机。"=comment.line.documentation
+> public class FollowCamera : Behaviour {
+  "public"=storage.modifier  |  "class"=storage.type
+> public var Target: Behaviour? = null
+  "public"=storage.modifier  |  "var"=storage.type  |  "null"=constant.language
+> public var Offset: Vector3 = new Vector3(0, 8, -6)
+  "public"=storage.modifier  |  "var"=storage.type  |  "new"=keyword.other.new  |  "0"=constant.numeric.decimal  |  "8"=constant.numeric.decimal  |  "6"=constant.numeric.decimal
+> public var SmoothTime: float = 0.3
+  "public"=storage.modifier  |  "var"=storage.type  |  "float"=storage.type.primitive  |  "0.3"=constant.numeric.decimal
+> var velocity: Vector3 = Vector3.Zero
+  "var"=storage.type
+> // Behaviour.OnEnable 在引擎里是 protected virtual：重写时照写 protected
+  "// Behaviour.OnEnable 在引擎里是 protected virtual：重写时照写 protected"=comment.line.double-slash
+> protected override func OnEnable(self) {
+  "protected"=storage.modifier  |  "override"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> self.velocity = Vector3.Zero
+  "self"=variable.language.self
+> self.Target ??= self.World.FindNearest<Player>(self.Position)   // 没指定目标时跟着最近的玩家
+  "self"=variable.language.self  |  "self"=variable.language.self  |  "self"=variable.language.self  |  "// 没指定目标时跟着最近的玩家"=comment.line.double-slash
+> public override func Update(self, dt: float) {
+  "public"=storage.modifier  |  "override"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "float"=storage.type.primitive
+> let target = self.Target ?? return
+  "let"=storage.type  |  "self"=variable.language.self  |  "return"=keyword.control
+> self.Position = Smooth.Damp(
+  "self"=variable.language.self
+> current = self.Position,
+  "self"=variable.language.self
+> target = target.Position + self.Offset,
+  "self"=variable.language.self
+> velocity = ref self.velocity,
+  "ref"=storage.modifier  |  "self"=variable.language.self
+> smoothTime = self.SmoothTime,
+  "self"=variable.language.self

@@ -1,0 +1,52 @@
+> namespace Samples.Combat
+  "namespace"=keyword.other.namespace
+> import System
+  "import"=keyword.other.namespace
+> /// 生命值。struct：赋值时复制一份，不在堆上分配。
+  "/// 生命值。struct：赋值时复制一份，不在堆上分配。"=comment.line.documentation
+> public struct Health {
+  "public"=storage.modifier  |  "struct"=storage.type
+> public let Max: int
+  "public"=storage.modifier  |  "let"=storage.type  |  "int"=storage.type.primitive
+> var current: int
+  "var"=storage.type  |  "int"=storage.type.primitive
+> public init(max: int) {
+  "public"=storage.modifier  |  "init"=storage.type  |  "int"=storage.type.primitive
+> self.Max = max
+  "self"=variable.language.self
+> self.current = max
+  "self"=variable.language.self
+> /// 空血状态，比如等待复活时。
+  "/// 空血状态，比如等待复活时。"=comment.line.documentation
+> public init Empty(max: int) {
+  "public"=storage.modifier  |  "init"=storage.type  |  "int"=storage.type.primitive
+> self.Max = max
+  "self"=variable.language.self
+> self.current = 0
+  "self"=variable.language.self  |  "0"=constant.numeric.decimal
+> public property Current: int { get = self.current }
+  "public"=storage.modifier  |  "property"=storage.type  |  "int"=storage.type.primitive  |  "get"=storage.type.accessor  |  "self"=variable.language.self
+> public property IsDead: bool { get = self.current <= 0 }
+  "public"=storage.modifier  |  "property"=storage.type  |  "bool"=storage.type.primitive  |  "get"=storage.type.accessor  |  "self"=variable.language.self  |  "0"=constant.numeric.decimal
+> /// 剩余比例，0 到 1。
+  "/// 剩余比例，0 到 1。"=comment.line.documentation
+> public property Percent: float { get = self.current as float / self.Max }
+  "public"=storage.modifier  |  "property"=storage.type  |  "float"=storage.type.primitive  |  "get"=storage.type.accessor  |  "self"=variable.language.self  |  "as"=keyword.operator.word  |  "float"=storage.type.primitive  |  "self"=variable.language.self
+> // var self：struct 的方法修改自己时要写（class 的方法不用，见 Spawner.SpawnWave）。
+  "// var self：struct 的方法修改自己时要写（class 的方法不用，见 Spawner.SpawnWave）。"=comment.line.double-slash
+> /// 应用一次伤害或治疗。
+  "/// 应用一次伤害或治疗。"=comment.line.documentation
+> ///
+  "///"=comment.line.documentation
+> /// - Parameter damage: 按它的 [`Damage.Change`] 改变生命值。
+  "/// - Parameter damage: 按它的 [`Damage.Change`] 改变生命值。"=comment.line.documentation
+> /// - Returns: 生命值的实际变化，负数是掉血。到 0 或 [`Health.Max`] 就不再变，所以可能比 `damage.Change` 小。
+  "/// - Returns: 生命值的实际变化，负数是掉血。到 0 或 [`Health.Max`] 就不再变，所以可能比 `damage.Change` 小。"=comment.line.documentation
+> public func Apply(var self, damage: Damage) -> int {
+  "public"=storage.modifier  |  "func"=storage.type  |  "var"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "int"=storage.type.primitive
+> let before = self.current
+  "let"=storage.type  |  "self"=variable.language.self
+> self.current = Math.Clamp(self.current + damage.Change, 0, self.Max)
+  "self"=variable.language.self  |  "self"=variable.language.self  |  "0"=constant.numeric.decimal  |  "self"=variable.language.self
+> return self.current - before
+  "return"=keyword.control  |  "self"=variable.language.self

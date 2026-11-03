@@ -1,0 +1,44 @@
+> namespace Samples.Combat
+  "namespace"=keyword.other.namespace
+> /// 一次伤害。每种情况带的数据不同，处理时用 `match` 按位置取出，同元组的解构。
+  "/// 一次伤害。每种情况带的数据不同，处理时用 `match` 按位置取出，同元组的解构。"=comment.line.documentation
+> public enum Damage : IDescribable {
+  "public"=storage.modifier  |  "enum"=storage.type
+> case Physical(Amount: int)
+  "case"=storage.type  |  "int"=storage.type.primitive
+> case Burn(Amount: int, Seconds: float)
+  "case"=storage.type  |  "int"=storage.type.primitive  |  "float"=storage.type.primitive
+> case Heal(Amount: int)
+  "case"=storage.type  |  "int"=storage.type.primitive
+> /// 对生命值的改变，负数是掉血。
+  "/// 对生命值的改变，负数是掉血。"=comment.line.documentation
+> public property Change: int {
+  "public"=storage.modifier  |  "property"=storage.type  |  "int"=storage.type.primitive
+> get = match self {
+  "get"=storage.type.accessor  |  "match"=keyword.control  |  "self"=variable.language.self
+> case Physical(amount) -> -amount
+  "case"=storage.type  |  "->"=keyword.operator.arrow
+> case Burn(amount, _) -> -amount         // 按位置取；不要的 Seconds 写 _
+  "case"=storage.type  |  "_"=variable.language.discard  |  "->"=keyword.operator.arrow  |  "// 按位置取；不要的 Seconds 写 _"=comment.line.double-slash
+> case Heal(amount) -> amount
+  "case"=storage.type  |  "->"=keyword.operator.arrow
+> public func Describe(self) -> string = match self {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "string"=storage.type.primitive  |  "match"=keyword.control  |  "self"=variable.language.self
+> case Physical(amount) -> $"{amount} 点物理伤害"
+  "case"=storage.type  |  "->"=keyword.operator.arrow  |  "$\""=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "amount"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " 点物理伤害"=string.quoted.double.interpolated  |  "\""=string.quoted.double.interpolated
+> case Burn(amount, seconds) -> $"{seconds} 秒内 {amount} 点灼烧"
+  "case"=storage.type  |  "->"=keyword.operator.arrow  |  "$\""=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "seconds"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " 秒内 "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "amount"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  " 点灼烧"=string.quoted.double.interpolated  |  "\""=string.quoted.double.interpolated
+> case Heal(amount) -> $"治疗 {amount}"
+  "case"=storage.type  |  "->"=keyword.operator.arrow  |  "$\""=string.quoted.double.interpolated  |  "治疗 "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "amount"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "\""=string.quoted.double.interpolated
+> /// 能在界面上显示一句说明的东西。
+  "/// 能在界面上显示一句说明的东西。"=comment.line.documentation
+> public interface IDescribable {
+  "public"=storage.modifier  |  "interface"=storage.type
+> func Describe(self) -> string
+  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "string"=storage.type.primitive
+> /// 能受到伤害的东西。
+  "/// 能受到伤害的东西。"=comment.line.documentation
+> public interface IDamageable {
+  "public"=storage.modifier  |  "interface"=storage.type
+> func TakeDamage(self, damage: Damage)
+  "func"=storage.type  |  "self"=variable.language.self

@@ -5,20 +5,20 @@
 
 ## 在哪
 
-- 里程碑：**M1 语言基础设计 + 语法分析**。语法分析已完成，剩下高亮的分词快照测试。“待定”的逐轮讨论排好的九轮都讨论完了，剩下的是零散的细节（见“悬而未决”）。日志在 [progress/M1.md](progress/M1.md)。开发在 `dev` 分支上做，每轮提交一次 wip；用户说"整理合并"时再整理进 main 并推到 GitHub（AGENTS.md "提交"）。
-- GitHub：https://github.com/nyxel-lang/nyxel，2026-10-05 起公开，只推 `main`。名字占位全部完成（brand.md）。ADR-0030 到 0035 已在 main 上。
+- 里程碑：**M1 语言基础设计 + 语法分析**。roadmap 的 M1 项除了“待定逐轮讨论”都做完了：排好的九轮都讨论完了，剩下的是零散的细节（见“悬而未决”）。日志在 [progress/M1.md](progress/M1.md)。开发在 `dev` 分支上做，每轮提交一次 wip；用户说"整理合并"时再整理进 main 并推到 GitHub（AGENTS.md "提交"）。
+- GitHub：https://github.com/nyxel-lang/nyxel，2026-10-05 起公开，只推 `main`。名字占位全部完成（brand.md）。ADR-0030 到 0035 已在 main 上（c1f91bf、af5226c 等）。
 - 语言设计：ADR-0004 到 0027、0029 到 0035，汇总在 design/language-reference.md。ADR-0028 是文档流程：ADR 保持最新，被推翻的决定改写原文，文末记修订（规则在 AGENTS.md）。
 - 最近两轮（2026-10-31，已合进 main）：
   - ADR-0034（第 8 轮，协程与资源）：`await all { case ... }` / `await any { case ... }`，句柄 `Coroutine`，`await using`、`await for`，事件处理函数的异常记日志（修订 ADR-0016、0017）。
   - ADR-0035（第 9 轮，约定）：文档注释写 `- Parameter 名字:`、`- Returns:`、`- Throws 类型:`，链接写 `` [`类型.成员`] ``；缩略词同 .NET（`UI`、`HP`、`Xml`、`Id`）；插值的 `{ }` 在开始的那一行闭合，跨行报 NYX1234。例子里的 `Hp` 都改成了 `HP`。
 - 错误码：`NYX1xxx` / `NYX2xxx` 段内按添加顺序编号，下一个是 NYX1235（design/diagnostics.md）。编译器还没有警告：命名检查和文档注释的检查是最早的一批（M2）。
 - 语法分析：Lexer、Parser、无损语法树、带 `NYX` 错误码的诊断（design/syntax-tree.md、design/diagnostics.md）。`nyxel parse [--tree] <文件>` 检查语法、打印语法树。samples/ 有 16 个样例。
-- 最近一次全绿：2026-10-31，`tools\build.cmd --test`，8 + 770 个测试；`dotnet format --verify-no-changes` 通过。
+- 高亮（2026-10-31，在 dev 上）：tools/vscode-nyxel 的 `npm test` 用 VSCode 的 TextMate 引擎给 samples 和 test/cases/Literals.nyxel 分词，和 test/snapshots 比对；`tools\build.cmd --test` 和 CI 的 highlighting job 都跑。顺手修了两处语法文件的 bug：`////` 被当成文档注释，单行访问器 `{ get = ... }` 的 `get` 没上色。
+- 最近一次全绿：2026-10-31，`tools\build.cmd --test`，8 + 770 个测试，高亮快照 19 项；`dotnet format --verify-no-changes` 通过。
 
 ## 下一步
 
-1. 高亮的分词快照测试：把 build/grammar-check 的 vscode-textmate 脚本搬进 tools/vscode-nyxel（devDependencies + `npm test`），对 samples 生成作用域快照，CI 加 setup-node；加一个有原始字符串和字符字面量的用例文件（可以从 build/grammar-check/literals.nyxel 开始）。
-2. M2 开头：先写语义分析的设计文档（Binder：名字解析、类型检查，经 Roslyn 符号模型读 .NET 类型），再动手。前几轮留给 M2 的检查和翻译记在各 ADR 的“后果”里：0021（元组）、0022（区间、集合字面量）、0023（数组元素、`== null`）、0024（enum 的值、flags、`struct enum` 布局）、0025（`eval` 的流分析和翻译）、0026（访问器带体）、0027（`init super`、`with`、`required`）、0029（索引器的访问器、enum 冒号后面是接口、事件和委托一致、enum 成员的翻译、C# 那边怎么取 case）、0030（运算符的参数类型和重载决议、生成的相等和比较成员、C# 的隐式转换）、0031（`T?` 的约束、没约束的 T 用成员前检查、元素是 T 的数组）、0032（存储还是副本、没标 `readonly` 的方法、`var self` 扩展的翻译）、0033（同名类型的查找、`under` 前面是命名空间、别名重名）、0034（`await` 系列只在 `async` 函数里、每一项能等待、当值用的类型、`IAsyncDisposable`）、0035（命名检查的缩略词、文档注释的参数名和链接）。
+1. M2 开头：先写语义分析的设计文档（Binder：名字解析、类型检查，经 Roslyn 符号模型读 .NET 类型），再动手。前几轮留给 M2 的检查和翻译记在各 ADR 的“后果”里：0021（元组）、0022（区间、集合字面量）、0023（数组元素、`== null`）、0024（enum 的值、flags、`struct enum` 布局）、0025（`eval` 的流分析和翻译）、0026（访问器带体）、0027（`init super`、`with`、`required`）、0029（索引器的访问器、enum 冒号后面是接口、事件和委托一致、enum 成员的翻译、C# 那边怎么取 case）、0030（运算符的参数类型和重载决议、生成的相等和比较成员、C# 的隐式转换）、0031（`T?` 的约束、没约束的 T 用成员前检查、元素是 T 的数组）、0032（存储还是副本、没标 `readonly` 的方法、`var self` 扩展的翻译）、0033（同名类型的查找、`under` 前面是命名空间、别名重名）、0034（`await` 系列只在 `async` 函数里、每一项能等待、当值用的类型、`IAsyncDisposable`）、0035（命名检查的缩略词、文档注释的参数名和链接）。
 
 ## 悬而未决
 

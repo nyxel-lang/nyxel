@@ -1,0 +1,60 @@
+> namespace Samples.Common
+  "namespace"=keyword.other.namespace
+> /// 定点数：用整数存小数，低 16 位是小数部分。整数运算在每台机器上结果都一样，帧同步（lockstep）游戏用它代替 float。
+  "/// 定点数：用整数存小数，低 16 位是小数部分。整数运算在每台机器上结果都一样，帧同步（lockstep）游戏用它代替 float。"=comment.line.documentation
+> public struct Fixed {
+  "public"=storage.modifier  |  "struct"=storage.type
+> static let scale: int = 1 << 16
+  "static"=storage.modifier  |  "let"=storage.type  |  "int"=storage.type.primitive  |  "1"=constant.numeric.decimal  |  "16"=constant.numeric.decimal
+> let raw: int
+  "let"=storage.type  |  "int"=storage.type.primitive
+> init FromRaw(raw: int) {
+  "init"=storage.type  |  "int"=storage.type.primitive
+> self.raw = raw
+  "self"=variable.language.self
+> // 运算符没有 self，两个操作数都是参数；必须写 public。
+  "// 运算符没有 self，两个操作数都是参数；必须写 public。"=comment.line.double-slash
+> public operator +(a: Fixed, b: Fixed) -> Fixed = new Fixed.FromRaw(a.raw + b.raw)
+  "public"=storage.modifier  |  "operator"=storage.type  |  "->"=keyword.operator.arrow  |  "new"=keyword.other.new
+> public operator -(a: Fixed, b: Fixed) -> Fixed = new Fixed.FromRaw(a.raw - b.raw)
+  "public"=storage.modifier  |  "operator"=storage.type  |  "->"=keyword.operator.arrow  |  "new"=keyword.other.new
+> public operator -(a: Fixed) -> Fixed = new Fixed.FromRaw(-a.raw)          // 一个参数：取负
+  "public"=storage.modifier  |  "operator"=storage.type  |  "->"=keyword.operator.arrow  |  "new"=keyword.other.new  |  "// 一个参数：取负"=comment.line.double-slash
+> public operator *(a: Fixed, b: Fixed) -> Fixed = new Fixed.FromRaw(((a.raw as long * b.raw) >> 16) as int)
+  "public"=storage.modifier  |  "operator"=storage.type  |  "->"=keyword.operator.arrow  |  "new"=keyword.other.new  |  "as"=keyword.operator.word  |  "long"=storage.type.primitive  |  "16"=constant.numeric.decimal  |  "as"=keyword.operator.word  |  "int"=storage.type.primitive
+> public operator *(a: Fixed, k: int) -> Fixed = new Fixed.FromRaw(a.raw * k)   // 同一个运算符按操作数类型写几个
+  "public"=storage.modifier  |  "operator"=storage.type  |  "int"=storage.type.primitive  |  "->"=keyword.operator.arrow  |  "new"=keyword.other.new  |  "// 同一个运算符按操作数类型写几个"=comment.line.double-slash
+> public operator /(a: Fixed, b: Fixed) -> Fixed = new Fixed.FromRaw(((a.raw as long << 16) / b.raw) as int)
+  "public"=storage.modifier  |  "operator"=storage.type  |  "->"=keyword.operator.arrow  |  "new"=keyword.other.new  |  "as"=keyword.operator.word  |  "long"=storage.type.primitive  |  "16"=constant.numeric.decimal  |  "as"=keyword.operator.word  |  "int"=storage.type.primitive
+> // 只写 <：>、<=、>= 和 CompareTo 由它生成。== 不用写：struct 按内容比。
+  "// 只写 <：>、<=、>= 和 CompareTo 由它生成。== 不用写：struct 按内容比。"=comment.line.double-slash
+> public operator <(a: Fixed, b: Fixed) -> bool = a.raw < b.raw
+  "public"=storage.modifier  |  "operator"=storage.type  |  "->"=keyword.operator.arrow  |  "bool"=storage.type.primitive
+> // 转换写 as：3 as Fixed、speed as float。
+  "// 转换写 as：3 as Fixed、speed as float。"=comment.line.double-slash
+> public operator as(value: int) -> Fixed = new Fixed.FromRaw(value * Fixed.scale)
+  "public"=storage.modifier  |  "operator"=storage.type  |  "as"=keyword.operator.word  |  "int"=storage.type.primitive  |  "->"=keyword.operator.arrow  |  "new"=keyword.other.new
+> public operator as(value: Fixed) -> float = value.raw as float / Fixed.scale
+  "public"=storage.modifier  |  "operator"=storage.type  |  "as"=keyword.operator.word  |  "->"=keyword.operator.arrow  |  "float"=storage.type.primitive  |  "as"=keyword.operator.word  |  "float"=storage.type.primitive
+> /// 帧同步的移动：位置和速度都是定点数，每台机器算出来一样，只在显示时转成 float。
+  "/// 帧同步的移动：位置和速度都是定点数，每台机器算出来一样，只在显示时转成 float。"=comment.line.documentation
+> public class LockstepMover {
+  "public"=storage.modifier  |  "class"=storage.type
+> let speed: Fixed = 3 as Fixed
+  "let"=storage.type  |  "3"=constant.numeric.decimal  |  "as"=keyword.operator.word
+> let limit: Fixed = 100 as Fixed
+  "let"=storage.type  |  "100"=constant.numeric.decimal  |  "as"=keyword.operator.word
+> var position: Fixed = 0 as Fixed
+  "var"=storage.type  |  "0"=constant.numeric.decimal  |  "as"=keyword.operator.word
+> public property Shown: float { get = self.position as float }
+  "public"=storage.modifier  |  "property"=storage.type  |  "float"=storage.type.primitive  |  "get"=storage.type.accessor  |  "self"=variable.language.self  |  "as"=keyword.operator.word  |  "float"=storage.type.primitive
+> public property AtLimit: bool { get = self.position == self.limit }
+  "public"=storage.modifier  |  "property"=storage.type  |  "bool"=storage.type.primitive  |  "get"=storage.type.accessor  |  "self"=variable.language.self  |  "self"=variable.language.self
+> public func Step(self, ticks: int) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "int"=storage.type.primitive
+> self.position += self.speed * ticks
+  "self"=variable.language.self  |  "self"=variable.language.self
+> if self.position >= self.limit {        // 由 < 生成
+  "if"=keyword.control  |  "self"=variable.language.self  |  "self"=variable.language.self  |  "// 由 < 生成"=comment.line.double-slash
+> self.position = self.limit
+  "self"=variable.language.self  |  "self"=variable.language.self

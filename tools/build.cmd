@@ -27,8 +27,24 @@ cd /d "%ROOT%"
 "%DOTNET_EXE%" build Nyxel.slnx -c %CONFIG% -v q -nologo || exit /b 1
 if "%TEST%"=="1" (
     "%DOTNET_EXE%" test Nyxel.slnx -c %CONFIG% -v q -nologo --no-build || exit /b 1
+    call :grammar || exit /b 1
 )
 if "%PACK%"=="1" (
     "%DOTNET_EXE%" pack Nyxel.slnx -c %CONFIG% -v q -nologo --no-build -o build/packages || exit /b 1
 )
 echo [build] done
+exit /b 0
+
+:grammar
+rem Highlighting snapshots (tools/vscode-nyxel/test). They need node; without npm they are skipped with a note.
+where npm >nul 2>nul || (
+    echo [build] npm not found: skipping the highlighting snapshot test
+    exit /b 0
+)
+pushd "%ROOT%\tools\vscode-nyxel"
+if not exist node_modules (
+    call npm ci --no-audit --no-fund || (popd & exit /b 1)
+)
+call npm test --silent || (popd & exit /b 1)
+popd
+exit /b 0

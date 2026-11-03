@@ -1,0 +1,52 @@
+> namespace Samples.Common
+  "namespace"=keyword.other.namespace
+> import System.Collections.Generic
+  "import"=keyword.other.namespace
+> import System.Linq
+  "import"=keyword.other.namespace
+> import Engine
+  "import"=keyword.other.namespace
+> /// 一局里每个玩家的得分。
+  "/// 一局里每个玩家的得分。"=comment.line.documentation
+> public class Scoreboard {
+  "public"=storage.modifier  |  "class"=storage.type
+> let scores: Dictionary<string, int> = new Dictionary<string, int>()
+  "let"=storage.type  |  "string"=storage.type.primitive  |  "int"=storage.type.primitive  |  "new"=keyword.other.new  |  "string"=storage.type.primitive  |  "int"=storage.type.primitive
+> public func Add(self, player: string, points: int) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "string"=storage.type.primitive  |  "int"=storage.type.primitive
+> self.scores[player] = self.scores.GetValueOrDefault(player) + points
+  "self"=variable.language.self  |  "self"=variable.language.self
+> /// 最低分和最高分；还没人得分时都是 0。
+  "/// 最低分和最高分；还没人得分时都是 0。"=comment.line.documentation
+> public func Range(self) -> (Lowest: int, Highest: int) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "int"=storage.type.primitive  |  "int"=storage.type.primitive
+> if self.scores.Count == 0 {
+  "if"=keyword.control  |  "self"=variable.language.self  |  "0"=constant.numeric.decimal
+> return (0, 0)
+  "return"=keyword.control  |  "0"=constant.numeric.decimal  |  "0"=constant.numeric.decimal
+> return (self.scores.Values.Min(), self.scores.Values.Max())
+  "return"=keyword.control  |  "self"=variable.language.self  |  "self"=variable.language.self
+> /// 按分数从高到低排好的名单。
+  "/// 按分数从高到低排好的名单。"=comment.line.documentation
+> public func Ranking(self) -> List<(Name: string, Score: int)> {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "string"=storage.type.primitive  |  "int"=storage.type.primitive
+> let ranking = new List<(Name: string, Score: int)>()
+  "let"=storage.type  |  "new"=keyword.other.new  |  "string"=storage.type.primitive  |  "int"=storage.type.primitive
+> for (name, score) in self.scores {              // 字典的每一项拆成键和值
+  "for"=keyword.control  |  "in"=keyword.control  |  "self"=variable.language.self  |  "// 字典的每一项拆成键和值"=comment.line.double-slash
+> ranking.Add((name, score))                  // 元素名来自 List 的元素类型
+  "// 元素名来自 List 的元素类型"=comment.line.double-slash
+> ranking.Sort(func(a, b) = b.Score.CompareTo(a.Score))
+  "func"=storage.type
+> return ranking
+  "return"=keyword.control
+> public func Print(self) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self
+> for (i, entry) in self.Ranking().Index() {      // 同时拿到下标
+  "for"=keyword.control  |  "in"=keyword.control  |  "self"=variable.language.self  |  "// 同时拿到下标"=comment.line.double-slash
+> Log.Info($"{i + 1}. {entry.Name}: {entry.Score}")
+  "$\""=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "i + "=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "1"=string.quoted.double.interpolated meta.interpolation meta.embedded.line constant.numeric.decimal  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  ". "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "entry.Name"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  ": "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "entry.Score"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "\""=string.quoted.double.interpolated
+> let (lowest, highest) = self.Range()            // 按位置拆开
+  "let"=storage.type  |  "self"=variable.language.self  |  "// 按位置拆开"=comment.line.double-slash
+> Log.Info($"分差 {highest - lowest}")
+  "$\""=string.quoted.double.interpolated  |  "分差 "=string.quoted.double.interpolated  |  "{"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.begin  |  "highest - lowest"=string.quoted.double.interpolated meta.interpolation meta.embedded.line  |  "}"=string.quoted.double.interpolated meta.interpolation punctuation.definition.interpolation.end  |  "\""=string.quoted.double.interpolated

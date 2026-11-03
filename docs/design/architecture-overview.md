@@ -30,7 +30,7 @@
 | Nyxel.Host | 引擎嵌入用：可卸载 AssemblyLoadContext 加载脚本、热重载、开发期进程内编译 | Runtime、Compiler |
 | Nyxel.Sdk | MSBuild 项目 SDK，让 `.nyxelproj` 可以 `dotnet build` | 构建时调用 Compiler |
 | Nyxel.Cli | `nyxel` 命令行：build / run / --emit-cs 等 | Compiler |
-| tools/vscode-nyxel | 语法高亮、文件关联，之后加 LSP 客户端和断点支持 | — |
+| tools/vscode-nyxel | 语法高亮（有分词快照测试，`npm test`）、文件关联，之后加 LSP 客户端和断点支持 | — |
 
 依赖方向：Runtime 最底层，谁都不依赖；Compiler 不依赖 Runtime 项目（编译用户代码时把 Nyxel.Runtime.dll 作为元数据引用传给 Roslyn）；Host、Sdk、Cli 在上面。
 

@@ -1,0 +1,60 @@
+> namespace Samples.Ecs
+  "namespace"=keyword.other.namespace
+> import System.Numerics
+  "import"=keyword.other.namespace
+> import Engine
+  "import"=keyword.other.namespace
+> /// 绕自己的轴旋转。ECS 组件只有数据，引擎把同一种组件存在连续的内存里。
+  "/// 绕自己的轴旋转。ECS 组件只有数据，引擎把同一种组件存在连续的内存里。"=comment.line.documentation
+> public struct Spin {
+  "public"=storage.modifier  |  "struct"=storage.type
+> public var Axis: Vector3 = Vector3.UnitY
+  "public"=storage.modifier  |  "var"=storage.type
+> public var Speed: float = 1                 // 每秒转多少弧度
+  "public"=storage.modifier  |  "var"=storage.type  |  "float"=storage.type.primitive  |  "1"=constant.numeric.decimal  |  "// 每秒转多少弧度"=comment.line.double-slash
+> /// 给引擎的 Transform 组件加的方法。
+  "/// 给引擎的 Transform 组件加的方法。"=comment.line.documentation
+> extension Transform {
+  "extension"=storage.type
+> /// var self：改的是调用方那个 Transform 本身。
+  "/// var self：改的是调用方那个 Transform 本身。"=comment.line.documentation
+> public func MoveBy(var self, delta: Vector3) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "var"=storage.type  |  "self"=variable.language.self
+> self.Position += delta
+  "self"=variable.language.self
+> public func RotateAround(var self, axis: Vector3, radians: float) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "var"=storage.type  |  "self"=variable.language.self  |  "float"=storage.type.primitive
+> let delta = Quaternion.CreateFromAxisAngle(axis, radians)
+  "let"=storage.type
+> self.Rotation = Quaternion.Normalize(Quaternion.Concatenate(self.Rotation, delta))
+  "self"=variable.language.self  |  "self"=variable.language.self
+> /// 只写 self：不改自己。
+  "/// 只写 self：不改自己。"=comment.line.documentation
+> public func Forward(self) -> Vector3 = Vector3.Transform(Vector3.UnitZ, self.Rotation)
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "self"=variable.language.self
+> /// 每帧让有 Spin 的实体转起来。
+  "/// 每帧让有 Spin 的实体转起来。"=comment.line.documentation
+> public class SpinSystem {
+  "public"=storage.modifier  |  "class"=storage.type
+> public func Run(world: World, dt: float) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "float"=storage.type.primitive
+> // Read 没标 readonly（改自己再返回自己），返回值都用上了，所以能在临时值上连着调用。
+  "// Read 没标 readonly（改自己再返回自己），返回值都用上了，所以能在临时值上连着调用。"=comment.line.double-slash
+> for chunk in world.Query<Transform>().Read<Spin>() {
+  "for"=keyword.control  |  "in"=keyword.control
+> let transforms = chunk.Get<Transform>()     // Span<Transform>：直接指向引擎的内存
+  "let"=storage.type  |  "// Span<Transform>：直接指向引擎的内存"=comment.line.double-slash
+> let spins = chunk.GetReadOnly<Spin>()       // ReadOnlySpan<Spin>：只读
+  "let"=storage.type  |  "// ReadOnlySpan<Spin>：只读"=comment.line.double-slash
+> for i in 0..<chunk.Count {
+  "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range
+> // Span 的元素不是副本：var self 方法改的是引擎里的组件，不复制。
+  "// Span 的元素不是副本：var self 方法改的是引擎里的组件，不复制。"=comment.line.double-slash
+> /// 把一个实体往前推一段。world.Get 返回 ref：改的是组件本身。
+  "/// 把一个实体往前推一段。world.Get 返回 ref：改的是组件本身。"=comment.line.documentation
+> public func Push(world: World, entity: Entity, distance: float) {
+  "public"=storage.modifier  |  "func"=storage.type  |  "float"=storage.type.primitive
+> let forward = world.Get<Transform>(entity).Forward()
+  "let"=storage.type
+> // var t = world.Get<Transform>(entity) 是复制一份：t.MoveBy(...) 改的只是 t。
+  "// var t = world.Get<Transform>(entity) 是复制一份：t.MoveBy(...) 改的只是 t。"=comment.line.double-slash
