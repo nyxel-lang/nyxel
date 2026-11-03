@@ -58,5 +58,6 @@
 | [0033](decisions/0033-namespace-aliases-name-clashes-no-static-imports.md) | 同名类型同 C#（两个导入都有、用到时报错；自己命名空间里的优先）；只能给命名空间起别名，写 `import ep.protocol under Pb`；没有静态导入 |
 | [0034](decisions/0034-await-all-any-coroutine-await-using-event-errors.md) | 同时等多个：`await all { case ... }` / `await any { case ... }`（`case let x = 调用 -> 分支`，名字只在分支里，当值用同 `match`，`all` 的值按位置解构）；句柄 `Coroutine`，`Wait.Seconds` 按游戏时间、加 `Wait.Frames`；`await using`、`await for`；事件处理函数的异常记日志、接着通知（修订 ADR-0017） |
 | [0035](decisions/0035-doc-comments-acronyms-interpolation-lines.md) | 文档注释写 `- Parameter 名字:`、`- Returns:`、`- Throws 类型:`，链接写 `` [`类型.成员`] ``；缩略词同 .NET（`UI`、`HP`、`Xml`、`Id`）；插值的 `{ }` 在开始的那一行闭合 |
+| [0036](decisions/0036-entry-point-main-no-shadowing.md) | 程序入口是任意类型里没有 `self` 的 `Main`（只在输出可执行程序时找，`async` 的暂不支持）；一个函数里一个名字只指一个变量，内层块和 lambda 都不能和外层的局部变量、参数同名 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

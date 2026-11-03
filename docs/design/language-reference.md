@@ -104,6 +104,21 @@ let level = Pb.LogLevel.Warn        // 协议里的 LogLevel；不带前缀的 L
 - 没有静态导入（C# 的 `using static`）：成员前面总是写类型名，`MathF.Sqrt(x)`。不带接收者的名字只能是局部变量或参数（ADR-0008）。
 - C# 的 `using Pb = ep.protocol`、`import ep.protocol as Pb` 是编译错误，诊断给出 `under` 的写法；`using static` 也是编译错误。
 
+## 程序入口（ADR-0036）
+
+```nyxel
+class Program {
+    func Main() {
+        Console.WriteLine("Hello, Nyxel")
+    }
+}
+```
+
+- 输出可执行程序时（`nyxel run`、输出类型是可执行文件的项目），程序从任意一个类型里没有 `self` 的 `Main` 函数开始执行，同 C#。游戏脚本由引擎调用，不需要入口。
+- 写法：`func Main()`、`func Main(args: array<string>)`，各自可以加 `-> int` 返回退出码。可见性随意；不能写在泛型类型里。
+- 没有 `Main`、有两个以上、签名不对都是编译错误。`async func Main` 暂时是编译错误（协程要靠宿主驱动，M4）。
+- 编译成库时不找入口，叫 `Main` 的函数就是普通的函数。
+
 ## 关键字风格（ADR-0006）
 
 关键字用完整英文单词；只有在主流语言里通用、能读出来的缩写可以例外（`var`、`func`、`enum`、`struct`、`init`）。不用 `fn`、`pub`、`mut`、`impl` 这类缩写。拿不准的细节优先参照 Swift。
@@ -313,7 +328,7 @@ let (quotient, remainder) = Math.DivRem(17, 5)
   - 解构里只写名字。
 - 待定：`match` 里的元组模式（`case (0, 0)`）；嵌套解构；解构时写类型；重写 .NET 里元组元素没有名字的成员。
 
-## 变量与字段（ADR-0006）
+## 变量与字段（ADR-0006、ADR-0036）
 
 ```nyxel
 class Slime : Behaviour {
@@ -332,6 +347,19 @@ class Slime : Behaviour {
 - 给 `let` 重新赋值是编译错误。
 - 字段必须写类型。局部变量有初始值时可以省略类型。
 - 静态字段写 `static var` / `static let`（ADR-0008）。
+- 一个函数里，一个名字只指一个变量（ADR-0036）：声明局部变量或参数时，不能和这一点看得见的局部变量、参数同名。
+
+  ```nyxel
+  let speed = 2.0
+  for i in 0..<count {
+      let speed = speed * i                   // 错误：外层已经有 speed
+  }
+  self.enemies.Where(func(speed) = ...)       // 错误：lambda 的参数也一样
+  ```
+
+  - 适用于所有引入名字的地方：`let` / `var`、循环变量、解构、`case let`、`catch`、`out let`、`using`、lambda 的参数和 lambda 里的局部变量（比 C# 严：C# 允许 lambda 里同名）。
+  - 并列的块、并列的分支可以重用名字。局部变量从声明的地方开始可见，到所在的块结束，所以块结束以后再声明同名的变量也可以。
+  - 字段不受影响（总是写 `self.hp`）；`_` 是丢弃，不算名字。
 
 ## 函数与方法（ADR-0006、ADR-0008、ADR-0032）
 
