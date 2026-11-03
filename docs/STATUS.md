@@ -1,20 +1,20 @@
 # 当前状态
 
 > 每次收工**覆盖**本文件，保持一屏以内。历史在 [progress/](progress/)，计划在 [roadmap.md](roadmap.md)。
-> 最后更新：2026-11-02
+> 最后更新：2026-11-03
 
 ## 在哪
 
 - 里程碑：**M2 语义分析与代码生成**，日志在 [progress/M2.md](progress/M2.md)。M1 只剩“待定的逐轮讨论”没勾，和 M2 交错进行。开发在 `dev` 分支上做，每轮提交一次 wip；用户说"整理合并"时再整理进 main 并推到 GitHub（AGENTS.md "提交"）。
-- GitHub：https://github.com/nyxel-lang/nyxel，只推 `main`。ADR-0030 到 0035 已在 main 上（c1f91bf、af5226c 等）；之后的都在 dev 上。
-- 语言设计：ADR-0004 到 0027、0029 到 0036，汇总在 design/language-reference.md。ADR-0036（2026-10-31，dev）：程序入口是没有 `self` 的 `Main`；一个函数里一个名字只指一个变量，lambda 也不例外。
-- **M2 验收通过**（dev）：
+- GitHub：https://github.com/nyxel-lang/nyxel，只推 `main`。2026-11-03 整理合并：高亮快照测试、语义分析设计、ADR-0036、M2 第一条线、ADR-0037 都已在 main 上。
+- 语言设计：ADR-0004 到 0027、0029 到 0037，汇总在 design/language-reference.md。最近两轮：ADR-0036 程序入口是没有 `self` 的 `Main`，一个函数里一个名字只指一个变量；ADR-0037 调用里的字面量跟着有类型的实参（`Math.Max(speed, 0.5)` 选 `float` 的那个），已实现。
+- **M2 验收通过**：
   - 第一条线打通（2026-10-31）：Binder（design/semantic-analysis.md）、带 `#line` 的降级和 Roslyn 后端（design/lowering.md）、`nyxel build [--exe] [--emit-cs]` / `nyxel run`。tests/Nyxel.Compiler.Tests/Programs/ 的五个程序输出正确，C# 有快照，异常堆栈指向 .nyxel 的行。
   - 断点（2026-11-02，用户在 VSCode 的 C# 调试器里验证）：停在 .nyxel 的行上、单步、变量面板都正常（design/debug-mapping.md“在调试器里”）。缺口：`__nyxel_` 临时变量也显示在变量面板里。
   - M2 还没勾的：Binder 和降级逐步加宽、警告（命名、文档注释）。
-- 高亮：tools/vscode-nyxel 的 `npm test`（分词快照），`--test` 和 CI 都跑（CI 的 job 下次合并后第一次跑）。
+- 高亮：tools/vscode-nyxel 的 `npm test`（分词快照），`--test` 和 CI 都跑（CI 的 job 这次合并后第一次跑）。
 - 错误码：下一个是 NYX1235 / NYX2054（design/diagnostics.md）。编译器还没有警告。
-- 最近一次全绿：2026-11-02，`tools\build.cmd --test`，11 + 908 个测试，高亮快照 19 项；`dotnet format --verify-no-changes` 通过。
+- 最近一次全绿：2026-11-03，`tools\build.cmd --test`，11 + 921 个测试，高亮快照 19 项；`dotnet format --verify-no-changes` 通过。
 
 ## 下一步
 
@@ -24,7 +24,6 @@
 
 ## 悬而未决
 
-- **新的语言问题**（实现时发现，要和用户讨论）：几个重载都适用时字面量的类型。现在先按 C# 选（`Math.Max(x, 0.5)`，`x` 是 `float`，选 `double` 的那个），只有没有重载适用时小数字面量才变成 `float`（semantic-analysis.md“调用 .NET 的成员”）。
 - 之前几轮新增的待定：
   - `match` 里的元组模式、嵌套解构、解构时写类型、重写 .NET 里元组元素没有名字的成员（M3）。
   - 区间当值、展开、字典字面量（等 C#）、带元素创建多维数组。

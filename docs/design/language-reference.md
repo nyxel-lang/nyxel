@@ -181,6 +181,22 @@ let count = 10                          // 没有上下文 → int（同 C#）
   2. 整数值配小数字面量时按浮点算：期望的类型是浮点类型就用它，没有期望类型时用 `double`。
   3. 两边都是字面量时看期望的类型。
   4. 期望的类型来自赋值目标、声明的类型、参数类型、返回类型、比较运算的另一边，经过算术运算符向里传。
+- 调用 .NET 的重载时，字面量跟着有类型的实参（ADR-0037）：
+
+  ```nyxel
+  // speed: float，wave: int，weights: array<float>
+  self.speed = Math.Max(self.speed, 0.5)      // Max(float, float)（C# 选 double 的那个）
+  let at = Array.IndexOf(self.weights, 0.5)   // IndexOf<float>：0.5 是 float
+  let same = speed.Equals(0.5)                // Equals(float)，不是 Equals(object)
+  let a = Math.Max(self.wave, 0.5)            // double：没有重载能原样收下 int 又放得下 0.5
+  let m = Math.Max(1, 2.5)                    // double：只有字面量，用默认类型
+  ```
+
+  1. 先找有类型的实参（变量、字段、调用结果等）原样传进去、字面量也放得下的重载；字面量能变成数值类型时，不考虑把它装箱成 `object` 的重载。只有一个最合适的就选它，字面量取它的参数类型。
+  2. 找不到或者不止一个时，字面量用默认类型（`int` / `double`），按 C# 的规则选。
+  3. 还是一个都不适用时，小数字面量也可以变成 `float` / `decimal`（`MathF.Sqrt(2.5)`）。
+  - 泛型推断同样：类型实参由有类型的实参推出，字面量跟着它。
+  - 调用不看外面期望的类型（同 C#）：`self.speed = Math.Max(self.wave, 0.5)` 是 `double`，要写 `as float`。
 - 显式转换写 `x as T`，见“类型转换”。
 - 小数字面量不能用在整数位置；超出目标类型范围是编译错误。
 - `2.5f`、`10L` 之类的后缀是编译错误。

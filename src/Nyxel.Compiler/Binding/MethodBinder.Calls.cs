@@ -179,8 +179,9 @@ internal sealed partial class MethodBinder
     //
     // C#'s rules (the "overload resolution" section of the C# specification), as far as the first slice of M2 needs
     // them: arguments matched by position and by name, optional parameters, implicit conversions, and the better
-    // function member by better conversion from each argument. Generic functions, 'params' in expanded form beyond
-    // zero arguments and lambdas come later. Tests compare the choice with Roslyn's (OverloadResolutionTests).
+    // function member by better conversion from each argument. Before them, number literals get a step of their own
+    // (ADR-0037). Generic functions, 'params' in expanded form beyond zero arguments and lambdas come later. Tests
+    // compare the choice with Roslyn's (OverloadResolutionTests).
 
     private sealed record Resolution(Symbol Member, ImmutableArray<BoundArgument> Arguments);
 
@@ -198,30 +199,56 @@ internal sealed partial class MethodBinder
         public TypeSymbol ParameterType(int argument) => parameters[ParameterOf[argument]].Type;
     }
 
+    /// <summary>Which conversions make a candidate applicable in each step of <see cref="Resolve"/> (ADR-0037).</summary>
+    private enum ArgumentRule
+    {
+        /// <summary>Arguments with a type exactly as they are; a number literal in any numeric type that holds it.</summary>
+        LiteralsFollow,
+
+        /// <summary>C#'s: implicit conversions, with a literal in its natural type.</summary>
+        CSharp,
+
+        /// <summary>C#'s, and a decimal literal also converts to <c>float</c> and <c>decimal</c>.</summary>
+        DecimalLiterals,
+    }
+
     private Resolution? Resolve(SyntaxNode syntax, string name, ImmutableArray<Symbol> members, ImmutableArray<PendingArgument> arguments)
     {
-        // First with C#'s conversions, so that a call C# accepts picks what C# picks: in Math.Max(1, 2.5) the 2.5 is a
-        // double. Only when nothing applies may a decimal literal become a float or decimal parameter, as in
-        // new Vector3(0, 1.5, 0) (ADR-0013).
+        // A literal follows the arguments that have a type (ADR-0037): first the overload that takes them as they are,
+        // so Math.Max(speed, 0.5) with a float speed picks Max(float, float). Without exactly one, the literals keep
+        // their natural types and C#'s rules choose, so Math.Max(1, 2.5) picks what C# picks. Only when nothing
+        // applies may a decimal literal become a float or decimal parameter, as in MathF.Max(count, 0.5).
         var skippedGeneric = members.Any(m => m is MethodSymbol { IsGeneric: true });
         var candidates = members.Where(m => m is not MethodSymbol { IsGeneric: true }).ToList();
-        var applicable = Applicable(candidates, arguments, decimalLiterals: false);
-        if (applicable.Count == 0)
+        Candidate? best = null;
+        if (arguments.Any(a => a.IsLiteral))
         {
-            applicable = Applicable(candidates, arguments, decimalLiterals: true);
+            best = Best(Applicable(candidates, arguments, ArgumentRule.LiteralsFollow), arguments, ArgumentRule.LiteralsFollow);
         }
-
-        if (applicable.Count == 0)
-        {
-            ReportNotApplicable(syntax, name, members, arguments, skippedGeneric);
-            return null;
-        }
-        var best = applicable.FirstOrDefault(c => applicable.All(other => ReferenceEquals(other, c) || Better(c, other, arguments) > 0));
         if (best is null)
         {
-            var (first, second) = (applicable[0], applicable[1]);
-            Report(DiagnosticDescriptors.AmbiguousCall, syntax, SymbolDisplay.Format(first.Member), SymbolDisplay.Format(second.Member));
-            return null;
+            var rule = ArgumentRule.CSharp;
+            var applicable = Applicable(candidates, arguments, rule);
+            if (applicable.Count == 0)
+            {
+                rule = ArgumentRule.DecimalLiterals;
+                applicable = Applicable(candidates, arguments, rule);
+            }
+
+            if (applicable.Count == 0)
+            {
+                ReportNotApplicable(syntax, name, members, arguments, skippedGeneric);
+                return null;
+            }
+            best = Best(applicable, arguments, rule);
+            if (best is null)
+            {
+                // Name two that neither is better than, as Roslyn does, not merely the first two that apply.
+                var undominated = applicable.Where(c => !applicable.Any(other => Better(other, c, arguments, rule) > 0)).ToList();
+                var (first, second) = undominated.Count >= 2 ? (undominated[0], undominated[1]) : (applicable[0], applicable[1]);
+                Report(DiagnosticDescriptors.AmbiguousCall, syntax, SymbolDisplay.Format(first.Member), SymbolDisplay.Format(second.Member));
+                return null;
+            }
         }
 
         var bound = ImmutableArray.CreateBuilder<BoundArgument>();
@@ -234,19 +261,23 @@ internal sealed partial class MethodBinder
         return new Resolution(best.Member, bound.ToImmutable());
     }
 
-    private static List<Candidate> Applicable(List<Symbol> members, ImmutableArray<PendingArgument> arguments, bool decimalLiterals)
+    private static List<Candidate> Applicable(List<Symbol> members, ImmutableArray<PendingArgument> arguments, ArgumentRule rule)
     {
         var applicable = new List<Candidate>();
         foreach (var member in members)
         {
             var candidate = new Candidate(member, ParametersOf(member));
-            if (IsApplicable(candidate, arguments, decimalLiterals))
+            if (IsApplicable(candidate, arguments, rule))
             {
                 applicable.Add(candidate);
             }
         }
         return applicable;
     }
+
+    /// <summary>The candidate better than every other one, if there is one.</summary>
+    private static Candidate? Best(List<Candidate> applicable, ImmutableArray<PendingArgument> arguments, ArgumentRule rule) =>
+        applicable.FirstOrDefault(c => applicable.All(other => ReferenceEquals(other, c) || Better(c, other, arguments, rule) > 0));
 
     private static ImmutableArray<ParameterSymbol> ParametersOf(Symbol member) => member switch
     {
@@ -255,7 +286,7 @@ internal sealed partial class MethodBinder
         _ => [],
     };
 
-    private static bool IsApplicable(Candidate candidate, ImmutableArray<PendingArgument> arguments, bool decimalLiterals)
+    private static bool IsApplicable(Candidate candidate, ImmutableArray<PendingArgument> arguments, ArgumentRule rule)
     {
         var parameters = candidate.Parameters;
         var parameterOf = new int[arguments.Length];
@@ -270,7 +301,7 @@ internal sealed partial class MethodBinder
             used[index] = true;
             parameterOf[i] = index;
             var parameter = parameters[index];
-            if (parameter.RefKind != RefKind.None || ArgumentConversion(arguments[i], parameter.Type, decimalLiterals) is null)
+            if (parameter.RefKind != RefKind.None || ArgumentConversion(arguments[i], parameter.Type, rule) is null)
             {
                 return false;
             }
@@ -301,12 +332,25 @@ internal sealed partial class MethodBinder
     }
 
     /// <summary>
-    /// How an argument converts to a parameter type. A whole-number literal converts to any integer type that holds
-    /// it, as a C# constant does; with <paramref name="decimalLiterals"/>, a decimal literal converts to <c>float</c>
-    /// and <c>decimal</c> too.
+    /// How an argument converts to a parameter type under <paramref name="rule"/>. With C#'s rules a whole-number
+    /// literal converts to any integer type that holds it, as a C# constant does, and with
+    /// <see cref="ArgumentRule.DecimalLiterals"/> a decimal literal converts to <c>float</c> and <c>decimal</c> too.
     /// </summary>
-    private static ConversionKind? ArgumentConversion(PendingArgument argument, TypeSymbol parameterType, bool decimalLiterals)
+    private static ConversionKind? ArgumentConversion(PendingArgument argument, TypeSymbol parameterType, ArgumentRule rule)
     {
+        if (rule == ArgumentRule.LiteralsFollow)
+        {
+            if (!argument.IsLiteral)
+            {
+                return ReferenceEquals(argument.Value.Type, parameterType) ? ConversionKind.Identity : null;
+            }
+            // A literal goes into any numeric type that holds its value, or is boxed in its natural type.
+            return IsLiteralTarget(parameterType.SpecialType)
+                ? LiteralFits(argument.Value.ConstantValue, parameterType.SpecialType) ? ConversionKind.ImplicitNumeric : null
+                : Conversions.ClassifyImplicit(argument.Value.Type, parameterType);
+        }
+
+        var decimalLiterals = rule == ArgumentRule.DecimalLiterals;
         if (Conversions.ClassifyImplicit(argument.Value.Type, parameterType) is { } conversion)
         {
             return conversion;
@@ -326,14 +370,31 @@ internal sealed partial class MethodBinder
         };
     }
 
+    /// <summary>Whether a literal whose value in its natural type is <paramref name="value"/> fits a numeric type.</summary>
+    private static bool LiteralFits(object? value, SpecialType type) => value switch
+    {
+        double number => type switch
+        {
+            SpecialType.System_Single => !float.IsInfinity((float)number),
+            SpecialType.System_Double => true,
+            SpecialType.System_Decimal => Math.Abs(number) < (double)decimal.MaxValue,
+            _ => false,
+        },
+        { } integer => !Conversions.IsIntegral(type)
+            || FitsIntegral(new BigInteger(System.Convert.ToDecimal(integer, System.Globalization.CultureInfo.InvariantCulture)), type),
+        null => false,
+    };
+
     /// <summary>Positive when <paramref name="p"/> is the better function member, negative when <paramref name="q"/> is.</summary>
-    private static int Better(Candidate p, Candidate q, ImmutableArray<PendingArgument> arguments)
+    private static int Better(Candidate p, Candidate q, ImmutableArray<PendingArgument> arguments, ArgumentRule rule)
     {
         var pBetter = false;
         var qBetter = false;
         for (var i = 0; i < arguments.Length; i++)
         {
-            var comparison = BetterConversion(arguments[i].Value.Type, p.ParameterType(i), q.ParameterType(i));
+            var comparison = rule == ArgumentRule.LiteralsFollow && arguments[i].IsLiteral
+                ? BetterLiteralConversion(arguments[i].Value.Type, p.ParameterType(i), q.ParameterType(i))
+                : BetterConversion(arguments[i].Value.Type, p.ParameterType(i), q.ParameterType(i));
             pBetter |= comparison > 0;
             qBetter |= comparison < 0;
         }
@@ -347,6 +408,20 @@ internal sealed partial class MethodBinder
             return q.UsesDefaults ? 1 : -1;
         }
         return 0;
+    }
+
+    /// <summary>
+    /// For a literal when it follows the other arguments (ADR-0037): every numeric type is as good as another, and a
+    /// numeric type is better than boxing; between two boxings, C#'s rule for the literal's natural type.
+    /// </summary>
+    private static int BetterLiteralConversion(TypeSymbol natural, TypeSymbol first, TypeSymbol second)
+    {
+        var (firstNumeric, secondNumeric) = (IsLiteralTarget(first.SpecialType), IsLiteralTarget(second.SpecialType));
+        if (firstNumeric || secondNumeric)
+        {
+            return firstNumeric == secondNumeric ? 0 : firstNumeric ? 1 : -1;
+        }
+        return BetterConversion(natural, first, second);
     }
 
     /// <summary>C#'s better conversion from an argument of type <paramref name="source"/> to one of two parameter types.</summary>
@@ -407,7 +482,7 @@ internal sealed partial class MethodBinder
             {
                 for (var i = 0; i < arguments.Length; i++)
                 {
-                    if (ArgumentConversion(arguments[i], parameters[i].Type, decimalLiterals: true) is null)
+                    if (ArgumentConversion(arguments[i], parameters[i].Type, ArgumentRule.DecimalLiterals) is null)
                     {
                         Report(DiagnosticDescriptors.CannotConvert, arguments[i].Syntax.Expression,
                             SymbolDisplay.FormatType(arguments[i].Value.Type), SymbolDisplay.FormatType(parameters[i].Type));

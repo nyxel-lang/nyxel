@@ -45,19 +45,52 @@ public class OverloadResolutionTests
     [InlineData("let s = 12.ToString()", "var s = 12.ToString();")]
     [InlineData("let s = 1.5.ToString(\"F2\")", "var s = 1.5.ToString(\"F2\");")]
     [InlineData("let n = int.Parse(\"3\")", "var n = int.Parse(\"3\");")]
-    public void ChoosesTheSameOverloadAsCSharp(string nyxel, string csharp)
+    // A literal follows an argument only when some overload takes that argument as it is (ADR-0037).
+    [InlineData("let x: int = 1\nlet a = Math.Max(x, 0.5)", "int x = 1; var a = System.Math.Max(x, 0.5);")]
+    [InlineData("let x: float = 1\nlet a = Math.Max(x, 1e40)", "float x = 1; var a = System.Math.Max(x, 1e40);")]
+    [InlineData("let a = Math.Abs(-0.5)", "var a = System.Math.Abs(-0.5);")]
+    [InlineData("let a = TimeSpan.FromSeconds(0.5)", "var a = System.TimeSpan.FromSeconds(0.5);")]
+    public void ChoosesTheSameOverloadAsCSharp(string nyxel, string csharp) => Assert.Equal(RoslynChoice(csharp), NyxelChoice(nyxel));
+
+    /// <summary>
+    /// A literal follows the arguments passed as they are (ADR-0037), where C# needs a suffix to pick the same
+    /// overload: the C# side writes it.
+    /// </summary>
+    [Theory]
+    [InlineData("let x: float = 1\nlet a = Math.Max(x, 0.5)", "float x = 1; var a = System.Math.Max(x, 0.5f);")]
+    [InlineData("let x: float = 1\nlet a = Math.Clamp(x, 0.0, 1.0)", "float x = 1; var a = System.Math.Clamp(x, 0f, 1f);")]
+    [InlineData("let x: float = 1\nlet a = x.Equals(0.5)", "float x = 1; var a = x.Equals(0.5f);")]
+    [InlineData("let x: float = 1\nlet a = x.CompareTo(0.5)", "float x = 1; var a = x.CompareTo(0.5f);")]
+    [InlineData("let x: decimal = 1\nlet a = Math.Max(x, 0.5)", "decimal x = 1; var a = System.Math.Max(x, 0.5m);")]
+    [InlineData("let x: byte = 1\nlet a = Math.Max(x, 1)", "byte x = 1; var a = System.Math.Max(x, (byte)1);")]
+    [InlineData("let a = MathF.Sqrt(2.5)", "var a = System.MathF.Sqrt(2.5f);")]
+    [InlineData("let x: int = 1\nlet a = MathF.Max(x, 0.5)", "int x = 1; var a = System.MathF.Max(x, 0.5f);")]
+    public void ALiteralFollowsTheOtherArguments(string nyxel, string csharp) => Assert.Equal(RoslynChoice(csharp), NyxelChoice(nyxel));
+
+    [Fact]
+    public void TheLiteralTakesTheTypeOfTheParameter()
     {
-        var call = BindClean(nyxel).DescendantsAndSelf().OfType<BoundCall>().Last();
-        var nyxelChoice = ((MetadataMethodSymbol)call.Method.OriginalDefinition).RoslynSymbol.GetDocumentationCommentId();
-        Assert.Equal(RoslynChoice(csharp), nyxelChoice);
+        // Lowered as 0.5f, so that the C# compiler picks the same overload.
+        var call = BindClean("let x: float = 1\nlet a = Math.Max(x, 0.5)").DescendantsAndSelf().OfType<BoundCall>().Single();
+        var literal = Assert.IsType<BoundLiteral>(call.Arguments[1].Value);
+        Assert.Equal("float", SymbolDisplay.FormatType(literal.Type));
     }
 
     [Fact]
-    public void ADecimalLiteralBecomesAFloatOnlyWhenNothingElseApplies()
+    public void AnAmbiguousCallNamesTwoThatNeitherIsBetterThan()
     {
-        // Single(float) is the only overload: 1.5 is a float there (ADR-0013); C# would need 1.5f.
-        var call = BindClean("let a = MathF.Sqrt(2.5)").DescendantsAndSelf().OfType<BoundCall>().Single();
-        Assert.Equal("float", SymbolDisplay.FormatType(call.Arguments[0].Value.Type));
+        // Roslyn: CS0121 between Max(decimal, decimal) and Max(float, float). Max(double, double) also applies and
+        // comes before Max(float, float), but Max(float, float) is better than it.
+        var diagnostic = Assert.Single(Compile(InFunction("let x: ulong = 1\nlet y: int = 1\nlet a = Math.Max(x, y)")).GetDiagnostics());
+        Assert.Equal(
+            "The call could be 'Math.Max(val1: decimal, val2: decimal) -> decimal' or 'Math.Max(val1: float, val2: float) -> float'; convert an argument with 'as' to choose.",
+            diagnostic.Message);
+    }
+
+    private static string? NyxelChoice(string statements)
+    {
+        var call = BindClean(statements).DescendantsAndSelf().OfType<BoundCall>().Last();
+        return ((MetadataMethodSymbol)call.Method.OriginalDefinition).RoslynSymbol.GetDocumentationCommentId();
     }
 
     private static string? RoslynChoice(string statements)
