@@ -13,6 +13,7 @@
 
 - [language-reference.md](design/language-reference.md) 语言参考（草稿）：已定的语法和语义，随讨论补全
 - [architecture-overview.md](design/architecture-overview.md) 编译流水线、各组件职责与依赖方向
+- [semantic-analysis.md](design/semantic-analysis.md) 语义分析（Binder，M2，写在实现之前）：符号、分几遍、名字查找、期望的类型、重载决议和对照测试、流分析、绑定树、第一条线的范围
 - [syntax-tree.md](design/syntax-tree.md) Lexer、Parser 和语法树：无损的树、trivia 归属、行规则怎么实现、优先级和泛型歧义、错误恢复、测试与快照
 - [diagnostics.md](design/diagnostics.md) 诊断的格式和全部错误码（`NYX` 加四位数字）
 - [debug-mapping.md](design/debug-mapping.md) 生成的 C# 怎么用 `#line` 把断点、堆栈、诊断映射回 .nyxel：指令形式、生成规则、实测行为

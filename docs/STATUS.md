@@ -5,20 +5,24 @@
 
 ## 在哪
 
-- 里程碑：**M1 语言基础设计 + 语法分析**。roadmap 的 M1 项除了“待定逐轮讨论”都做完了：排好的九轮都讨论完了，剩下的是零散的细节（见“悬而未决”）。日志在 [progress/M1.md](progress/M1.md)。开发在 `dev` 分支上做，每轮提交一次 wip；用户说"整理合并"时再整理进 main 并推到 GitHub（AGENTS.md "提交"）。
+- 里程碑：**M2 语义分析与代码生成**刚开始，日志在 [progress/M2.md](progress/M2.md)。M1 只剩“待定的逐轮讨论”没勾：排好的九轮都讨论完了，剩下零散的细节（见“悬而未决”），和 M2 交错进行（日志 [progress/M1.md](progress/M1.md)）。开发在 `dev` 分支上做，每轮提交一次 wip；用户说"整理合并"时再整理进 main 并推到 GitHub（AGENTS.md "提交"）。
 - GitHub：https://github.com/nyxel-lang/nyxel，2026-10-05 起公开，只推 `main`。名字占位全部完成（brand.md）。ADR-0030 到 0035 已在 main 上（c1f91bf、af5226c 等）。
 - 语言设计：ADR-0004 到 0027、0029 到 0035，汇总在 design/language-reference.md。ADR-0028 是文档流程：ADR 保持最新，被推翻的决定改写原文，文末记修订（规则在 AGENTS.md）。
-- 最近两轮（2026-10-31，已合进 main）：
-  - ADR-0034（第 8 轮，协程与资源）：`await all { case ... }` / `await any { case ... }`，句柄 `Coroutine`，`await using`、`await for`，事件处理函数的异常记日志（修订 ADR-0016、0017）。
-  - ADR-0035（第 9 轮，约定）：文档注释写 `- Parameter 名字:`、`- Returns:`、`- Throws 类型:`，链接写 `` [`类型.成员`] ``；缩略词同 .NET（`UI`、`HP`、`Xml`、`Id`）；插值的 `{ }` 在开始的那一行闭合，跨行报 NYX1234。例子里的 `Hp` 都改成了 `HP`。
-- 错误码：`NYX1xxx` / `NYX2xxx` 段内按添加顺序编号，下一个是 NYX1235（design/diagnostics.md）。编译器还没有警告：命名检查和文档注释的检查是最早的一批（M2）。
+- 语义分析：design/semantic-analysis.md 写好了（实现前的设计）。要点：符号一套接口、两种来源（Nyxel 源码、包装 Roslyn 读出的元数据）；分五遍（声明、导入、类型头、成员签名、函数体）；`BindExpression` 带期望的类型；重载决议和类型推断自己实现 C# 的规则，和 Roslyn 做对照测试；先打通“第一条线”（类、函数、局部变量、基本类型、控制流、调用 .NET、插值、数组）到 `nyxel run`，再逐步加宽。
 - 语法分析：Lexer、Parser、无损语法树、带 `NYX` 错误码的诊断（design/syntax-tree.md、design/diagnostics.md）。`nyxel parse [--tree] <文件>` 检查语法、打印语法树。samples/ 有 16 个样例。
-- 高亮（2026-10-31，在 dev 上）：tools/vscode-nyxel 的 `npm test` 用 VSCode 的 TextMate 引擎给 samples 和 test/cases/Literals.nyxel 分词，和 test/snapshots 比对；`tools\build.cmd --test` 和 CI 的 highlighting job 都跑。顺手修了两处语法文件的 bug：`////` 被当成文档注释，单行访问器 `{ get = ... }` 的 `get` 没上色。
+- 高亮：tools/vscode-nyxel 的 `npm test` 用 VSCode 的 TextMate 引擎给 samples 和 test/cases 分词，和快照比对；`tools\build.cmd --test` 和 CI 的 highlighting job 都跑（在 dev 上，CI 的 job 下次合并后第一次跑）。
+- 错误码：`NYX1xxx` / `NYX2xxx` 段内按添加顺序编号，下一个是 NYX1235，语义诊断从 NYX2001 开始（design/diagnostics.md）。编译器还没有警告：命名检查和文档注释的检查是最早的一批。
 - 最近一次全绿：2026-10-31，`tools\build.cmd --test`，8 + 770 个测试，高亮快照 19 项；`dotnet format --verify-no-changes` 通过。
 
 ## 下一步
 
-1. M2 开头：先写语义分析的设计文档（Binder：名字解析、类型检查，经 Roslyn 符号模型读 .NET 类型），再动手。前几轮留给 M2 的检查和翻译记在各 ADR 的“后果”里：0021（元组）、0022（区间、集合字面量）、0023（数组元素、`== null`）、0024（enum 的值、flags、`struct enum` 布局）、0025（`eval` 的流分析和翻译）、0026（访问器带体）、0027（`init super`、`with`、`required`）、0029（索引器的访问器、enum 冒号后面是接口、事件和委托一致、enum 成员的翻译、C# 那边怎么取 case）、0030（运算符的参数类型和重载决议、生成的相等和比较成员、C# 的隐式转换）、0031（`T?` 的约束、没约束的 T 用成员前检查、元素是 T 的数组）、0032（存储还是副本、没标 `readonly` 的方法、`var self` 扩展的翻译）、0033（同名类型的查找、`under` 前面是命名空间、别名重名）、0034（`await` 系列只在 `async` 函数里、每一项能等待、当值用的类型、`IAsyncDisposable`）、0035（命名检查的缩略词、文档注释的参数名和链接）。
+1. 和用户讨论 semantic-analysis.md“待讨论”的两条，定了写 ADR：程序从哪里开始执行（`nyxel run`、可执行文件的入口）；局部变量和外层同名。
+2. 实现第一条线，按顺序：
+   - 符号和前四遍（`Symbols/`、`Binding/`），`NyxelCompilation`，跨文件的 `DiagnosticBag`；
+   - 函数体的绑定和 `BoundTreePrinter`、第一步的重载决议和对照测试；
+   - 降级（先写 design/lowering.md：列跟踪的文本写出器、`#line`）、后端、`nyxel build` / `run` / `--emit-cs`；
+   - tests/…/Programs/ 的验收程序，VSCode 里手动验证断点。
+3. 之后逐步加宽，补上各 ADR“后果”里留给 M2 的检查（清单按遍分在 semantic-analysis.md；逐条的出处：0021、0022、0023、0024、0025、0026、0027、0029、0030、0031、0032、0033、0034、0035）。
 
 ## 悬而未决
 

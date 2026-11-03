@@ -9,7 +9,7 @@
   │  Nyxel.Compiler
   ├─ 语法    SourceText → Lexer → Parser → SyntaxTree（含语法诊断）
   ├─ 语义    Binder：名字解析、类型检查、Nyxel 语义规则 → 绑定树（含语义诊断）
-  │          .NET 类型信息通过 Roslyn 的符号模型读取引用的程序集（细节 M2 定）
+  │          .NET 类型信息通过 Roslyn 的符号模型读取引用的程序集（semantic-analysis.md）
   ├─ 降级    绑定树 → C#，每条语句带 #line 跨度映射回 .nyxel（规则见 debug-mapping.md）
   └─ 后端    Roslyn CSharpCompilation → .dll + portable PDB
              Roslyn 的诊断映射回 .nyxel 位置，按编译器内部错误报出
@@ -19,7 +19,7 @@
 
 诊断从前端报出：错误码稳定、用 Nyxel 术语、位置指向 .nyxel（格式和错误码见 diagnostics.md）。`--emit-cs` 输出降级后的 C#，用于查看和快照测试。
 
-各阶段的设计：语法见 syntax-tree.md；调试映射见 debug-mapping.md；语义分析和降级在 M2 写。
+各阶段的设计：语法见 syntax-tree.md；语义分析见 semantic-analysis.md；调试映射见 debug-mapping.md；降级在实现时写。
 
 ## 组件
 

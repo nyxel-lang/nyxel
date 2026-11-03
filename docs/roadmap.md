@@ -33,7 +33,7 @@ M3 以后是草案，随 M1 的语法讨论细化。
 
 架构见 [design/architecture-overview.md](design/architecture-overview.md)。
 
-- [ ] Binder：名字解析、类型检查；.NET 类型信息经 Roslyn 符号模型读取（先写设计文档）
+- [ ] Binder：名字解析、类型检查；.NET 类型信息经 Roslyn 符号模型读取（设计见 design/semantic-analysis.md，先打通“第一条线”再逐步加宽）
 - [ ] 警告：命名检查（ADR-0006，含缩略词，ADR-0035）、文档注释的检查（参数名、链接、`- Throws` 的类型，ADR-0035）
 - [ ] 降级：绑定树 → C# 语法树，`#line` 跨度映射
 - [ ] 后端：进程内 Roslyn 编译出 dll + pdb；Roslyn 诊断映射回 .nyxel 并按内部错误报出
