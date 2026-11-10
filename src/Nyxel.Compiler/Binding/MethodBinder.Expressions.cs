@@ -75,10 +75,12 @@ internal sealed partial class MethodBinder
     };
 
     /// <summary>
-    /// Numbers and arithmetic of numbers only (<c>-1</c>, <c>1 / 2</c>): typed by the position (ADR-0013). With an
-    /// expected numeric type, every literal has that type, so <c>let x: float = 1 / 2</c> is 0.5; without one, whole
-    /// numbers are <c>int</c> (or the next type that holds them) and a decimal makes it <c>double</c>, as in C#.
-    /// The value is folded here, which also catches values out of range.
+    /// Numbers and arithmetic of numbers only (<c>-1</c>, <c>1.5 * 2</c>): typed by the position (ADR-0013). With an
+    /// expected numeric type, every literal has that type, so <c>let x: float = 1.5 * 2</c> is a float 3; without
+    /// one, whole numbers are <c>int</c> (or the next type that holds them) and a decimal makes it <c>double</c>, as
+    /// in C#. Dividing whole numbers stays whole-number division as in C#, so doing it inside a decimal calculation
+    /// (<c>let x: float = 1 / 2</c>) is an error rather than a silent 0 (ADR-0038). The value is folded here, which
+    /// also catches values out of range.
     /// </summary>
     private BoundExpression BindLiteralOnly(ExpressionSyntax syntax, TypeSymbol? expected)
     {
@@ -106,11 +108,36 @@ internal sealed partial class MethodBinder
                 : SpecialType.System_UInt64);
         }
 
+        if (!Conversions.IsIntegral(type.SpecialType) && IntegerLiteralDivision(syntax) is { } division)
+        {
+            Report(DiagnosticDescriptors.IntegerLiteralDivisionInDecimal, division, division.ToString(), DecimalDivisionSuggestion(division));
+            return Bad(syntax);
+        }
+
         var value = Fold(syntax, type.SpecialType);
         return value is null ? Bad(syntax) : new BoundLiteral(syntax, value, type);
     }
 
     private static bool IsLiteralTarget(SpecialType type) => Conversions.IsNumeric(type) && type != SpecialType.System_Char;
+
+    /// <summary>The first <c>/</c> or <c>%</c> in a literal-only expression whose both sides are whole numbers.</summary>
+    private static BinaryExpressionSyntax? IntegerLiteralDivision(ExpressionSyntax syntax) =>
+        syntax.DescendantNodesAndSelf().OfType<BinaryExpressionSyntax>().FirstOrDefault(binary =>
+            binary.Kind is SyntaxKind.DivideExpression or SyntaxKind.ModuloExpression
+            && FirstDecimalLiteral(binary.Left) is null && FirstDecimalLiteral(binary.Right) is null);
+
+    /// <summary>The same division with one side written as a decimal: <c>1.0 / 2</c>.</summary>
+    private static string DecimalDivisionSuggestion(BinaryExpressionSyntax division)
+    {
+        var op = division.Kind == SyntaxKind.DivideExpression ? "/" : "%";
+        var left = division.Left.ToString();
+        var right = division.Right.ToString();
+        return division.Left is LiteralExpressionSyntax leftLiteral && IsPlainDigits(leftLiteral.Token.Text) ? $"{left}.0 {op} {right}"
+            : division.Right is LiteralExpressionSyntax rightLiteral && IsPlainDigits(rightLiteral.Token.Text) ? $"{left} {op} {right}.0"
+            : $"{left} * 1.0 {op} {right}";
+
+        static bool IsPlainDigits(string text) => text.All(c => char.IsAsciiDigit(c) || c == '_');
+    }
 
     private static bool IsLiteralOnly(ExpressionSyntax syntax) => syntax switch
     {

@@ -2,7 +2,7 @@
 
 编译流水线的第二段（architecture-overview.md）：语法树加引用的程序集 → Binder → 符号和绑定树（含语义诊断）→ 降级（lowering.md）。本文是工程设计，实现时按实际情况更新；语言规则以 language-reference 和 ADR 为准。代码将放在 `src/Nyxel.Compiler/Symbols/` 和 `src/Nyxel.Compiler/Binding/`。
 
-语法分析只知道代码的形状：`self.NearestTo(point = other.Position)` 是在 `self` 上调用一个叫 `NearestTo` 的成员，带一个叫 `point` 的实参。语义分析回答它是什么意思、对不对：`NearestTo` 是哪个方法，有没有叫 `point` 的参数，`other.Position` 是什么类型、能不能传过去，返回值是什么类型。为什么不把这些交给 Roslyn，见 ADR-0004：有些 Nyxel 的规则 C# 没有（`let` 不能重新赋值，翻译成 C# 后 Roslyn 不会报），有些写法翻译之前就要知道类型（`let x: float = 1 / 2` 是 0.5，要写成 `1f / 2f`），报错也要用 Nyxel 的术语、指向 .nyxel。
+语法分析只知道代码的形状：`self.NearestTo(point = other.Position)` 是在 `self` 上调用一个叫 `NearestTo` 的成员，带一个叫 `point` 的实参。语义分析回答它是什么意思、对不对：`NearestTo` 是哪个方法，有没有叫 `point` 的参数，`other.Position` 是什么类型、能不能传过去，返回值是什么类型。为什么不把这些交给 Roslyn，见 ADR-0004：有些 Nyxel 的规则 C# 没有（`let` 不能重新赋值，翻译成 C# 后 Roslyn 不会报），有些写法翻译之前就要知道类型（`let x: float = 1.5 * 2` 两边都是 `float`，要写成 `1.5f * 2f`），报错也要用 Nyxel 的术语、指向 .nyxel。
 
 ## 用法
 
@@ -148,7 +148,7 @@ Symbol（Name、Kind、ContainingSymbol、Accessibility、Locations）
 
 - 节点不可变，每个节点记着对应的语法节点（报错、`#line` 映射用）；表达式节点都有 `Type`。
 - 显式写出的东西：
-  - 转换（`BoundConversion`），包括字面量按期望类型定下来的类型（`1 / 2` 赋给 `float` 时两边都是 `float` 字面量）；
+  - 转换（`BoundConversion`），包括字面量按期望类型定下来的类型（`1.5 * 2` 赋给 `float` 时两边都是 `float` 字面量）；
   - 收窄（读 `other` 时节点上带着收窄后的类型，降级据此插入转换）；
   - 选中的重载和推出的类型实参。
 - 绑定树不挂在语法树上：语法树是不可变的，语言服务器在编辑之间会复用它。
@@ -195,7 +195,7 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - `Symbols/`：`Symbol` 和各种类型、成员；`SymbolTable` 包装 Roslyn 读出的元数据，管数组类型；源码符号在 `SourceSymbols.cs`；`SymbolDisplay` 用 Nyxel 的写法显示名字。
 - `Binding/`：`Declarer`（第 1 到 4 遍）、`ImportScope`、`MethodBinder`（第 5 遍，按语句、表达式、调用分文件）、`Conversions`、`FlowAnalysis`、绑定树的节点和打印。
 - `NyxelCompilation`：`Create`、`GetDiagnostics`、`EmitCSharp`、`Emit`。
-- 语义诊断 NYX2001 到 NYX2053（diagnostics.md“语义”）。
+- 语义诊断 NYX2001 到 NYX2054（diagnostics.md“语义”）。
 - 测试：`BinderTests`、`SemanticErrorTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
 
 和设计不同、或者还没做到的：
@@ -204,6 +204,7 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - 没有初始值的局部变量（`var x: int`）报 NYX2001，要先有局部变量的确定赋值。`let` / `var` 字段在 `init` 里的确定赋值已经有了（NYX2050）。
 - 元数据的类型只看 public 的；嵌套类型、泛型方法、扩展方法、事件、`params` 的展开形式还不支持。
 - 收窄还没有，随“空值和收窄”一步实现。
+- `static let` 还没有常量求值：按 ADR-0038，初始值是常量表达式、类型能 `const` 的 `static let` 要生成 C# 的 `const`，默认参数值、`case` 标签、枚举值引用它时检查它是不是常量。需要给 `SourceFieldSymbol` 加 `ConstantValue`、一个常量表达式求值器（字面量折叠的 `Fold` 是它的雏形），随“属性、struct、enum”一步实现。
 
 ## 写设计时定下的语言规则
 

@@ -38,6 +38,10 @@ public class SemanticErrorTests
     [InlineData("let o: object = \"a\"\nlet s = o as string", "NYX2043 7:9")]
     [InlineData("let a = new array<int>(3)\nlet b = a[0, 1]", "NYX2051 7:10")]
     [InlineData("let a = 3\nlet b = a[0]", "NYX2052 7:9")]
+    [InlineData("let a: float = 1 / 2", "NYX2054 6:16")]
+    [InlineData("let a: float = 10 % 3", "NYX2054 6:16")]
+    [InlineData("let a = 1 / 2 * 4.0", "NYX2054 6:9")]
+    [InlineData("let f: float = 1\nlet a = f * (1 / 2)", "NYX2054 7:14")]
     [InlineData("let a = null", "NYX2001 6:9")]
     [InlineData("let a = Math.Max(1, 2.5) as cuont", "NYX2004 6:29")]
     public void ErrorsInAFunction(string statements, string expected) => Assert.Equal([expected], DiagnosticsOf(InFunction(statements)));

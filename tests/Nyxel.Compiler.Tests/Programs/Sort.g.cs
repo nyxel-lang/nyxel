@@ -123,7 +123,7 @@ namespace Programs
             global::System.Console.WriteLine(text);
 #line (55, 9) - (55, 74) 13 "Sort.nyxel"
             global::System.Console.WriteLine($"{(steps)} moves, average {(sorter.Average()):F2}");
-#line (56, 9) - (56, 31) 13 "Sort.nyxel"
+#line (56, 9) - (56, 33) 13 "Sort.nyxel"
             float half = 0.5f;
 #line (57, 9) - (57, 31) 13 "Sort.nyxel"
             global::System.Console.WriteLine(half);

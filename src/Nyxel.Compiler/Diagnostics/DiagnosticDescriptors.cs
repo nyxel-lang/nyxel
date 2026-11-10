@@ -576,6 +576,9 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor InternalError =
         Error("NYX2053", "Internal compiler error: the generated C# doesn't compile ({0}: {1}). Please report it.");
 
+    public static readonly DiagnosticDescriptor IntegerLiteralDivisionInDecimal =
+        Error("NYX2054", "'{0}' divides whole numbers, which truncates, inside a decimal calculation; write '{1}' to divide as decimals.");
+
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);
 }

@@ -150,62 +150,70 @@ public func SpawnNearest(self, kind: EnemyKind) -> Entity {
 - 链接到别的代码写成方括号里一个代码片段 `` [`名字`] ``（ADR-0035）：类型直接写名字，成员写 `类型.成员`，参数和泛型参数直接写名字。只有反引号的 `` `x` `` 是普通的代码片段，不是链接。
 - 参数名不存在、链接不到、`- Throws` 后面不是异常类型时给警告。
 
-## 内置类型与字面量（ADR-0007）
+## 内置类型与字面量（ADR-0007、ADR-0013、ADR-0037、ADR-0038）
 
 内置类型名沿用 C# 的别名，含义相同：`bool` `byte` `sbyte` `short` `ushort` `int` `uint` `long` `ulong` `float` `double` `decimal` `char` `string` `object`。
 
-数值字面量的类型由上下文（这个位置期望的类型）决定，没有类型后缀：
+数值字面量没有类型后缀，类型由它旁边的东西决定。总原则：**字面量跟着旁边有类型的值；没有的话看这个位置期望的类型；都没有就用 C# 的默认类型**（整数是 `int`，放不下依次用 `uint`、`long`、`ulong`；小数是 `double`）。
 
 ```nyxel
-var speed: float = 2.5                  // float：声明的类型
-let half = width * 0.5                  // width 是 float → 0.5 是 float
-self.Position = new Vector3(0, 1.5, 0)  // 参数是 float → 1.5 是 float
+var speed: float = 2.5                  // 期望的类型：float
+let half = width * 0.5                  // 跟着 width（float）：float
+self.Position = new Vector3(0, 1.5, 0)  // 参数是 float：1.5 是 float
 let t: float = 3                        // 整数字面量可以用在浮点位置
-let ratio = 2.5                         // 没有上下文 → double（同 C#）
-let count = 10                          // 没有上下文 → int（同 C#）
+let ratio = 2.5                         // 都没有：double（同 C#）
+let count = 10                          // 都没有：int（同 C#）
 ```
 
-- 没有上下文时：整数是 `int`（放不下依次用 `uint`、`long`、`ulong`），小数是 `double`。
-- 混合运算（ADR-0013）：期望类型往里传，但不改变整数运算。
-
-  ```nyxel
-  // Wave: int，Speed: float
-  slime.Speed = 2 + self.Wave * 0.5   // float
-  slime.Speed = self.Wave / 2         // 整数除法再转 float（Wave 是 3 时得 1.0）
-  let a = self.Wave * 0.5             // double（没有期望类型）
-  let b: int = self.Wave * 1.5        // 错误：期望整数，1.5 不是整数
-  let x: float = 1 / 2                // 0.5（两边都是字面量，看期望类型）
-  ```
-
-  1. 运算的一边是有确定类型的值（变量、字段、属性、调用结果）时，字面量跟着它。`self.Wave / 2` 不管放在哪里都是整数除法。
-  2. 整数值配小数字面量时按浮点算：期望的类型是浮点类型就用它，没有期望类型时用 `double`。
-  3. 两边都是字面量时看期望的类型。
-  4. 期望的类型来自赋值目标、声明的类型、参数类型、返回类型、比较运算的另一边，经过算术运算符向里传。
-- 调用 .NET 的重载时，字面量跟着有类型的实参（ADR-0037）：
-
-  ```nyxel
-  // speed: float，wave: int，weights: array<float>
-  self.speed = Math.Max(self.speed, 0.5)      // Max(float, float)（C# 选 double 的那个）
-  let at = Array.IndexOf(self.weights, 0.5)   // IndexOf<float>：0.5 是 float
-  let same = speed.Equals(0.5)                // Equals(float)，不是 Equals(object)
-  let a = Math.Max(self.wave, 0.5)            // double：没有重载能原样收下 int 又放得下 0.5
-  let m = Math.Max(1, 2.5)                    // double：只有字面量，用默认类型
-  ```
-
-  1. 先找有类型的实参（变量、字段、调用结果等）原样传进去、字面量也放得下的重载；字面量能变成数值类型时，不考虑把它装箱成 `object` 的重载。只有一个最合适的就选它，字面量取它的参数类型。
-  2. 找不到或者不止一个时，字面量用默认类型（`int` / `double`），按 C# 的规则选。
-  3. 还是一个都不适用时，小数字面量也可以变成 `float` / `decimal`（`MathF.Sqrt(2.5)`）。
-  - 泛型推断同样：类型实参由有类型的实参推出，字面量跟着它。
-  - 调用不看外面期望的类型（同 C#）：`self.speed = Math.Max(self.wave, 0.5)` 是 `double`，要写 `as float`。
-- 显式转换写 `x as T`，见“类型转换”。
+- 期望的类型来自赋值目标、声明的类型、参数类型、返回类型、比较运算的另一边，经过算术运算符向里传。调用的结果不看外面期望的类型（见“调用里的字面量”）。
 - 小数字面量不能用在整数位置；超出目标类型范围是编译错误。
 - `2.5f`、`10L` 之类的后缀是编译错误。
 - `0xFF`、`0b1010`、`1_000_000`、`1e-3` 同 C#。
 - 小数点前面的 `0` 不能省：写 `0.5`，`.5` 是编译错误（ADR-0020）。
+- 显式转换写 `x as T`，见“类型转换”。
 - 字符字面量 `'a'` 同 C#（ADR-0020），比如 `line.Split(',')`、`text[0] == '#'`。
   - 单引号里是一个 `char`，也就是一个 UTF-16 码元。
   - 转义同字符串：`'\n'`、`'\''`。
   - 双引号永远是 `string`。
+
+### 运算里的字面量（ADR-0013、ADR-0038）
+
+期望的类型往里传，但不改变整数运算：
+
+```nyxel
+// Wave: int，Speed: float
+slime.Speed = 2 + self.Wave * 0.5   // float
+slime.Speed = self.Wave / 2         // 整数除法再转 float（Wave 是 3 时得 1.0）
+let a = self.Wave * 0.5             // double（没有期望的类型）
+let b: int = self.Wave * 1.5        // 错误：期望整数，1.5 不是整数
+let c: float = 1.5 * 2              // 3.0：两边都是字面量，看期望的类型
+let d: float = 1 / 2                // 错误：整数相除是整数除法，写 1.0 / 2
+let e: int = 7 / 2                  // 3，同 C#
+```
+
+1. 运算的一边是有确定类型的值（变量、字段、属性、调用结果）时，字面量跟着它。`self.Wave / 2` 不管放在哪里都是整数除法。
+2. 整数值配小数字面量时按浮点算：期望的类型是浮点类型就用它，没有期望的类型时用 `double`。
+3. 两边都是字面量时看期望的类型。例外：整数字面量之间的 `/` 和 `%` 永远是整数运算，这样的运算出现在按浮点算的字面量表达式里是编译错误，诊断提示把一边写成小数（ADR-0038）。“按浮点算”指期望的类型是 `float`、`double`、`decimal`，或者没有期望的类型但式子里有小数字面量：`let x: float = 10 / 2`、`let y = 1 / 2 * 4.0` 都报错。期望整数类型、或者没有期望的类型且全是整数时照 C#：`let n = 1 / 2` 是 0。
+
+### 调用里的字面量（ADR-0037）
+
+调用 .NET 的重载时，字面量跟着有类型的实参：
+
+```nyxel
+// speed: float，wave: int，weights: array<float>
+self.speed = Math.Max(self.speed, 0.5)      // Max(float, float)（C# 选 double 的那个）
+let at = Array.IndexOf(self.weights, 0.5)   // IndexOf<float>：0.5 是 float
+let same = speed.Equals(0.5)                // Equals(float)，不是 Equals(object)
+let a = Math.Max(self.wave, 0.5)            // double：没有重载能原样收下 int 又放得下 0.5
+let m = Math.Max(1, 2.5)                    // double：只有字面量，用默认类型
+```
+
+1. 先找有类型的实参（变量、字段、调用结果等）原样传进去、字面量也放得下的重载；字面量能变成数值类型时，不考虑把它装箱成 `object` 的重载。只有一个最合适的就选它，字面量取它的参数类型。
+2. 找不到或者不止一个时，字面量用默认类型（`int` / `double`），按 C# 的规则选。
+3. 还是一个都不适用时，小数字面量也可以变成 `float` / `decimal`（`MathF.Sqrt(2.5)`）。
+- 泛型推断同样：类型实参由有类型的实参推出，字面量跟着它。
+- 调用不看外面期望的类型（同 C#）：`self.speed = Math.Max(self.wave, 0.5)` 是 `double`，要写 `as float`。
+- 跟着 `float` 实参的字面量表达式同样不能有整数相除：`Math.Max(self.speed, 1 / 2)` 是编译错误（ADR-0038）。
 
 ## 字符串（ADR-0007）
 
@@ -363,6 +371,16 @@ class Slime : Behaviour {
 - 给 `let` 重新赋值是编译错误。
 - 字段必须写类型。局部变量有初始值时可以省略类型。
 - 静态字段写 `static var` / `static let`（ADR-0008）。
+- `static let` 的初始值是常量表达式（字面量、不带数据的 enum case、别的常量和它们的运算）、类型是数字、`bool`、`char`、`string` 或 enum 时，它是编译期常量（C# 那边是 `const`），可以当默认参数值、`match` 的 `case` 标签和 enum case 的值（ADR-0038）。其余的 `static let`（`Vector3`、数组、调用的结果）是启动时算一次的只读字段（C# 的 `static readonly`），用在这些位置是编译错误，诊断说明它的初始值不是常量表达式。读的一方不用区分：两种都是“不会变的值”。
+
+  ```nyxel
+  class Spawner {
+      static let DefaultCount: int = 3                      // 编译期常量
+      static let Origin: Vector3 = Vector3.Zero             // 只读字段
+
+      func Spawn(self, count: int = Spawner.DefaultCount) { }
+  }
+  ```
 - 一个函数里，一个名字只指一个变量（ADR-0036）：声明局部变量或参数时，不能和这一点看得见的局部变量、参数同名。
 
   ```nyxel

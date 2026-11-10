@@ -52,9 +52,12 @@ public class BinderTests
     public void LocalTypes(string statement, string type) => Assert.Equal(type, TypeOf(BindClean(statement), "x"));
 
     [Theory]
-    [InlineData("let x: float = 1 / 2", 0.5f)]
-    [InlineData("let x: double = 1 / 2", 0.5)]
+    [InlineData("let x: float = 1.0 / 2", 0.5f)]
+    [InlineData("let x: double = 1.0 / 2", 0.5)]
+    [InlineData("let x: float = 1.5 * 2", 3f)]
+    [InlineData("let x: float = 10 / 2.0 + 1", 6f)]
     [InlineData("let x = 1 / 2", 0)]
+    [InlineData("let x: int = 7 / 2", 3)]
     [InlineData("let x = 7 % 3", 1)]
     [InlineData("let x = -7 / 2", -3)]
     [InlineData("let x: long = 2147483647 + 1", 2147483648L)]
