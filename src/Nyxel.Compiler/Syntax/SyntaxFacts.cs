@@ -38,6 +38,7 @@ public static class SyntaxFacts
         ["give"] = SyntaxKind.GiveKeyword,
         ["if"] = SyntaxKind.IfKeyword,
         ["else"] = SyntaxKind.ElseKeyword,
+        ["then"] = SyntaxKind.ThenKeyword,
         ["match"] = SyntaxKind.MatchKeyword,
         ["when"] = SyntaxKind.WhenKeyword,
         ["for"] = SyntaxKind.ForKeyword,

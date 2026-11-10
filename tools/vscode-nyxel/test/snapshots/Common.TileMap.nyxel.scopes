@@ -146,8 +146,8 @@
   "let"=storage.type  |  "new"=keyword.other.new
 > for x in 0..<self.Width {
   "for"=keyword.control  |  "in"=keyword.control  |  "0"=constant.numeric.decimal  |  "..<"=keyword.operator.range  |  "self"=variable.language.self
-> line.Append(if self.IsWall(x, y) -> '#' else -> '.')
-  "if"=keyword.control  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "'"=string.quoted.single  |  "#"=string.quoted.single  |  "'"=string.quoted.single  |  "else"=keyword.control  |  "->"=keyword.operator.arrow  |  "'"=string.quoted.single  |  "."=string.quoted.single  |  "'"=string.quoted.single
+> line.Append(if self.IsWall(x, y) then '#' else '.')
+  "if"=keyword.control  |  "self"=variable.language.self  |  "then"=keyword.control  |  "'"=string.quoted.single  |  "#"=string.quoted.single  |  "'"=string.quoted.single  |  "else"=keyword.control  |  "'"=string.quoted.single  |  "."=string.quoted.single  |  "'"=string.quoted.single
 > for tile in [Tile.Wall, Tile.Floor] {           // 没有期望的类型，但马上被遍历：不用写类型
   "for"=keyword.control  |  "in"=keyword.control  |  "// 没有期望的类型，但马上被遍历：不用写类型"=comment.line.double-slash
 > Log.Info($"{tile}: {self.Count(tile)}")

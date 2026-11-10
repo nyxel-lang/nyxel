@@ -492,29 +492,27 @@ public sealed class EvalExpressionSyntax : ExpressionSyntax
 }
 
 /// <summary>
-/// <c>if condition -&gt; value else -&gt; value</c>, an <c>if</c> used as a value (ADR-0025); the statement with
-/// blocks is <see cref="IfStatementSyntax"/>. A value is an expression or a leave such as <c>return</c>
-/// (<see cref="JumpExpressionSyntax"/>). For <c>else if</c>, <see cref="ElseArrowToken"/> is null and
-/// <see cref="ElseValue"/> is the next <see cref="IfExpressionSyntax"/>.
+/// <c>if condition then value else value</c>, an <c>if</c> used as a value (ADR-0025, ADR-0043); the statement
+/// with blocks is <see cref="IfStatementSyntax"/>. A value is an expression or a leave such as <c>return</c>
+/// (<see cref="JumpExpressionSyntax"/>). For <c>else if</c>, <see cref="ElseValue"/> is the next
+/// <see cref="IfExpressionSyntax"/>.
 /// </summary>
 public sealed class IfExpressionSyntax : ExpressionSyntax
 {
     internal IfExpressionSyntax(
         SyntaxToken ifKeyword,
         ExpressionSyntax condition,
-        SyntaxToken arrowToken,
+        SyntaxToken thenKeyword,
         ExpressionSyntax value,
         SyntaxToken elseKeyword,
-        SyntaxToken? elseArrowToken,
         ExpressionSyntax elseValue)
         : base(SyntaxKind.IfExpression)
     {
         IfKeyword = ifKeyword;
         Condition = condition;
-        ArrowToken = arrowToken;
+        ThenKeyword = thenKeyword;
         Value = value;
         ElseKeyword = elseKeyword;
-        ElseArrowToken = elseArrowToken;
         ElseValue = elseValue;
         AdoptChildren();
     }
@@ -523,18 +521,16 @@ public sealed class IfExpressionSyntax : ExpressionSyntax
 
     public ExpressionSyntax Condition { get; }
 
-    public SyntaxToken ArrowToken { get; }
+    public SyntaxToken ThenKeyword { get; }
 
     public ExpressionSyntax Value { get; }
 
     public SyntaxToken ElseKeyword { get; }
 
-    public SyntaxToken? ElseArrowToken { get; }
-
     public ExpressionSyntax ElseValue { get; }
 
     public override IEnumerable<SyntaxNode> GetChildren() =>
-        Children(IfKeyword, Condition, ArrowToken, Value, ElseKeyword, ElseArrowToken, ElseValue);
+        Children(IfKeyword, Condition, ThenKeyword, Value, ElseKeyword, ElseValue);
 }
 
 /// <summary><c>match value { case ... -&gt; ... }</c> (ADR-0009), a statement or a value; as a statement it is wrapped in an <see cref="ExpressionStatementSyntax"/>.</summary>
@@ -717,21 +713,19 @@ public sealed class AwaitCaseSyntax : SyntaxNode
 }
 
 /// <summary>
-/// <c>try -&gt; value catch e: T -&gt; value finally { }</c>, a <c>try</c> used as a value (ADR-0025); the
+/// <c>try value catch e: T -&gt; value finally { }</c>, a <c>try</c> used as a value (ADR-0025, ADR-0043); the
 /// statement with blocks is <see cref="TryStatementSyntax"/>. <c>finally</c> gives no value and keeps its block.
 /// </summary>
 public sealed class TryExpressionSyntax : ExpressionSyntax
 {
     internal TryExpressionSyntax(
         SyntaxToken tryKeyword,
-        SyntaxToken arrowToken,
         ExpressionSyntax value,
         SyntaxList<CatchArrowClauseSyntax> catches,
         FinallyClauseSyntax? @finally)
         : base(SyntaxKind.TryExpression)
     {
         TryKeyword = tryKeyword;
-        ArrowToken = arrowToken;
         Value = value;
         Catches = catches;
         Finally = @finally;
@@ -740,15 +734,13 @@ public sealed class TryExpressionSyntax : ExpressionSyntax
 
     public SyntaxToken TryKeyword { get; }
 
-    public SyntaxToken ArrowToken { get; }
-
     public ExpressionSyntax Value { get; }
 
     public SyntaxList<CatchArrowClauseSyntax> Catches { get; }
 
     public FinallyClauseSyntax? Finally { get; }
 
-    public override IEnumerable<SyntaxNode> GetChildren() => Children(TryKeyword, ArrowToken, Value, Catches, Finally);
+    public override IEnumerable<SyntaxNode> GetChildren() => Children(TryKeyword, Value, Catches, Finally);
 }
 
 /// <summary><c>catch e: IOException when e.HResult == 32 -&gt; value</c> of a <see cref="TryExpressionSyntax"/>.</summary>

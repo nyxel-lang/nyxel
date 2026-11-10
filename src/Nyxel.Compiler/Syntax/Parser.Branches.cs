@@ -3,11 +3,12 @@ using Nyxel.Compiler.Diagnostics;
 namespace Nyxel.Compiler.Syntax;
 
 /// <summary>
-/// <c>if</c>, <c>match</c>, <c>try</c> and <c>eval</c> (ADR-0025, ADR-0026). A <c>{ }</c> block never has a value:
-/// <c>if</c> and <c>try</c> with blocks are statements, and give a value with <c>-&gt;</c> branches instead. Each
-/// branch of those is one expression or a leave (<c>return</c>, <c>throw</c>, <c>break</c>, <c>continue</c>,
-/// <c>give</c>); statements that compute a value go in <c>eval { ... give value }</c>. A <c>match</c> used as a
-/// statement may also have a simple statement or a block after <c>-&gt;</c>.
+/// <c>if</c>, <c>match</c>, <c>try</c> and <c>eval</c> (ADR-0025, ADR-0026, ADR-0043). A <c>{ }</c> block never has a
+/// value: <c>if</c> and <c>try</c> with blocks are statements, and give a value in the forms
+/// <c>if c then a else b</c> and <c>try a catch e: T -&gt; b</c> instead. Each branch of those is one expression or a
+/// leave (<c>return</c>, <c>throw</c>, <c>break</c>, <c>continue</c>, <c>give</c>); statements that compute a value
+/// go in <c>eval { ... give value }</c>. A <c>match</c> used as a statement may also have a simple statement or a
+/// block after <c>-&gt;</c>.
 /// </summary>
 internal sealed partial class Parser
 {
@@ -22,6 +23,10 @@ internal sealed partial class Parser
 
     // The second half of NYX1123 when the match or 'await' block is a statement.
     private const string ArmStatementInBraces = "put it in braces: '-> { ... }'";
+
+    /// <summary>How an <c>if</c> or a <c>try</c> that gives a value is written, for messages.</summary>
+    private static string ValueFormExample(string keyword) =>
+        keyword == "if" ? "if condition then a else b" : "try a catch e: Exception -> b";
 
     /// <summary><c>if</c> or <c>try</c> at the start of a statement: the form with blocks.</summary>
     private StatementSyntax ParseBranchingStatement()
@@ -38,7 +43,7 @@ internal sealed partial class Parser
     }
 
     /// <summary>
-    /// <c>if</c> or <c>try</c> where a value is needed: the form with <c>-&gt;</c>. The form with blocks is reported
+    /// <c>if</c> or <c>try</c> where a value is needed: the form without blocks. The form with blocks is reported
     /// and skipped.
     /// </summary>
     private ExpressionSyntax ParseBranchingValue()
@@ -54,8 +59,7 @@ internal sealed partial class Parser
             }
             return expression;
         }
-        var example = keyword.Kind == SyntaxKind.IfKeyword ? "if condition -> a else -> b" : "try -> a catch e: Exception -> b";
-        Report(DiagnosticDescriptors.BlockBranchesAsValue, keyword.Span, keyword.Text, example);
+        Report(DiagnosticDescriptors.BlockBranchesAsValue, keyword.Span, keyword.Text, ValueFormExample(keyword.Text));
         return SkipToMissingExpression(node);
     }
 
@@ -69,15 +73,24 @@ internal sealed partial class Parser
     // if ---------------------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// <c>if</c> in either form, decided by what follows the condition: <c>{</c> for the statement, <c>-&gt;</c> for
-    /// the value. When neither follows, the form the place needs. Branches written the other way are reported.
+    /// <c>if</c> in either form, decided by what follows the condition: <c>{</c> for the statement, <c>then</c> for
+    /// the value (ADR-0043; a <c>then</c> may start the next line, and the <c>-&gt;</c> written here before is
+    /// reported). When neither follows, the form the place needs. Branches written the other way are reported.
     /// </summary>
     private SyntaxNode ParseIf(bool asValue)
     {
         var errors = ErrorCount;
         var ifKeyword = NextToken();
         var condition = ParseHeadExpression();
-        return At(SyntaxKind.MinusGreaterThanToken) || (asValue && Current.Kind != SyntaxKind.OpenBraceToken)
+        if (!asValue && IsThenBeforeBlock(0))
+        {
+            // 'if c then { ... }': the statement, written with the 'then' of the value form. The '{' already ends the
+            // condition, so the statement has no 'then' (ADR-0043); it is reported and skipped.
+            Report(DiagnosticDescriptors.ThenInIfStatement, Current.Span);
+            SkipCurrentToken();
+            return ParseIfStatementRest(ifKeyword, condition);
+        }
+        return Current.Kind == SyntaxKind.ThenKeyword || At(SyntaxKind.MinusGreaterThanToken) || (asValue && Current.Kind != SyntaxKind.OpenBraceToken)
             ? ParseIfExpressionRest(ifKeyword, condition, errors)
             : ParseIfStatementRest(ifKeyword, condition);
     }
@@ -97,9 +110,9 @@ internal sealed partial class Parser
                 var next = ParseIf(asValue: false);
                 body = next as StatementSyntax ?? MixedValueInStatement((IfExpressionSyntax)next);
             }
-            else if (At(SyntaxKind.MinusGreaterThanToken))
+            else if (Current.Kind != SyntaxKind.OpenBraceToken && !AtLineBreak && CanStartBranchValue())
             {
-                body = ParseArrowBranchInStatement("if");
+                body = ParseValueBranchInStatement("if");
             }
             else
             {
@@ -110,37 +123,45 @@ internal sealed partial class Parser
         return new IfStatementSyntax(ifKeyword, condition, block, elseClause);
     }
 
-    /// <summary><c>else if c -&gt; ...</c> after branches in braces: reported, and kept in a block with missing braces.</summary>
+    /// <summary><c>else if c then ...</c> after branches in braces: reported, and kept in a block with missing braces.</summary>
     private BlockSyntax MixedValueInStatement(IfExpressionSyntax next)
     {
-        Report(DiagnosticDescriptors.MixedBranches, next.ArrowToken.Span, "if");
+        var at = next.ThenKeyword.IsMissing ? next.Value.Span : next.ThenKeyword.Span;
+        Report(DiagnosticDescriptors.MixedBranches, at, "if", ValueFormExample("if"));
         return InMissingBraces(new ExpressionStatementSyntax(next));
     }
 
     /// <summary>
-    /// <c>-&gt; value</c> among branches in braces: reported, and read into a block with missing braces, the arrow
-    /// skipped.
+    /// A value where a branch in braces should be (<c>} else b</c>, <c>} catch e: E -&gt; b</c>): reported, and read
+    /// into a block with missing braces, an arrow before it skipped.
     /// </summary>
-    private BlockSyntax ParseArrowBranchInStatement(string keyword)
+    private BlockSyntax ParseValueBranchInStatement(string keyword)
     {
-        Report(DiagnosticDescriptors.MixedBranches, Current.Span, keyword);
-        SkipCurrentToken();
-        AllowLineBreak();
+        Report(DiagnosticDescriptors.MixedBranches, Current.Span, keyword, ValueFormExample(keyword));
+        if (At(SyntaxKind.MinusGreaterThanToken))
+        {
+            SkipCurrentToken();
+            AllowLineBreak();
+        }
         return InMissingBraces(new ExpressionStatementSyntax(ParseBranchValue(keyword)));
     }
+
+    /// <summary>On the line: something a branch value can start with, counting the '-&gt;' written before one until ADR-0043.</summary>
+    private bool CanStartBranchValue() => Current.Kind is SyntaxKind.MinusGreaterThanToken or SyntaxKind.ReturnKeyword
+        or SyntaxKind.ThrowKeyword or SyntaxKind.BreakKeyword or SyntaxKind.ContinueKeyword or SyntaxKind.GiveKeyword
+        || CanStartExpression(Current.Kind);
 
     private static BlockSyntax InMissingBraces(StatementSyntax statement) => new(
         SyntaxToken.Missing(SyntaxKind.OpenBraceToken, statement.FullSpan.Start),
         MakeList<StatementSyntax>([statement]),
         SyntaxToken.Missing(SyntaxKind.CloseBraceToken, statement.FullSpan.End));
 
-    /// <summary>The rest of an <c>if</c> with '-&gt;'. A missing <c>else</c> is only reported when the rest had no error.</summary>
+    /// <summary>The rest of an <c>if</c> that gives a value. A missing <c>else</c> is only reported when the rest had no error.</summary>
     private IfExpressionSyntax ParseIfExpressionRest(SyntaxToken ifKeyword, ExpressionSyntax condition, int errorsAtStart)
     {
-        var arrow = ExpectArrow();
+        var thenKeyword = ExpectThen();
         var value = ParseBranchValue("if");
         SyntaxToken elseKeyword;
-        SyntaxToken? elseArrow = null;
         ExpressionSyntax elseValue;
         // 'else' continues the 'if' on the same line or at the start of the next (ADR-0025). Nothing else starts
         // with 'else': the default arm of a match is 'case _' (ADR-0026).
@@ -162,7 +183,7 @@ internal sealed partial class Parser
             }
             else
             {
-                (elseArrow, elseValue) = ParseArrowBranch("if");
+                elseValue = ParseElseValue(elseKeyword);
             }
         }
         else
@@ -172,21 +193,70 @@ internal sealed partial class Parser
                 Report(DiagnosticDescriptors.IfValueWithoutElse, ifKeyword.Span);
             }
             elseKeyword = Missing(SyntaxKind.ElseKeyword);
-            elseArrow = Missing(SyntaxKind.MinusGreaterThanToken);
             elseValue = MissingExpression();
         }
-        return new IfExpressionSyntax(ifKeyword, condition, arrow, value, elseKeyword, elseArrow, elseValue);
+        return new IfExpressionSyntax(ifKeyword, condition, thenKeyword, value, elseKeyword, elseValue);
     }
 
     /// <summary>
-    /// <c>-&gt; value</c> of an <c>if</c> or <c>try</c> that gives a value. A block in its place is reported and
-    /// skipped.
+    /// The <c>then</c> of an <c>if</c> that gives a value (ADR-0043). Like an operator it may start a line but not end
+    /// one (ADR-0019). A <c>-&gt;</c> in its place, the form until ADR-0043, is reported and skipped.
+    /// </summary>
+    private SyntaxToken ExpectThen()
+    {
+        if (Current.Kind == SyntaxKind.ThenKeyword)
+        {
+            var thenKeyword = NextToken();
+            CheckOperatorAtLineEnd(thenKeyword);
+            return thenKeyword;
+        }
+        if (TrySkipValueArrow("if", "Write 'then' instead of this '->'"))
+        {
+            return Missing(SyntaxKind.ThenKeyword);
+        }
+        return Expect(SyntaxKind.ThenKeyword);
+    }
+
+    /// <summary>The value after the <c>else</c> of an <c>if</c> that gives a value. A block in its place is reported and skipped.</summary>
+    private ExpressionSyntax ParseElseValue(SyntaxToken elseKeyword)
+    {
+        if (Current.Kind == SyntaxKind.OpenBraceToken && !AtLineBreak)
+        {
+            Report(DiagnosticDescriptors.MixedBranches, Current.Span, "if", ValueFormExample("if"));
+            return SkipToMissingExpression(ParseBlock());
+        }
+        if (!TrySkipValueArrow("if"))
+        {
+            CheckOperatorAtLineEnd(elseKeyword);
+        }
+        return ParseBranchValue("if");
+    }
+
+    /// <summary>
+    /// A <c>-&gt;</c> where <c>if c -&gt; a else -&gt; b</c> and <c>try -&gt; a</c> had one until ADR-0043: each is
+    /// reported with what to do about it and skipped; the value may follow on the next line as it could then.
+    /// </summary>
+    private bool TrySkipValueArrow(string keyword, string fix = "Remove this '->'")
+    {
+        if (!At(SyntaxKind.MinusGreaterThanToken))
+        {
+            return false;
+        }
+        Report(DiagnosticDescriptors.ArrowInValueBranch, Current.Span, fix, keyword == "if" ? "an 'if'" : "a 'try'", ValueFormExample(keyword));
+        SkipCurrentToken();
+        AllowLineBreak();
+        return true;
+    }
+
+    /// <summary>
+    /// <c>-&gt; value</c> after the <c>catch</c> of a <c>try</c> that gives a value. A block in its place is reported
+    /// and skipped.
     /// </summary>
     private (SyntaxToken Arrow, ExpressionSyntax Value) ParseArrowBranch(string keyword)
     {
         if (Current.Kind == SyntaxKind.OpenBraceToken && !AtLineBreak)
         {
-            Report(DiagnosticDescriptors.MixedBranches, Current.Span, keyword);
+            Report(DiagnosticDescriptors.MixedBranches, Current.Span, keyword, ValueFormExample(keyword));
             var block = ParseBlock();
             return (SyntaxToken.Missing(SyntaxKind.MinusGreaterThanToken, block.FullSpan.Start), SkipToMissingExpression(block));
         }
@@ -205,8 +275,8 @@ internal sealed partial class Parser
     }
 
     /// <summary>
-    /// The value after the '-&gt;' of an <c>if</c> or <c>try</c>: a leave, or an expression. A block written there
-    /// (<c>-&gt; { ... }</c>) is reported and skipped: statements that compute a value go in <c>eval</c>.
+    /// A branch of an <c>if</c> or <c>try</c> that gives a value: a leave, or an expression. A block written there
+    /// (<c>then { ... }</c>) is reported and skipped: statements that compute a value go in <c>eval</c>.
     /// </summary>
     private ExpressionSyntax ParseBranchValue(string keyword)
     {
@@ -216,8 +286,7 @@ internal sealed partial class Parser
         }
         if (Current.Kind == SyntaxKind.OpenBraceToken && !AtLineBreak)
         {
-            var example = keyword == "if" ? "if condition -> a else -> b" : "try -> a catch e: Exception -> b";
-            Report(DiagnosticDescriptors.BlockBranchesAsValue, Current.Span, keyword, example);
+            Report(DiagnosticDescriptors.BlockBranchesAsValue, Current.Span, keyword, ValueFormExample(keyword));
             return SkipToMissingExpression(ParseBlock());
         }
         _branchValueStart = _position;
@@ -265,11 +334,16 @@ internal sealed partial class Parser
         }
     }
 
+    /// <summary>A <c>then</c> with a <c>{</c> right after it on the same line: the <c>then</c> of a statement, which has none.</summary>
+    private bool IsThenBeforeBlock(int offset) =>
+        Peek(offset).Kind == SyntaxKind.ThenKeyword && Peek(offset + 1) is { Kind: SyntaxKind.OpenBraceToken, HasLeadingLineBreak: false };
+
     /// <summary>
-    /// At <c>if</c>: whether a <c>-&gt;</c> comes before a <c>{</c> outside brackets, making it the <c>if</c> that gives
-    /// a value. Scans ahead without building nodes.
+    /// At <c>if</c>: whether a <c>then</c> (or the <c>-&gt;</c> written in its place until ADR-0043) comes before a
+    /// <c>{</c> outside brackets, making it the <c>if</c> that gives a value. <c>then {</c> is the statement with a
+    /// <c>then</c> too many. Scans ahead without building nodes.
     /// </summary>
-    private bool IsArrowIfAhead()
+    private bool IsValueIfAhead()
     {
         var depth = 0;
         for (var offset = 1; ; offset++)
@@ -285,6 +359,8 @@ internal sealed partial class Parser
                         return false;
                     }
                     break;
+                case SyntaxKind.ThenKeyword when depth == 0:
+                    return !IsThenBeforeBlock(offset);
                 case SyntaxKind.MinusGreaterThanToken when depth == 0:
                     return true;
                 case SyntaxKind.OpenBraceToken or SyntaxKind.CloseBraceToken when depth == 0:
@@ -297,7 +373,7 @@ internal sealed partial class Parser
 
     /// <summary>An <c>if</c> or <c>try</c> statement (with blocks) starting here.</summary>
     private bool IsBranchingStatementAhead() =>
-        (Current.Kind == SyntaxKind.IfKeyword && !IsArrowIfAhead())
+        (Current.Kind == SyntaxKind.IfKeyword && !IsValueIfAhead())
         || (Current.Kind == SyntaxKind.TryKeyword && Peek(1).Kind == SyntaxKind.OpenBraceToken);
 
     // match ------------------------------------------------------------------------------------------------------
@@ -444,12 +520,16 @@ internal sealed partial class Parser
 
     // try --------------------------------------------------------------------------------------------------------
 
-    /// <summary><c>try</c> in either form, decided by what follows it, as for <see cref="ParseIf"/>.</summary>
+    /// <summary>
+    /// <c>try</c> in either form, decided by what follows it: <c>{</c> for the statement, a value on the same line
+    /// for the <c>try</c> that gives one (ADR-0043; the <c>-&gt;</c> written before the value until then is reported).
+    /// </summary>
     private SyntaxNode ParseTry(bool asValue)
     {
         var errors = ErrorCount;
         var tryKeyword = NextToken();
-        return At(SyntaxKind.MinusGreaterThanToken) || (asValue && Current.Kind != SyntaxKind.OpenBraceToken)
+        var valueFollows = Current.Kind != SyntaxKind.OpenBraceToken && !AtLineBreak && CanStartBranchValue();
+        return valueFollows || (asValue && Current.Kind != SyntaxKind.OpenBraceToken)
             ? ParseTryExpressionRest(tryKeyword, errors)
             : ParseTryStatementRest(tryKeyword);
     }
@@ -462,7 +542,7 @@ internal sealed partial class Parser
         {
             ReportIfOnNextLine();
             var (catchKeyword, identifier, typeAnnotation, filter) = ParseCatchHeader();
-            var body = At(SyntaxKind.MinusGreaterThanToken) ? ParseArrowBranchInStatement("try") : ParseBlock();
+            var body = At(SyntaxKind.MinusGreaterThanToken) ? ParseValueBranchInStatement("try") : ParseBlock();
             catches.Add(new CatchClauseSyntax(catchKeyword, identifier, typeAnnotation, filter, body));
         }
         FinallyClauseSyntax? @finally = null;
@@ -478,10 +558,10 @@ internal sealed partial class Parser
         return new TryStatementSyntax(tryKeyword, block, MakeList(catches), @finally);
     }
 
-    /// <summary>The rest of a <c>try</c> with '-&gt;'. A missing <c>catch</c> is only reported when the rest had no error.</summary>
+    /// <summary>The rest of a <c>try</c> that gives a value. A missing <c>catch</c> is only reported when the rest had no error.</summary>
     private TryExpressionSyntax ParseTryExpressionRest(SyntaxToken tryKeyword, int errorsAtStart)
     {
-        var arrow = ExpectArrow();
+        TrySkipValueArrow("try");
         var value = ParseBranchValue("try");
         var catches = new List<CatchArrowClauseSyntax>();
         // 'catch' and 'finally' continue the 'try' on the same line or at the start of the next (ADR-0025).
@@ -496,7 +576,7 @@ internal sealed partial class Parser
         {
             Report(DiagnosticDescriptors.TryWithoutHandler, tryKeyword.Span);
         }
-        return new TryExpressionSyntax(tryKeyword, arrow, value, MakeList(catches), @finally);
+        return new TryExpressionSyntax(tryKeyword, value, MakeList(catches), @finally);
     }
 
     /// <summary>

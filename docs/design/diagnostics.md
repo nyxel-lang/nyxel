@@ -57,9 +57,9 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 |---|---|---|
 | `NYX1101` | 缺了某个记号、表达式、类型或声明 | `F(a, b` 换行后没有 `)` |
 | `NYX1102` | 不该出现的记号 | lambda 参数里的 `self`、前面没有 `if` 的 `else` |
-| `NYX1103` | 运算符（含 `.`、`?.`、`with`）写在行尾，括号里也一样（ADR-0019、ADR-0027） | `a +` 换行 `b` |
+| `NYX1103` | 运算符（含 `.`、`?.`、`with`）写在行尾，括号里也一样（ADR-0019、ADR-0027）；当值用的 `if` 的 `then`、`else` 写在行尾（ADR-0043） | `a +` 换行 `b`；`if c then` 换行 `a` |
 | `NYX1104` | `{` 不在前面内容的同一行（ADR-0013） | `if a` 换行 `{` |
-| `NYX1105` | `{ }` 形式的 `else` / `catch` / `finally` 不在 `}` 的同一行（`->` 形式可以写在下一行开头，ADR-0025） | `}` 换行 `else {` |
+| `NYX1105` | `{ }` 形式的 `else` / `catch` / `finally` 不在 `}` 的同一行（当值用的 `if` / `try` 可以写在下一行开头，ADR-0025） | `}` 换行 `else {` |
 | `NYX1106` | 一行写了两条语句、两个成员、两个分支或两个访问器 | `let a = 1 let b = 2` |
 | `NYX1107` | 一行以不能续行的记号开头（ADR-0013 的续行规则） | `let a` 换行 `= 1` |
 | `NYX1108` | 修饰符顺序不对，消息给出正确顺序（ADR-0019） | `static public` |
@@ -94,11 +94,11 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1184` | `eval` 块里的 `return`（lambda 里的不算） | 让块给出 `null`，在块后面写 `?? return` |
 | `NYX1185` | `eval` 块里的 `break` / `continue` 要离开块（块里自己的循环不算） | `for` 里的 `eval { if a { break } ... }` |
 | `NYX1186` | `eval` 块是空的，或者最后一句是没有 `give` 的表达式（其他走到末尾的路径在语义分析查） | `eval { ...; r * 2 }` 写成 `give r * 2` |
-| `NYX1188` | `->` 形式的 `if` / `try` 单独当语句 | `if a -> F() else -> G()` 写成 `if a { F() } else { G() }` |
-| `NYX1189` | 同一个 `if` / `try` 的分支两种形式混用 | `if a { } else -> 1`、`if b -> 1 else { 2 }` |
+| `NYX1188` | 当值用的 `if` / `try`（`if c then a else b`、`try a catch e: E -> b`）单独当语句 | `if a then F() else G()` 写成 `if a { F() } else { G() }` |
+| `NYX1189` | 同一个 `if` / `try` 的分支两种形式混用 | `if a { } else 1`、`if b then 1 else { 2 }` |
 | `NYX1190` | 当值用的 `match`、`await all` / `await any` 有 `{ }` 块分支 | `case 1 -> { ... }` 写成 `case 1 -> eval { ... give 值 }` |
-| `NYX1191` | `->` 形式的 `if` / `try` 当运算数，或直接写在另一个 `if` / `try` 的分支里（`else if` 不算） | `1 + if b -> 1 else -> 2`、`if a -> if b -> 1 else -> 2 else -> 3`，加括号 |
-| `NYX1192` | `->` 形式的 `if` 没有 `else` | `if b -> 1` |
+| `NYX1191` | 当值用的 `if` / `try` 当运算数，或直接写在另一个 `if` / `try` 的分支里（`else if` 不算） | `1 + if b then 1 else 2`、`if a then if b then 1 else 2 else 3`，加括号 |
+| `NYX1192` | 当值用的 `if` 没有 `else` | `if b then 1` |
 | `NYX1194` | `_` 用作名字（ADR-0026：它是保留记号） | `let _ = 1`、`for _ in xs` |
 | `NYX1195` | `_` 用作值 | `let a = _`、`F(_)`；只有 `out _` 可以 |
 | `NYX1196` | 成员上写了 `private`（ADR-0026：默认就是私有，只有访问器写 `private set`；`init` 默认公开，可以写 `private init`，ADR-0040） | `private var x: int = 0` |
@@ -132,8 +132,9 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1230` | 一项给已有的变量或成员赋值（各项谁先完成不确定）；右边照常读成这一项 | `case self.texture = Load()` 写成 `case let t = Load() -> self.texture = t` |
 | `NYX1231` | `await all` / `await any` 不到两项 | 只等一样东西就写 `await` |
 | `NYX1232` | 一项起了名字但没有 `->` 分支（名字只在自己的分支里可见） | `case let tex = Load()`；要在块后面用，写 `let (a, b) = await all { ... }` |
-| `NYX1239` | 局部变量没写初始值（ADR-0042：局部变量在声明的地方给值；字段可以留给 `init`）。这一行另有错误时只报那个错误 | `let label: string` 之后各分支赋值，写成 `let label = if c -> "a" else -> "b"` |
+| `NYX1239` | 局部变量没写初始值（ADR-0042：局部变量在声明的地方给值；字段可以留给 `init`）。这一行另有错误时只报那个错误 | `let label: string` 之后各分支赋值，写成 `let label = if c then "a" else "b"` |
 | `NYX1240` | `init` 上写了 `public`（ADR-0042：`init` 默认公开，只写 `private init`、`protected init`） | `public init() { }` 写成 `init() { }` |
+| `NYX1242` | 语句形式的 `if` 写了 `then`（ADR-0043：`then` 只用在当值用的 `if`，语句的 `{` 已经标出条件结束）；`then` 跳过后照语句读 | `if c then { ... }` 写成 `if c { ... }` |
 
 ### 其他语言的写法
 
@@ -148,7 +149,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1154` | `(int)x` | `x as int`（ADR-0014） |
 | `NYX1155` | `F(count: 3)`、`(Min: 1, Max: 2)` | `F(count = 3)`、`(Min = 1, Max = 2)`（ADR-0011、0021） |
 | `NYX1156` | `x is Enemy e` | `x is Enemy`，`x` 自己被收窄（ADR-0010） |
-| `NYX1157` | `a ? b : c` | `if a -> b else -> c`（ADR-0007、0025） |
+| `NYX1157` | `a ? b : c` | `if a then b else c`（ADR-0007、0043） |
 | `NYX1158` | `x!` | `x ?? throw new 异常("原因")`（ADR-0009） |
 | `NYX1159` | `using var r = ...`、`await using var r = ...` | `using r = ...`（ADR-0015）、`await using r = ...`（ADR-0034） |
 | `NYX1160` | `using (...) { }` | `using r = ...`，在所在块结束时释放（ADR-0015） |
@@ -168,7 +169,8 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1174` | 超过三维的数组 `int[,,,]`、`new int[1, 2, 3, 4]` | 最多 `array3d<T>`（ADR-0022） |
 | `NYX1180` | `x is Damage.Burn(var a, var s)` | `x is Damage.Burn` 只判断；取数据写 `match`（ADR-0024） |
 | `NYX1181` | enum 上面的 `[Flags]` | `flags enum`（ADR-0024） |
-| `NYX1187` | 当值用的 `if` / `try` 写 `{ }` 分支（Rust、Kotlin），或 `->` 后面写 `{ }` | `if c -> a else -> b`、`try -> a catch e: E -> b`；要先执行语句用 `eval`（ADR-0025） |
+| `NYX1187` | 当值用的 `if` / `try` 写 `{ }` 分支（Rust、Kotlin），或 `then`、`->` 后面写 `{ }` | `if c then a else b`、`try a catch e: E -> b`；要先执行语句用 `eval`（ADR-0025、0043） |
+| `NYX1241` | 当值用的 `if` / `try` 写了 ADR-0043 之前的箭头：`if c -> a else -> b`、`try -> a catch ...`。每个箭头报一次，跳过后照新写法读 | `if c then a else b`、`try a catch e: E -> b`；`->` 只跟在 `case`、`catch` 后面（ADR-0043） |
 | `NYX1193` | `match` 的默认分支写 `else`（Kotlin） | `case _ -> ...`（ADR-0026） |
 | `NYX1200` | `super.init(...)`、`self.init(...)`（Swift，也是 ADR-0013 的旧写法），包括 `super.init.Name(...)` | `init super(...)`、`init self(...)`、`init super.Name(...)`（ADR-0027） |
 | `NYX1204` | 事件的访问器 `event Clicked() { add(h) { ... } remove(h) { ... } }`，整个 `{ }` 跳过 | 订阅要转发的事件，在处理函数里 `emit` 自己的事件（ADR-0029） |

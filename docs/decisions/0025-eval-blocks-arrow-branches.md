@@ -1,6 +1,6 @@
-# ADR-0025: `eval` 块和 `give`；`if` / `try` 当值用时分支写 `->`
+# ADR-0025: `eval` 块和 `give`；`{ }` 块没有值，`if` / `try` 当值用时另有写法
 
-- 状态：已接受
+- 状态：已接受（2026-11-10 修订）
 - 日期：2026-10-08
 
 ## 背景
@@ -13,9 +13,9 @@
 
 1. 块本身：块里的 `return`、值怎么给、能不能当语句、关键字。块里的 `return` 按推荐定；值怎么给，用户提出既然加了关键字就统一都写 `give`；语句形式按推荐先不放开；关键字用户选了表示“求值”的 `eval`。
 2. 用户提出 `if` / `match` 当值用时也统一用 `eval`。照字面每个分支都写 `eval { give x }` 太重，改成“分支只能是一个表达式，要写语句就用 `eval`”，用户同意。
-3. 这样一来 `if c { "alive" } else { "dead" }` 里的大括号不再是块，只是括住一个值，用户觉得突兀，提出像 `match` 一样用 `->`。比较了 `->`、`then`、保持大括号，用户选了 `->`。
+3. 这样一来 `if c { "alive" } else { "dead" }` 里的大括号不再是块，只是括住一个值，用户觉得突兀，提出像 `match` 一样用 `->`。比较了 `->`、`then`、保持大括号，用户选了 `->`；2026-11-10 用户觉得 `else ->` 不好看，改成了 `then`（ADR-0043）。
 
-最后用户确认了两处细节：当语句用的 `match` 分支也能直接写离开语句；箭头形式的 `try` 的 `finally` 也能写在下一行开头。
+最后用户确认了两处细节：当语句用的 `match` 分支也能直接写离开语句；当值用的 `try` 的 `finally` 也能写在下一行开头。
 
 ## 决策
 
@@ -29,7 +29,7 @@
        if reduced <= 0 {
            give 0
        }
-       let crit = if hit.IsCritical -> 2 else -> 1
+       let crit = if hit.IsCritical then 2 else 1
        give reduced * crit
    }
    // reduced、crit 到这里已经不可见；damage 是 let
@@ -62,30 +62,30 @@
 2. **`{ }` 块本身永远没有值**。用语句算出一个值只有 `eval` 加 `give` 这一种写法。`if`、`match`、`try` 当值用时，每个分支只能是一个表达式或一条离开语句：
    - 离开语句就是 `??` 右边能写的那几种：`return`、`throw`、`break`、`continue`，`eval` 里再加 `give`。
    - 分支要先执行语句时，这个表达式就是一个 `eval` 块；`if` 的分支要写语句时，通常把整个 `if` 改写成 `eval`，在里面用普通的 `if` 语句。
-3. **`if` / `try` 当值用时分支写 `->`，当语句用时照旧写 `{ }`**。
+3. **`if` / `try` 当值用时不写块：`if 条件 then 值 else 值`、`try 值 catch e: T -> 值`（ADR-0043）；当语句用时照旧写 `{ }`**。
    ```nyxel
-   let label = if self.hp > 0 -> "alive" else -> "dead"
+   let label = if self.hp > 0 then "alive" else "dead"
 
-   let speed = if self.IsFrozen -> 0
-       else if self.IsHasted -> self.BaseSpeed * 2
-       else -> self.BaseSpeed
+   let speed = if self.IsFrozen then 0
+       else if self.IsHasted then self.BaseSpeed * 2
+       else self.BaseSpeed
 
-   let config = try -> Config.Load(path)
+   let config = try Config.Load(path)
        catch e: IOException -> Config.Default
 
-   let text = try -> File.ReadAllText(self.path) catch e: FileNotFoundException -> return 0
+   let text = try File.ReadAllText(self.path) catch e: FileNotFoundException -> return 0
    ```
-   - 看到 `if ... ->` 就知道这个 `if` 在产生值，看到 `if ... {` 就知道是在执行语句。写反了是编译错误：`{ }` 形式写在要值的地方，或者 `->` 形式单独当语句。同一个 `if` 的分支不能两种混用。
-   - `->` 形式必须有 `else`。`try` 至少有一个 `catch` 或 `finally`；`finally` 不产生值，照旧写 `finally { 语句 }`。
-   - 换行：下一行以 `else`、`catch` 或 `finally` 开头时接着上一行（只对 `->` 形式；`{ }` 形式照旧要跟在 `}` 后面同一行）。行尾是 `->` 时接着下一行（ADR-0013）。
-   - 实现时发现：`match` 的默认分支也叫 `else`，`case 1 -> if b -> 1` 下一行的 `else -> 2` 会被分支里的 `if` 吞掉。先定为“直接在 `match` 分支里时行首的 `else` 归 `match`”，review 时觉得这是看不见的规则，改成默认分支写 `case _`，`else` 只属于 `if`（ADR-0026）。
-   - 范围：最后一个分支一直延伸到表达式结束，同 C# 的 `?:`：`if c -> a else -> b + 1` 的 else 分支是 `b + 1`。所以 `->` 形式的 `if` / `try` 拿来当运算数，或者直接写在另一个 `if` / `try` 的分支里时，必须加括号；`else if` 连写不算。这挡住了“悬挂 else”：
+   - 看到 `if ... then` 就知道这个 `if` 在产生值，看到 `if ... {` 就知道是在执行语句；`try` 后面是 `{` 就是语句，否则在产生值。写反了是编译错误：`{ }` 形式写在要值的地方，或者值形式单独当语句。同一个 `if` 的分支不能两种混用。
+   - 当值用的 `if` 必须有 `else`。`try` 至少有一个 `catch` 或 `finally`；`finally` 不产生值，照旧写 `finally { 语句 }`。
+   - 换行：下一行以 `then`、`else`、`catch` 或 `finally` 开头时接着上一行（只对值形式；`{ }` 形式照旧要跟在 `}` 后面同一行）。`then`、`else` 像运算符一样不能写在行尾（ADR-0019、ADR-0043）；`catch e: T ->` 的行尾是 `->`，接着下一行（ADR-0013）。
+   - 实现时发现：`match` 的默认分支当时也叫 `else`，写在 `match` 分支里的 `if` 会把下一行本该属于 `match` 的 `else` 吞掉。先定为“直接在 `match` 分支里时行首的 `else` 归 `match`”，review 时觉得这是看不见的规则，改成默认分支写 `case _`，`else` 只属于 `if`（ADR-0026）。
+   - 范围：最后一个分支一直延伸到表达式结束，同 C# 的 `?:`：`if c then a else b + 1` 的 else 分支是 `b + 1`。所以当值用的 `if` / `try` 拿来当运算数，或者直接写在另一个 `if` / `try` 的分支里时，必须加括号；`else if` 连写不算。这挡住了“悬挂 else”：
      ```nyxel
-     let total = (if hasBonus -> 2 else -> 1) * base        // 正确
-     let x = if a -> (if b -> 1 else -> 2) else -> 3         // 正确
-     let x = if a -> if b -> 1 else -> 2 else -> 3           // 错误：分不清 else 属于哪个 if
+     let total = (if hasBonus then 2 else 1) * base         // 正确
+     let x = if a then (if b then 1 else 2) else 3           // 正确
+     let x = if a then if b then 1 else 2 else 3             // 错误：分不清 else 属于哪个 if
      ```
-     `match` 分支、函数参数、`=` 后面都是完整的表达式位置，不用加括号：`case Heal(amount) -> if amount > 100 -> 100 else -> amount`。
+     `match` 分支、函数参数、`=` 后面都是完整的表达式位置，不用加括号：`case Heal(amount) -> if amount > 100 then 100 else amount`。
 4. **`match` 分支 `->` 的右边按用法定：当值用时是一个表达式或一条离开语句；当语句用时是一条简单语句或一个 `{ }` 块**。
    ```nyxel
    let change = match hit {
@@ -132,9 +132,9 @@
 - **`if` / `match` 的分支也写 `give`**：`if c { give "alive" } else { give "dead" }`，短分支只是多了字；`give` 还会有两个去向，`eval` 里嵌着当值用的 `if` 时要判断它给的是哪一个。
 - **`if` / `match` 的每个分支都写 `eval`**：`if c { eval { give "alive" } } else { ... }` 太重；现有的 `if` / `match` 表达式几乎都是一个值的分支。
 - **单值分支保持大括号** `if c { "alive" } else { "dead" }`：不用改，但大括号有时是块、有时只是括住一个值。
-- **`then`**：`if c then a else b`（Scala 3、F#、OCaml、Haskell），读起来最像英语，嵌套时不堆箭头。但要多一个关键字，`try` 也用不上 `then`，分支就有了两种标记。选 `->` 是因为 Nyxel 已经规定“分支用 `->`”（`match` 的每个分支），Kotlin 不带参数的 `when { c -> a; else -> b }` 也是这个样子；代价是嵌在 `match` 分支里时一行箭头较多。
+- **`if c -> a else -> b`、`try -> a catch e: T -> b`**（原来的决定）：Nyxel 已经规定“分支用 `->`”（`match` 的每个分支），不用多一个关键字，Kotlin 不带参数的 `when { c -> a; else -> b }` 也是这个样子。当时比较过 `then`（`if c then a else b`，Scala 3、F#、OCaml、Haskell），嫌它多一个关键字、`try` 用不上。用下来 `else ->`、`try ->` 的箭头左边没有东西，嵌在 `match` 分支里一行三个箭头，别的语言也没有这个写法；2026-11-10 改成 `then`，`try` 去掉第一个箭头，见 ADR-0043。
 - **当语句用的 `match` 分支不能直接写离开语句**（照旧报 `NYX1123`）：同一个 `match` 会因为当值用还是当语句用，允许的写法不同。
-- **当语句用的 `match` 分支一律写 `{ }`、不写 `->`**（`case Idle { self.Wander() }`）：`->` 就能在全语言里只表示“产生值”，和 `if` 一致；但每个分支都带花括号，同一个 enum 当值和当语句 `match` 时形状不同，一行的 `{ return }` 是噪音。
+- **当语句用的 `match` 分支一律写 `{ }`、不写 `->`**（`case Idle { self.Wander() }`）：`->` 就能只表示“产生值”；但每个分支都带花括号，同一个 enum 当值和当语句 `match` 时形状不同，一行的 `{ return }` 是噪音。
 
 ## 后果
 
@@ -143,6 +143,9 @@
   - ADR-0009 决策 5 的“分支的右边是一个表达式或一个块；`match` 当表达式用时，块的值是它最后一个表达式”。
   - ADR-0014 决策 4 里 `try` 表达式的写法和“每个分支的最后一个表达式是值”。
   - ADR-0015 决策 3 和 ADR-0020 决策 6 里“要更早释放就拆成函数”：现在也可以用 `eval`。单独的 `{ }` 仍然不允许。
-- `match` 分支直接写 `return` 等离开语句不再报 `NYX1123`；`NYX1157`（`?:`）的建议改成 `if c -> a else -> b`。新的错误码见 design/diagnostics.md。
-- 语法分析能查的在语法分析查：`eval` 当语句、`eval` 外的 `give`、`eval` 里的 `return` 和离开块的 `break` / `continue`、`eval` 最后一句没有 `give`、两种 `if` / `try` 写反或混用、当值用的 `match` 写块分支、`->` 形式要加括号的地方。留给语义分析（M2）：每条路径都以 `give` / `throw` 结束；块的类型；翻译成 C#。
-- 语法树：`{ }` 形式的 `if` / `try` 是语句 `IfStatementSyntax` / `TryStatementSyntax`；`->` 形式是表达式 `IfExpressionSyntax` / `TryExpressionSyntax`；新增 `EvalExpressionSyntax`、`GiveStatementSyntax`，`??` 右边和分支里的 `give` 是 `GiveExpression`。
+- `match` 分支直接写 `return` 等离开语句不再报 `NYX1123`；`NYX1157`（`?:`）的建议改成当值用的 `if`（现在是 `if c then a else b`，ADR-0043）。新的错误码见 design/diagnostics.md。
+- 语法分析能查的在语法分析查：`eval` 当语句、`eval` 外的 `give`、`eval` 里的 `return` 和离开块的 `break` / `continue`、`eval` 最后一句没有 `give`、两种 `if` / `try` 写反或混用、当值用的 `match` 写块分支、值形式要加括号的地方。留给语义分析（M2）：每条路径都以 `give` / `throw` 结束；块的类型；翻译成 C#。
+- 语法树：`{ }` 形式的 `if` / `try` 是语句 `IfStatementSyntax` / `TryStatementSyntax`；值形式是表达式 `IfExpressionSyntax` / `TryExpressionSyntax`；新增 `EvalExpressionSyntax`、`GiveStatementSyntax`，`??` 右边和分支里的 `give` 是 `GiveExpression`。
+
+## 修订记录
+- 2026-11-10：决策 3 当值用的 `if` / `try` 由分支写 `->`（`if c -> a else -> b`、`try -> a catch ...`）改为 `if c then a else b`、`try a catch e: T -> b`，换行规则跟着改；决策 1 的例子同样。见 ADR-0043。

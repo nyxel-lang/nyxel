@@ -232,13 +232,13 @@ public class ParserTests
         Assert.Equal(2, lambda.Body!.Statements.Count);
     }
 
-    // if / match / try / eval (ADR-0025) ---------------------------------------------------------------------------
+    // if / match / try / eval (ADR-0025, ADR-0043) -----------------------------------------------------------------
 
     [Fact]
     public void IfExpressionWithElseIf() =>
         Assert.Equal(
-            "(IfExpression if (SimpleMemberAccessExpression self . a) -> 0 else (IfExpression if b -> 1 else -> 2))",
-            Expr("if self.a -> 0 else if b -> 1 else -> 2"));
+            "(IfExpression if (SimpleMemberAccessExpression self . a) then 0 else (IfExpression if b then 1 else 2))",
+            Expr("if self.a then 0 else if b then 1 else 2"));
 
     [Fact]
     public void IfStatementWithElseIf() =>
@@ -248,33 +248,33 @@ public class ParserTests
 
     [Theory]
     // The last branch runs to the end of the expression, as with C#'s '?:'.
-    [InlineData("if c -> a else -> b + 1", "(IfExpression if c -> a else -> (AddExpression b + 1))")]
-    [InlineData("if c -> a else -> b ?? d", "(IfExpression if c -> a else -> (CoalesceExpression b ?? d))")]
-    [InlineData("(if c -> 2 else -> 1) * n", "(MultiplyExpression (ParenthesizedExpression ( (IfExpression if c -> 2 else -> 1) )) * n)")]
-    [InlineData("if a -> (if b -> 1 else -> 2) else -> 3", "(IfExpression if a -> (ParenthesizedExpression ( (IfExpression if b -> 1 else -> 2) )) else -> 3)")]
+    [InlineData("if c then a else b + 1", "(IfExpression if c then a else (AddExpression b + 1))")]
+    [InlineData("if c then a else b ?? d", "(IfExpression if c then a else (CoalesceExpression b ?? d))")]
+    [InlineData("(if c then 2 else 1) * n", "(MultiplyExpression (ParenthesizedExpression ( (IfExpression if c then 2 else 1) )) * n)")]
+    [InlineData("if a then (if b then 1 else 2) else 3", "(IfExpression if a then (ParenthesizedExpression ( (IfExpression if b then 1 else 2) )) else 3)")]
     // A branch can be a leave instead of a value.
-    [InlineData("if c -> a else -> return", "(IfExpression if c -> a else -> (ReturnExpression return))")]
-    [InlineData("if c -> return 0 else -> a", "(IfExpression if c -> (ReturnExpression return 0) else -> a)")]
-    [InlineData("if c -> a else -> throw new E()", "(IfExpression if c -> a else -> (ThrowExpression throw (ObjectCreationExpression new E (ArgumentList ( )))))")]
+    [InlineData("if c then a else return", "(IfExpression if c then a else (ReturnExpression return))")]
+    [InlineData("if c then return 0 else a", "(IfExpression if c then (ReturnExpression return 0) else a)")]
+    [InlineData("if c then a else throw new E()", "(IfExpression if c then a else (ThrowExpression throw (ObjectCreationExpression new E (ArgumentList ( )))))")]
     public void IfExpressions(string expression, string expected) => Assert.Equal(expected, Expr(expression));
 
     [Fact]
-    public void ElseCatchAndFinallyAtTheStartOfALineContinueTheValueForm()
+    public void ThenElseCatchAndFinallyAtTheStartOfALineContinueTheValueForm()
     {
         Assert.Equal(
-            "(IfExpression if (SimpleMemberAccessExpression self . IsFrozen) -> 0 else (IfExpression if h -> (MultiplyExpression s * 2) else -> s))",
-            Expr("if self.IsFrozen -> 0\n        else if h -> s * 2\n        else -> s"));
+            "(IfExpression if (SimpleMemberAccessExpression self . IsFrozen) then 0 else (IfExpression if h then (MultiplyExpression s * 2) else s))",
+            Expr("if self.IsFrozen then 0\n        else if h then s * 2\n        else s"));
         Assert.Equal(
-            "(TryExpression try -> (InvocationExpression Load (ArgumentList ( ))) (CatchArrowClause catch e (TypeAnnotation : IOException) -> Default) (FinallyClause finally (Block { (AssignmentStatement loading = false) })))",
-            Expr("try -> Load()\n        catch e: IOException -> Default\n        finally { loading = false }"));
-        Assert.Equal("(LocalDeclarationStatement let x (EqualsValueClause = (IfExpression if c -> a else -> b)))", Stmt("let x = if c ->\n    a\n    else ->\n    b"));
+            "(TryExpression try (InvocationExpression Load (ArgumentList ( ))) (CatchArrowClause catch e (TypeAnnotation : IOException) -> Default) (FinallyClause finally (Block { (AssignmentStatement loading = false) })))",
+            Expr("try Load()\n        catch e: IOException -> Default\n        finally { loading = false }"));
+        Assert.Equal("(LocalDeclarationStatement let x (EqualsValueClause = (IfExpression if c then a else b)))", Stmt("let x = if c\n    then a\n    else b"));
     }
 
     [Fact]
     public void ValueFormsStartALineInsideArguments() =>
         Assert.Equal(
-            "(InvocationExpression Spawn (ArgumentList ( (Argument (IfExpression if boss -> big else -> small)) , (Argument p) )))",
-            Expr("Spawn(\n    if boss -> big else -> small,\n    p)"));
+            "(InvocationExpression Spawn (ArgumentList ( (Argument (IfExpression if boss then big else small)) , (Argument p) )))",
+            Expr("Spawn(\n    if boss then big else small,\n    p)"));
 
     [Fact]
     public void MatchArmsWithPatterns()
@@ -319,8 +319,8 @@ public class ParserTests
     [Fact]
     public void TryExpressionWithCatchFilterAndFinally() =>
         Assert.Equal(
-            "(TryExpression try -> (InvocationExpression Load (ArgumentList ( ))) (CatchArrowClause catch e (TypeAnnotation : IOException) (WhenClause when (EqualsExpression (SimpleMemberAccessExpression e . HResult) == 32)) -> Default) (CatchArrowClause catch e (TypeAnnotation : Exception) -> (ReturnExpression return 0)) (FinallyClause finally (Block { })))",
-            Expr("try -> Load() catch e: IOException when e.HResult == 32 -> Default catch e: Exception -> return 0 finally { }"));
+            "(TryExpression try (InvocationExpression Load (ArgumentList ( ))) (CatchArrowClause catch e (TypeAnnotation : IOException) (WhenClause when (EqualsExpression (SimpleMemberAccessExpression e . HResult) == 32)) -> Default) (CatchArrowClause catch e (TypeAnnotation : Exception) -> (ReturnExpression return 0)) (FinallyClause finally (Block { })))",
+            Expr("try Load() catch e: IOException when e.HResult == 32 -> Default catch e: Exception -> return 0 finally { }"));
 
     [Fact]
     public void TryStatement() =>
@@ -366,16 +366,16 @@ public class ParserTests
     [InlineData("match s {\n    case Dead -> return\n    case Idle -> {\n        self.Wander()\n    }\n}", "(ExpressionStatement (MatchExpression match s { (MatchArm case (CasePattern Dead) -> (ReturnExpression return)) (MatchArm case (CasePattern Idle) -> (Block { (ExpressionStatement (InvocationExpression (SimpleMemberAccessExpression self . Wander) (ArgumentList ( )))) })) }))")]
     [InlineData("match s {\n    case Hurt -> self.speed = 0\n    case Dead -> self.hp +=\n        1\n    case _ -> emit self.Changed(s = s)\n}", "(ExpressionStatement (MatchExpression match s { (MatchArm case (CasePattern Hurt) -> (AssignmentStatement (SimpleMemberAccessExpression self . speed) = 0)) (MatchArm case (CasePattern Dead) -> (AssignmentStatement (SimpleMemberAccessExpression self . hp) += 1)) (MatchArm case (DiscardPattern _) -> (EmitStatement emit (InvocationExpression (SimpleMemberAccessExpression self . Changed) (ArgumentList ( (Argument (NameEquals s =) s) ))))) }))")]
     [InlineData("let c = match h {\n    case Burn(a) -> eval {\n        self.Burn()\n        give -a\n    }\n    case _ -> continue\n}", "(LocalDeclarationStatement let c (EqualsValueClause = (MatchExpression match h { (MatchArm case (CasePattern Burn (CaseFieldList ( a ))) -> (EvalExpression eval (Block { (ExpressionStatement (InvocationExpression (SimpleMemberAccessExpression self . Burn) (ArgumentList ( )))) (GiveStatement give (UnaryMinusExpression - a)) }))) (MatchArm case (DiscardPattern _) -> (ContinueExpression continue)) })))")]
-    [InlineData("let c = match h {\n    case Heal(a) -> if a > 100 -> 100 else -> a\n}", "(LocalDeclarationStatement let c (EqualsValueClause = (MatchExpression match h { (MatchArm case (CasePattern Heal (CaseFieldList ( a ))) -> (IfExpression if (GreaterThanExpression a > 100) -> 100 else -> a)) })))")]
+    [InlineData("let c = match h {\n    case Heal(a) -> if a > 100 then 100 else a\n}", "(LocalDeclarationStatement let c (EqualsValueClause = (MatchExpression match h { (MatchArm case (CasePattern Heal (CaseFieldList ( a ))) -> (IfExpression if (GreaterThanExpression a > 100) then 100 else a)) })))")]
     public void MatchArms(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
 
     [Fact]
     public void ElseAtTheStartOfALineInAMatchArmContinuesTheIf()
     {
         // The default arm is 'case _' (ADR-0026), so 'else' can only belong to the 'if' in the arm before.
-        var match = (MatchExpressionSyntax)ParseExpression("match x {\n    case 1 -> if b -> 1\n    else -> 2\n    case _ -> 3\n}");
+        var match = (MatchExpressionSyntax)ParseExpression("match x {\n    case 1 -> if b then 1\n    else 2\n    case _ -> 3\n}");
         Assert.Equal(2, match.Arms.Count);
-        Assert.Equal("(IfExpression if b -> 1 else -> 2)", Compact((SyntaxNode)match.Arms[0].Body));
+        Assert.Equal("(IfExpression if b then 1 else 2)", Compact((SyntaxNode)match.Arms[0].Body));
     }
 
     [Fact]
@@ -393,7 +393,7 @@ public class ParserTests
     [InlineData("let (_, max) = F()", "(DeconstructionDeclarationStatement let (Deconstruction ( _ , max )) (EqualsValueClause = (InvocationExpression F (ArgumentList ( )))))")]
     [InlineData("for (_, v) in d {\n}", "(ForStatement for (Deconstruction ( _ , v )) in d (Block { }))")]
     [InlineData("try {\n} catch _: E {\n}", "(TryStatement try (Block { }) (CatchClause catch _ (TypeAnnotation : E) (Block { })))")]
-    [InlineData("let a = try -> F() catch _: E -> 0", "(LocalDeclarationStatement let a (EqualsValueClause = (TryExpression try -> (InvocationExpression F (ArgumentList ( ))) (CatchArrowClause catch _ (TypeAnnotation : E) -> 0))))")]
+    [InlineData("let a = try F() catch _: E -> 0", "(LocalDeclarationStatement let a (EqualsValueClause = (TryExpression try (InvocationExpression F (ArgumentList ( ))) (CatchArrowClause catch _ (TypeAnnotation : E) -> 0))))")]
     public void DiscardWhereAValueIsNotNeeded(string statement, string expected) => Assert.Equal(expected, Stmt(statement));
 
     [Theory]

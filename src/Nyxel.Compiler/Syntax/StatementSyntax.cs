@@ -310,7 +310,7 @@ public sealed class GiveStatementSyntax : StatementSyntax
     public override IEnumerable<SyntaxNode> GetChildren() => Children(GiveKeyword, Expression);
 }
 
-/// <summary><c>if condition { } else { }</c> (ADR-0007); the <c>if</c> that gives a value is <see cref="IfExpressionSyntax"/> (ADR-0025).</summary>
+/// <summary><c>if condition { } else { }</c> (ADR-0007); the <c>if</c> that gives a value is <see cref="IfExpressionSyntax"/> (ADR-0025, ADR-0043).</summary>
 public sealed class IfStatementSyntax : StatementSyntax
 {
     internal IfStatementSyntax(SyntaxToken ifKeyword, ExpressionSyntax condition, BlockSyntax block, ElseClauseSyntax? elseClause)

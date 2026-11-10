@@ -204,13 +204,13 @@ public static class DiagnosticDescriptors
         Error("NYX1186", "End an 'eval' block with 'give': write 'give {0}'.");
 
     public static readonly DiagnosticDescriptor BlockBranchesAsValue =
-        Error("NYX1187", "When '{0}' gives a value, its branches are written with '->', as in '{1}'. To run statements first, use 'eval {{ ... give value }}'.");
+        Error("NYX1187", "When '{0}' gives a value, each branch is one value without braces, as in '{1}'. To run statements first, use 'eval {{ ... give value }}'.");
 
     public static readonly DiagnosticDescriptor ArrowBranchesAsStatement =
         Error("NYX1188", "This '{0}' gives a value that is not used; as a statement, write its branches in braces: '{1}'.");
 
     public static readonly DiagnosticDescriptor MixedBranches =
-        Error("NYX1189", "Write the branches of one '{0}' the same way: all with '->' when it gives a value, all in braces when it is a statement.");
+        Error("NYX1189", "Write the branches of one '{0}' the same way: all values (as in '{1}') when it gives a value, all in braces when it is a statement.");
 
     public static readonly DiagnosticDescriptor MatchBlockArmAsValue =
         Error("NYX1190", "When '{0}' gives a value, each {1} is one expression; to run statements first, write '-> eval {{ ... give value }}'.");
@@ -219,7 +219,7 @@ public static class DiagnosticDescriptors
         Error("NYX1191", "Put this '{0}' in parentheses; as an operand or inside another branch it is not clear where it ends.");
 
     public static readonly DiagnosticDescriptor IfValueWithoutElse =
-        Error("NYX1192", "An 'if' that gives a value needs an 'else': 'if condition -> a else -> b'.");
+        Error("NYX1192", "An 'if' that gives a value needs an 'else': 'if condition then a else b'.");
 
     public static readonly DiagnosticDescriptor MatchElse =
         Error("NYX1193", "Write 'case _' for the default arm of a 'match'; 'else' belongs to 'if' only.");
@@ -234,10 +234,16 @@ public static class DiagnosticDescriptors
         Error("NYX1196", "Remove 'private': members are private unless marked 'public' or 'protected'. 'private' is only written on an accessor ('private set') or on an init ('private init').");
 
     public static readonly DiagnosticDescriptor LocalNeedsInitialValue =
-        Error("NYX1239", "'{0}' needs its value where it is declared: '{1} = ...'. To choose between values, write 'if c -> a else -> b', 'match' or 'eval {{ ... }}'.");
+        Error("NYX1239", "'{0}' needs its value where it is declared: '{1} = ...'. To choose between values, write 'if c then a else b', 'match' or 'eval {{ ... }}'.");
 
     public static readonly DiagnosticDescriptor PublicInit =
         Error("NYX1240", "Remove 'public': an init is public unless marked 'private' or 'protected'.");
+
+    public static readonly DiagnosticDescriptor ArrowInValueBranch =
+        Error("NYX1241", "{0}: {1} that gives a value is written '{2}'. '->' only follows a 'case' or a 'catch'.");
+
+    public static readonly DiagnosticDescriptor ThenInIfStatement =
+        Error("NYX1242", "Remove 'then': an 'if' statement is written 'if condition {{ ... }}'. 'then' is for the 'if' that gives a value, 'if condition then a else b'.");
 
     public static readonly DiagnosticDescriptor SetterExpressionBody =
         Error("NYX1197", "A setter has no expression body; write 'set(value) {{ ... }}'.");
@@ -353,7 +359,7 @@ public static class DiagnosticDescriptors
         Error("NYX1156", "'is' does not introduce a name: a checked local variable or parameter is narrowed in place. Remove '{0}'.");
 
     public static readonly DiagnosticDescriptor Ternary =
-        Error("NYX1157", "Nyxel has no '?:'; write 'if condition -> a else -> b'.");
+        Error("NYX1157", "Nyxel has no '?:'; write 'if condition then a else b'.");
 
     public static readonly DiagnosticDescriptor ForceUnwrap =
         Error("NYX1158", "Nyxel has no '!' to assert a value is not null; write '?? throw new InvalidOperationException(\"why\")'.");

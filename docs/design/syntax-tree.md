@@ -26,7 +26,7 @@ SyntaxTreePrinter.Print(tree.Root, tree.Text)   // 缩进文本
 
 - 树是不可变的；每个节点知道自己的 `Parent`；`GetChildren()` 按源码顺序给出子节点和记号。节点类是手写的（`DeclarationSyntax.cs`、`StatementSyntax.cs`、`ExpressionSyntax.cs`、`TypeSyntax.cs`、`PatternSyntax.cs`），种类在 `SyntaxKind`。
 - 名字既是表达式也是类型：`TypeSyntax` 继承 `ExpressionSyntax`（同 Roslyn）。`Slime.Killed` 里的 `Slime` 和 `hp: Slime` 里的 `Slime` 是同一种节点，是类型还是值由语义分析决定。
-- `{ }` 形式的 `if` / `try` 是语句 `IfStatementSyntax` / `TryStatementSyntax`；`->` 形式是表达式 `IfExpressionSyntax` / `TryExpressionSyntax`（ADR-0025）。读哪种看条件后面（`try` 后面）是 `{` 还是 `->`；写在语句开头还是要值的地方只决定报不报错（NYX1187 / NYX1188），两边都没有时按所在位置要的形式读。`else if` 在 `IfExpressionSyntax` 里没有 `ElseArrowToken`，`ElseValue` 是下一个 `if`。
+- `{ }` 形式的 `if` / `try` 是语句 `IfStatementSyntax` / `TryStatementSyntax`；值形式（`if c then a else b`、`try a catch e: T -> b`）是表达式 `IfExpressionSyntax` / `TryExpressionSyntax`（ADR-0025、ADR-0043）。读哪种看条件后面（`try` 后面）是 `{` 还是 `->`；写在语句开头还是要值的地方只决定报不报错（NYX1187 / NYX1188），两边都没有时按所在位置要的形式读。`else if` 在 `IfExpressionSyntax` 里没有 `ElseArrowToken`，`ElseValue` 是下一个 `if`。
 - `match` 两种用法都是 `MatchExpressionSyntax`，当语句用时包在 `ExpressionStatementSyntax` 里。它是不是写在语句开头，Parser 读到 `match` 时就知道（`_statementStart`），当值用时块分支当场报 NYX1190。分支的 `Body` 是表达式（离开语句是 `JumpExpressionSyntax`）；当语句用时还可以是 `BlockSyntax`、`AssignmentStatementSyntax` 或 `EmitStatementSyntax`（ADR-0025、ADR-0026）。
 - `_` 单独是 `UnderscoreToken`，不是标识符（ADR-0026）。`case _` 是 `DiscardPatternSyntax`；`out _` 是 `DiscardExpressionSyntax`；解构、case 数据、`catch` 的名字位置上，`_` 就放在名字记号的位置（`IdentifierNameSyntax` 里的记号是 `UnderscoreToken`）。别处的 `_` 报 NYX1194 / NYX1195 后照样读进树。`match` 的 `else` 报 NYX1193 后读成 `case _` 分支：`Keyword` 是 `else`，模式是缺失 `_` 的 `DiscardPatternSyntax`。
 - 访问器的体和函数一样：块或 `= 表达式`（`AccessorDeclarationSyntax.ExpressionBody`，ADR-0026）；setter 的表达式体报 NYX1197 后照样留在树里。
@@ -59,7 +59,7 @@ ADR-0013 的续行规则和 ADR-0019 的“运算符一律放行首”由 Parser
 - **行首的二元运算符**（包括 `and`、`or`、`??`、`is`、`as`、区间）**和 `.`、`?.`、`with`** 接着上一行：表达式解析读运算符时不看换行。语句不会以二元运算符或 `with` 开头（ADR-0013、ADR-0027），所以不会误判。`(` 和 `[` 在行首时不是调用和下标，而是新语句的开头。
 - **运算符在行尾**：读完运算符后，如果下一个记号在新的一行，报 NYX1103（括号里也报），然后照样从下一行读操作数，因为几乎一定是这个意思。
 - **`{` 在下一行**、**`{ }` 形式的 `else` / `catch` / `finally` 在下一行**：报 NYX1104 / NYX1105，但仍然归属到前面的结构：没有别的结构能以它们开头，这样恢复不会产生连锁错误。
-- **`->` 形式的 `else` / `catch` / `finally` 在下一行**：接着上一行，不报错（ADR-0025）。没有别的结构以 `else` 开头：`match` 的默认分支是 `case _`（ADR-0026）。
+- **值形式的 `then` / `else` / `catch` / `finally` 在下一行**：接着上一行，不报错（ADR-0025、ADR-0043）；`then`、`else` 在行尾报 NYX1103，同运算符。没有别的结构以 `else` 开头：`match` 的默认分支是 `case _`（ADR-0026）。
 - **语句结束**：一条语句（成员、`case`、访问器同样）之后必须是换行、`}` 或文件末尾。同一行还有东西时报 NYX1106 并跳到行尾；这条语句已经报过错时只跳不报。
 
 ## 表达式
@@ -88,9 +88,11 @@ ADR-0013 的续行规则和 ADR-0019 的“运算符一律放行首”由 Parser
   - 表达式里的 `(` 后面在同一层括号里有逗号时是元组值 `TupleExpressionSyntax`（先往后扫描到配对的 `)`，不建节点），否则是加括号的表达式。元素复用 `ArgumentSyntax`（没有 `out` / `ref`）。`(a, b) = (b, a)` 是目标为元组值的普通赋值语句。
   - `let (a, b) = ...` 是单独的 `DeconstructionDeclarationStatementSyntax`；`for (i, item) in` 的 `ForStatementSyntax` 用 `Deconstruction` 代替 `Identifier`。两处共用 `DeconstructionSyntax`（括号里的名字）。
   - `for (` 后面先扫描：配对的 `)` 后面紧跟 `in` 才是解构，其他（`for (var i = 0; ...)`、`for (x in xs)`）报 C 风格 `for`。
-- **`->` 形式的 `if` / `try`**（ADR-0025）：
+- **当值用的 `if` / `try`**（ADR-0025、ADR-0043）：
   - 只能写在整个表达式的开头，不能直接当另一个 `if` / `try` 的分支。`ParseExpressionCore` 记下整个表达式从哪里开始（`_expressionStart`），`ParseBranchValue` 记下分支从哪里开始（`_branchValueStart`）；读到 `if` / `try` 时不在前者或者正在后者，就报 NYX1191（加括号），然后照常读。
-  - 行首的 `if` 是语句还是值，`IsArrowIfAhead` 往后扫描（不建节点）：括号外先遇到 `->` 是值，先遇到 `{` 是语句。括号没闭合时，只有语句形式的 `if` / `try` 让实参列表提前结束，所以实参可以在新的一行以 `->` 形式的 `if` 开头。
+  - 行首的 `if` 是语句还是值，`IsValueIfAhead` 往后扫描（不建节点）：括号外先遇到 `then`（或者原来写在这里的 `->`）是值，先遇到 `{` 是语句；`try` 后面同一行不是 `{` 就是值。括号没闭合时，只有语句形式的 `if` / `try` 让实参列表提前结束，所以实参可以在新的一行以当值用的 `if` 开头。
+  - ADR-0043 之前的箭头（`if c -> a else -> b`、`try -> a`）：每个报 NYX1241，记号挪进 trivia，`then` 记成缺失的记号，其余照新写法读。
+  - 语句位置的 `if c then {`（`then` 后面同一行紧跟 `{`）：语句形式多写了 `then`，报 NYX1242，`then` 挪进 trivia，照语句读；`IsValueIfAhead` 也把它算作语句。要值的地方的 `if c then { ... }` 照旧是 NYX1187。
 - **`eval`**（ADR-0025）：`give` 交给哪个 `eval`、`return` 和 `break` / `continue` 会不会离开 `eval`，要看外面的 `eval`、循环和 lambda，在整棵树建好以后检查（`Parser.Eval.cs`），同区间。块是空的、最后一句是表达式时也在这里报；其他走到末尾的路径要流分析，留给语义分析。
 
 ## 错误恢复
@@ -100,7 +102,7 @@ Parser 从不因为输入而抛异常，树总是覆盖整个文件：
 - 缺了必需的记号：报错，插入零宽的缺失记号，继续。
 - 多出来的记号：跳过（变成下一个记号前面的 `SkippedTokensTrivia`），跳过括号时连同配对的另一半一起跳。
 - 同一位置只报一个错；一条语句已经有错时，行尾剩下的东西只跳不报。
-- 写反形式的分支（ADR-0025）：语句位置的 `->` 形式照常读成表达式语句；要值的地方的 `{ }` 形式读完后整个挪进 trivia，留下缺失的表达式；同一个 `if` / `try` 里另一种形式的分支，`-> 值` 放进花括号缺失的块里，`{ }` 块挪进 trivia。
+- 写反形式的分支（ADR-0025）：语句位置的值形式照常读成表达式语句；要值的地方的 `{ }` 形式读完后整个挪进 trivia，留下缺失的表达式；同一个 `if` / `try` 里另一种形式的分支，值放进花括号缺失的块里，`{ }` 块挪进 trivia。
 - 其他语言的写法（diagnostics.md 里单独一张表）报错后按 Nyxel 的写法继续：`&&` 当 `and`，`(int)x` 跳过转换部分读 `x`，`case 1, 2` 当 `case 1 or 2`，`int[]` 当 `array<int>`，`@"..."` 照 C# 的规则读完（不再为其中的 `\` 报错），`outer: for` 跳过标签读循环，`items[^1]` 跳过 `^`，`[Flags]` 跳过后读下面的 enum，`x is Damage.Burn(a, s)` 跳过括号。
 - 写在错误位置的 `namespace` / `import` 照常解析、报错，然后整个挪进 trivia，树的结构保持“namespace → import → 声明”的固定顺序。
 - `SampleTests.MangledSamplesNeverThrowAndStayLossless` 对每个样例做 200 轮随机的删字、复制、交换字符，检查不抛异常、仍然无损。

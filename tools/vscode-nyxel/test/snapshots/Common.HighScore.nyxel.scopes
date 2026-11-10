@@ -18,8 +18,8 @@
   "/// 读不到或文件损坏时当作 0 分。"=comment.line.documentation
 > public func Load(self) -> int {
   "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "->"=keyword.operator.arrow  |  "int"=storage.type.primitive
-> let text = try -> File.ReadAllText(self.path) catch e: FileNotFoundException -> return 0
-  "let"=storage.type  |  "try"=keyword.control  |  "->"=keyword.operator.arrow  |  "self"=variable.language.self  |  "catch"=keyword.control  |  "->"=keyword.operator.arrow  |  "return"=keyword.control  |  "0"=constant.numeric.decimal
+> let text = try File.ReadAllText(self.path) catch e: FileNotFoundException -> return 0
+  "let"=storage.type  |  "try"=keyword.control  |  "self"=variable.language.self  |  "catch"=keyword.control  |  "->"=keyword.operator.arrow  |  "return"=keyword.control  |  "0"=constant.numeric.decimal
 > if not int.TryParse(text, out let score) {
   "if"=keyword.control  |  "not"=keyword.operator.word  |  "int"=storage.type.primitive  |  "out"=storage.modifier  |  "let"=storage.type
 > Log.Warn($"存档损坏，已忽略：{self.path}")
@@ -46,8 +46,8 @@
   "if"=keyword.control  |  "1"=constant.numeric.decimal
 > give "新纪录！"
   "give"=keyword.control  |  "\""=string.quoted.double  |  "新纪录！"=string.quoted.double  |  "\""=string.quoted.double
-> give if ratio >= 0.8 -> "接近纪录" else -> "继续加油"
-  "give"=keyword.control  |  "if"=keyword.control  |  "0.8"=constant.numeric.decimal  |  "->"=keyword.operator.arrow  |  "\""=string.quoted.double  |  "接近纪录"=string.quoted.double  |  "\""=string.quoted.double  |  "else"=keyword.control  |  "->"=keyword.operator.arrow  |  "\""=string.quoted.double  |  "继续加油"=string.quoted.double  |  "\""=string.quoted.double
+> give if ratio >= 0.8 then "接近纪录" else "继续加油"
+  "give"=keyword.control  |  "if"=keyword.control  |  "0.8"=constant.numeric.decimal  |  "then"=keyword.control  |  "\""=string.quoted.double  |  "接近纪录"=string.quoted.double  |  "\""=string.quoted.double  |  "else"=keyword.control  |  "\""=string.quoted.double  |  "继续加油"=string.quoted.double  |  "\""=string.quoted.double
 > }   // ratio 只在块里可见
   "// ratio 只在块里可见"=comment.line.double-slash
 > Log.Info($"{score} 分：{rating}")

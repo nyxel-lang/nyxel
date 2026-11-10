@@ -37,7 +37,7 @@
 | [0011](decisions/0011-properties-assignment-arguments.md) | 冒号后是类型、等号后是值；`property` 声明属性（计算 / 自动，`set(value)`、`private set`）；赋值是语句；命名实参 `name = value`（可选）；不能重载，用默认参数 |
 | [0012](decisions/0012-namespaces-lambdas-generics.md) | 文件结构 `namespace` → `import` → 声明；每个文件显式 `import`，无全局 / 隐式导入；函数类型 `func(A) -> R` / `func(A)`；lambda `func(e) = 表达式` / `func(e) { }`；函数可用 `= 表达式` 体；泛型 `<T: 约束 and 约束>` |
 | [0013](decisions/0013-default-init-literals-line-continuation.md) | 没写 `init` 自动有公开无参 `init`；`init super(...)` 是第一句，`init self(...)` 委托，`super.方法`；混合运算期望类型往里传但不改变整数运算；续行：括号里、下一行以 `.` / 二元运算符开头、行尾 `=` / `->` |
-| [0014](decisions/0014-conversions-parameters-extensions-exceptions.md) | 显式转换 `x as T`（只做不会因类型不对而失败的转换，向下转换用 `is`）；参数不能重新赋值；`extension 类型 { }` 块（对应 C# 14）；.NET 异常：`try` / `catch e: 类型` / `when` / `finally`，`try` 可当表达式（`try -> a catch e: E -> b`），`catch _: T` |
+| [0014](decisions/0014-conversions-parameters-extensions-exceptions.md) | 显式转换 `x as T`（只做不会因类型不对而失败的转换，向下转换用 `is`）；参数不能重新赋值；`extension 类型 { }` 块（对应 C# 14）；.NET 异常：`try` / `catch e: 类型` / `when` / `finally`，`try` 可当表达式（`try a catch e: E -> b`），`catch _: T` |
 | [0015](decisions/0015-ref-out-using-protected.md) | 调用处写 `out let x` / `out 目标` / `out _` / `ref 目标`；自己的函数只在 override / 实现接口时声明 `out` / `ref`；`using x = ...` 释放资源（无块形式、无 `defer`，异步的写 `await using`）；加 `protected`，不加 `internal` |
 | [0016](decisions/0016-async-await-launch.md) | 协程：`async func` + `await`（能等任何 .NET 可等待对象，恢复在主线程）；调用必须写 `await` 或 `launch`；`launch obj.M()` 绑定 `obj`，销毁后自动停止（`finally` 照常执行，`catch` 接不住）；热重载停止所有协程；句柄 `Coroutine`，等待函数 `Wait.Seconds` 等 |
 | [0017](decisions/0017-events-and-state-machines.md) | 事件 `event Died(slime: Slime)` + `emit`；`+=` / `-=` 订阅，绑定“执行谁的代码”，销毁或热重载时自动移除；处理函数抛异常时记日志、接着通知下一个；方法可当函数值；实现接口、重写的事件用对方的委托类型；状态机不加语法（enum + match + 协程） |
@@ -48,7 +48,7 @@
 | [0022](decisions/0022-ranges-slices-collection-literals.md) | `(0..<n).Reversed()`、`.StepBy(2)`；区间不是值；切片 `name[0..<3]`、`name[1...]`（没有 `^1`）；集合字面量 `[1, 2, 3]`（没有展开和字典字面量）；多维数组 `array2d<T>` |
 | [0023](decisions/0023-array-elements-null-checks-coalesce-assignment.md) | 只有全零合法的元素类型能直接 `new array<T>(n)`，其余用 `element` 给出每个元素；和 `null` 比较只看引用（不调用重载的 `==`）；`??=` |
 | [0024](decisions/0024-enums-flags-struct-enum-case-data.md) | 简单枚举写值（要写就都写）、`enum Tile : byte`、`flags enum`；`x is 类型.Case`；带数据枚举的值类型版本 `struct enum`（不带数据的要实现接口时也写它）、`==` 比内容；case 的数据同元组（PascalCase、按位置取出） |
-| [0025](decisions/0025-eval-blocks-arrow-branches.md) | `{ }` 块本身没有值；`eval { ... give 值 }` 在自己的作用域里算一个值（块里不能 `return`）；`if` / `try` 当值用时分支写 `->`（`if c -> a else -> b`），当语句用时写 `{ }`；分支是一个表达式或一条离开语句，`match` 当语句用时是一条简单语句或块；改了 ADR-0007、0009、0014 里“最后一个表达式是值” |
+| [0025](decisions/0025-eval-blocks-arrow-branches.md) | `{ }` 块本身没有值；`eval { ... give 值 }` 在自己的作用域里算一个值（块里不能 `return`）；`if` / `try` 当值用时不写块（写法见 ADR-0043），当语句用时写 `{ }`；分支是一个表达式或一条离开语句，`match` 当语句用时是一条简单语句或块；改了 ADR-0007、0009、0014 里“最后一个表达式是值” |
 | [0026](decisions/0026-case-underscore-discard-private-getter-body.md) | language-reference 整体 review：`match` 默认分支写 `case _`（`else` 只属于 `if`）；`_` 是保留记号（解构、`out _`、case 数据、`case _`、`catch _`），不能当名字和值；成员上不写 `private`（只有 `private set`）；getter 可以 `get = 表达式` |
 | [0027](decisions/0027-with-members-and-init-calls.md) | 创建时设置成员 `new T(...) with (X = 1)`（C# 的对象初始化器，也用来设 `init` 访问器和 `required` 成员）；Nyxel 暂不声明只能在创建时设置的成员；调用其他 init 写 `init super(...)`、`init super.名字(...)`、`init self(...)`、`init self.名字(...)`，改了 ADR-0013 的 `super.init(...)` |
 | [0028](decisions/0028-keep-adrs-current.md) | ADR 保持最新：被推翻的决定直接改写原文（例子也改），原来的做法挪进备选方案，文末“修订记录”记日期和讨论在哪；历史看 git；已有的都改成了最新 |
@@ -63,8 +63,9 @@
 | [0037](decisions/0037-literal-arguments-follow-typed-arguments.md) | 调用里的数值字面量跟着有类型的实参选重载（`Math.Max(speed, 0.5)` 选 `float` 的那个）；选不出唯一一个时按 C# |
 | [0038](decisions/0038-literal-integer-division-static-let-const.md) | 整数字面量相除永远是整数除法，放在按浮点算的位置是编译错误（`let x: float = 1 / 2` 写 `1.0 / 2`）；初始值是常量表达式的 `static let` 自动成为编译期常量（C# `const`），能当默认参数值和 `case` 标签 |
 | [0039](decisions/0039-static-func-enum-storage-explicit.md) | 没有 `self` 的函数必须写 `static func`（有 `self` 又写 `static` 是错误）；带数据的 enum 必须写明 `struct enum`（值类型）或 `class enum`（堆上、可递归），光写 `enum` 是错误 |
-| [0040](decisions/0040-init-public-enum-case-is-no-alias.md) | `init` 默认公开，要藏起来写 `private init`；判断 enum case 一律 `is`，`x == 类型.Case` 是错误；两个 case 不能同一个值；`case` 三用、`->` 分支延伸、没标注的程序集当 `T?`、收窄改名四项不改 |
+| [0040](decisions/0040-init-public-enum-case-is-no-alias.md) | `init` 默认公开，要藏起来写 `private init`；判断 enum case 一律 `is`，`x == 类型.Case` 是错误；两个 case 不能同一个值；`case` 三用、当值用的 `if` 最后一个分支延伸、没标注的程序集当 `T?`、收窄改名四项不改 |
 | [0041](decisions/0041-null-details-assignment-equality-members.md) | 空值的五处细节：赋了不可能是 null 的值之后当作非空；`int?` 只有 `==` / `!=` 像 C# 那样提升；`T?` 没有成员（`.Value` 也不行）；对不会是 null 的引用类型做 null 检查是警告；没标注的程序集只管最外层 |
 | [0042](decisions/0042-integer-division-captured-var-local-initial-value-precedence-hints.md) | 整体 review 第四批：整数相除的结果不能隐式变成浮点（写 `a as float / b` 或 `(a / b) as float`）；被 lambda 捕获的 `var` 局部变量不收窄；局部变量必须在声明处给初始值；`not` 和位运算的优先级不动、加专门的诊断；`init` 上写 `public` 是错误；推断出类型的 `var` 赋 null 时诊断指到声明；`typeof` / `nameof` 记入待定 |
+| [0043](decisions/0043-if-then-else-try-value-form.md) | 当值用的 `if` 写 `if c then a else b`（`then` 是保留字，`then` / `else` 可以放下一行行首、不能放行尾）；当值用的 `try` 写 `try a catch e: T -> b`；`->` 在分支里只跟在 `case`、`catch` 后面；原来的 `if c -> a else -> b` 是错误；不加不带值的 `match`；语句形式的 `if` 不写 `then` |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

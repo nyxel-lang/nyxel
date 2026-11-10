@@ -69,42 +69,41 @@ CompilationUnit 1:1-52:1
           IntKeyword "int"
       Block 15:35-22:6
         OpenBraceToken "{"
-        LocalDeclarationStatement 16:9-16:97
+        LocalDeclarationStatement 16:9-16:94
           LetKeyword "let"
           IdentifierToken "text"
-          EqualsValueClause 16:18-16:97
+          EqualsValueClause 16:18-16:94
             EqualsToken "="
-            TryExpression 16:20-16:97
+            TryExpression 16:20-16:94
               TryKeyword "try"
-              MinusGreaterThanToken "->"
-              InvocationExpression 16:27-16:54
-                SimpleMemberAccessExpression 16:27-16:43
-                  IdentifierName 16:27-16:31
+              InvocationExpression 16:24-16:51
+                SimpleMemberAccessExpression 16:24-16:40
+                  IdentifierName 16:24-16:28
                     IdentifierToken "File"
                   DotToken "."
-                  IdentifierName 16:32-16:43
+                  IdentifierName 16:29-16:40
                     IdentifierToken "ReadAllText"
-                ArgumentList 16:43-16:54
+                ArgumentList 16:40-16:51
                   OpenParenToken "("
-                  Argument 16:44-16:53
-                    SimpleMemberAccessExpression 16:44-16:53
-                      SelfExpression 16:44-16:48
+                  Argument 16:41-16:50
+                    SimpleMemberAccessExpression 16:41-16:50
+                      SelfExpression 16:41-16:45
                         SelfKeyword "self"
                       DotToken "."
-                      IdentifierName 16:49-16:53
+                      IdentifierName 16:46-16:50
                         IdentifierToken "path"
                   CloseParenToken ")"
-              CatchArrowClause 16:55-16:97
+              CatchArrowClause 16:52-16:94
                 CatchKeyword "catch"
                 IdentifierToken "e"
-                TypeAnnotation 16:62-16:85
+                TypeAnnotation 16:59-16:82
                   ColonToken ":"
-                  IdentifierName 16:64-16:85
+                  IdentifierName 16:61-16:82
                     IdentifierToken "FileNotFoundException"
                 MinusGreaterThanToken "->"
-                ReturnExpression 16:89-16:97
+                ReturnExpression 16:86-16:94
                   ReturnKeyword "return"
-                  NumericLiteralExpression 16:96-16:97
+                  NumericLiteralExpression 16:93-16:94
                     NumericLiteralToken "0"
         IfStatement 17:9-20:10
           IfKeyword "if"
@@ -257,9 +256,9 @@ CompilationUnit 1:1-52:1
                       StringLiteralExpression 33:22-33:28
                         StringLiteralToken "\"新纪录！\""
                     CloseBraceToken "}"
-                GiveStatement 35:13-35:58
+                GiveStatement 35:13-35:57
                   GiveKeyword "give"
-                  IfExpression 35:18-35:58
+                  IfExpression 35:18-35:57
                     IfKeyword "if"
                     GreaterThanOrEqualExpression 35:21-35:33
                       IdentifierName 35:21-35:26
@@ -267,12 +266,11 @@ CompilationUnit 1:1-52:1
                       GreaterThanEqualsToken ">="
                       NumericLiteralExpression 35:30-35:33
                         NumericLiteralToken "0.8"
-                    MinusGreaterThanToken "->"
-                    StringLiteralExpression 35:37-35:43
+                    ThenKeyword "then"
+                    StringLiteralExpression 35:39-35:45
                       StringLiteralToken "\"接近纪录\""
                     ElseKeyword "else"
-                    MinusGreaterThanToken "->"
-                    StringLiteralExpression 35:52-35:58
+                    StringLiteralExpression 35:51-35:57
                       StringLiteralToken "\"继续加油\""
                 CloseBraceToken "}"
         ExpressionStatement 37:9-37:40

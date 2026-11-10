@@ -107,7 +107,7 @@ public class TileMap {
         for y in 0..<self.Height {
             let line = new StringBuilder()
             for x in 0..<self.Width {
-                line.Append(if self.IsWall(x, y) -> '#' else -> '.')
+                line.Append(if self.IsWall(x, y) then '#' else '.')
             }
             Log.Info(line.ToString())
         }

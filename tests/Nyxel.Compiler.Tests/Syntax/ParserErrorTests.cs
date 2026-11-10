@@ -68,7 +68,7 @@ public class ParserErrorTests
     public void LocalWithoutAValueMessageShowsTheDeclaration()
     {
         var diagnostic = SyntaxTree.Parse(InMethod("let label: string")).Diagnostics.Single();
-        Assert.Equal("'label' needs its value where it is declared: 'let label: string = ...'. To choose between values, write 'if c -> a else -> b', 'match' or 'eval { ... }'.", diagnostic.Message);
+        Assert.Equal("'label' needs its value where it is declared: 'let label: string = ...'. To choose between values, write 'if c then a else b', 'match' or 'eval { ... }'.", diagnostic.Message);
     }
 
     [Fact]
@@ -367,31 +367,49 @@ public class ParserErrorTests
     [InlineData("let a = eval { }", "NYX1186 3:9")]
     [InlineData("let a = if b { 1 } else { 2 }", "NYX1187 3:9")]
     [InlineData("let a = try { F() } catch e: E { 0 }", "NYX1187 3:9")]
-    [InlineData("let a = if b -> { 1 } else -> 2", "NYX1187 3:17")]
-    [InlineData("if a -> F() else -> G()", "NYX1188 3:1")]
-    [InlineData("try -> F() catch e: E -> 0", "NYX1188 3:1")]
-    [InlineData("if a {\n} else -> 1", "NYX1189 4:8")]
-    [InlineData("if a {\n} else if b -> 1 else -> 2", "NYX1189 4:13")]
-    [InlineData("let a = if b -> 1 else { 2 }", "NYX1189 3:24")]
-    [InlineData("let a = try -> F() catch e: E { 0 }", "NYX1189 3:31")]
+    [InlineData("let a = if b then { 1 } else 2", "NYX1187 3:19")]
+    [InlineData("if a then F() else G()", "NYX1188 3:1")]
+    [InlineData("try F() catch e: E -> 0", "NYX1188 3:1")]
+    [InlineData("if a {\n} else 1", "NYX1189 4:8")]
+    [InlineData("if a {\n} else if b then 1 else 2", "NYX1189 4:13")]
+    [InlineData("let a = if b then 1 else { 2 }", "NYX1189 3:26")]
+    [InlineData("let a = try F() catch e: E { 0 }", "NYX1189 3:28")]
     [InlineData("try {\n} catch e: E -> 0", "NYX1189 4:14")]
     [InlineData("let a = match b {\n    case 1 -> {\n        F()\n    }\n    case _ -> 0\n}", "NYX1190 4:15")]
-    [InlineData("let a = 1 + if b -> 1 else -> 2", "NYX1191 3:13")]
-    [InlineData("let a = b ?? if c -> 1 else -> 2", "NYX1191 3:14")]
-    [InlineData("let a = if b -> if c -> 1 else -> 2 else -> 3", "NYX1191 3:17")]
-    [InlineData("let a = try -> if c -> 1 else -> 2 catch e: E -> 0", "NYX1191 3:16")]
-    [InlineData("let a = if b -> 1", "NYX1192 3:9")]
+    [InlineData("let a = 1 + if b then 1 else 2", "NYX1191 3:13")]
+    [InlineData("let a = b ?? if c then 1 else 2", "NYX1191 3:14")]
+    [InlineData("let a = if b then if c then 1 else 2 else 3", "NYX1191 3:19")]
+    [InlineData("let a = try if c then 1 else 2 catch e: E -> 0", "NYX1191 3:13")]
+    [InlineData("let a = if b then 1", "NYX1192 3:9")]
+    // The statement has no 'then': its '{' already ends the condition (ADR-0043).
+    [InlineData("if a then {\n}", "NYX1242 3:6")]
+    [InlineData("if a {\n} else if b then {\n} else {\n}", "NYX1242 4:13")]
+    [InlineData("if a\n    then {\n}", "NYX1242 4:5")]
+    // 'then' and 'else' start a line or stay on it, as operators do (ADR-0019, ADR-0043).
+    [InlineData("let a = if b then\n    1 else 2", "NYX1103 3:14")]
+    [InlineData("let a = if b then 1 else\n    2", "NYX1103 3:21")]
+    // The '->' written in these places until ADR-0043.
+    [InlineData("let a = if b -> 1 else -> 2", "NYX1241 3:14", "NYX1241 3:24")]
+    [InlineData("let a = if b then 1 else -> 2", "NYX1241 3:26")]
+    [InlineData("let a = try -> F() catch e: E -> 0", "NYX1241 3:13")]
     // Only the first error: no "needs an else" or "needs a catch" after a missing condition or value.
     [InlineData("let a = if\nlet b = 1", "NYX1101 3:11")]
-    [InlineData("let a = try ->\nlet b = 1", "NYX1101 3:15")]
+    [InlineData("let a = try\nlet b = 1", "NYX1101 3:12")]
     [InlineData("match a {\n    case 1 -> if b {\n        F()\n    }\n    case _ -> {}\n}", "NYX1123 4:15")]
     public void EvalAndBranchErrors(string statements, params string[] expected) => AssertStatementErrors(statements, expected);
 
     [Theory]
-    [InlineData("let a = if b { 1 } else { 2 }", "When 'if' gives a value, its branches are written with '->', as in 'if condition -> a else -> b'. To run statements first, use 'eval { ... give value }'.")]
-    [InlineData("if a -> F() else -> G()", "This 'if' gives a value that is not used; as a statement, write its branches in braces: 'if condition { ... }'.")]
+    [InlineData("let a = if b { 1 } else { 2 }", "When 'if' gives a value, each branch is one value without braces, as in 'if condition then a else b'. To run statements first, use 'eval { ... give value }'.")]
+    [InlineData("let a = try { F() } catch e: E { 0 }", "When 'try' gives a value, each branch is one value without braces, as in 'try a catch e: Exception -> b'. To run statements first, use 'eval { ... give value }'.")]
+    [InlineData("if a then F() else G()", "This 'if' gives a value that is not used; as a statement, write its branches in braces: 'if condition { ... }'.")]
+    [InlineData("if a {\n} else 1", "Write the branches of one 'if' the same way: all values (as in 'if condition then a else b') when it gives a value, all in braces when it is a statement.")]
+    [InlineData("let a = if b -> 1 else 2", "Write 'then' instead of this '->': an 'if' that gives a value is written 'if condition then a else b'. '->' only follows a 'case' or a 'catch'.")]
+    [InlineData("let a = if b then 1 else -> 2", "Remove this '->': an 'if' that gives a value is written 'if condition then a else b'. '->' only follows a 'case' or a 'catch'.")]
+    [InlineData("let a = try -> F() catch e: E -> 0", "Remove this '->': a 'try' that gives a value is written 'try a catch e: Exception -> b'. '->' only follows a 'case' or a 'catch'.")]
+    [InlineData("let a = if b then\n    1 else 2", "'then' can't end a line; move it to the start of the next line.")]
+    [InlineData("if a then {\n}", "Remove 'then': an 'if' statement is written 'if condition { ... }'. 'then' is for the 'if' that gives a value, 'if condition then a else b'.")]
     [InlineData("let a = eval {\n    let b = 1\n    b + 1\n}", "End an 'eval' block with 'give': write 'give b + 1'.")]
-    [InlineData("let a = b ? c : d", "Nyxel has no '?:'; write 'if condition -> a else -> b'.")]
+    [InlineData("let a = b ? c : d", "Nyxel has no '?:'; write 'if condition then a else b'.")]
     public void EvalAndBranchMessages(string statements, string message) =>
         Assert.Equal(message, SyntaxTree.Parse(InMethod(statements)).Diagnostics.Single().Message);
 
@@ -421,11 +439,14 @@ public class ParserErrorTests
 
     [Theory]
     [InlineData("let a = if b { 1 } else { 2 }\nlet c = 3")]
-    [InlineData("if a {\n} else -> 1\nlet c = 3")]
-    [InlineData("if a {\n} else if b -> 1 else -> 2\nlet c = 3")]
-    [InlineData("let a = if b -> 1 else { 2 }\nlet c = 3")]
-    [InlineData("let a = if b -> { 1 } else -> 2\nlet c = 3")]
-    [InlineData("let a = try -> F() catch e: E { 0 }\nlet c = 3")]
+    [InlineData("if a {\n} else 1\nlet c = 3")]
+    [InlineData("if a {\n} else if b then 1 else 2\nlet c = 3")]
+    [InlineData("let a = if b then 1 else { 2 }\nlet c = 3")]
+    [InlineData("let a = if b then { 1 } else 2\nlet c = 3")]
+    [InlineData("let a = try F() catch e: E { 0 }\nlet c = 3")]
+    [InlineData("let a = try -> F() catch e: E -> 0\nlet c = 3")]
+    [InlineData("let a = if b then 1 else -> 2\nlet c = 3")]
+    [InlineData("if a then {\n    F()\n} else {\n}\nlet c = 3")]
     [InlineData("try {\n} catch e: E -> 0\nlet c = 3")]
     public void BranchRecoveryKeepsTheTreeWhole(string statements)
     {

@@ -115,7 +115,7 @@
             "2": { "name": "keyword.control.nyxel" }
           }
         },
-        { "name": "keyword.control.nyxel", "match": "\\b(if|else|match|return|throw|continue|break|for|in|while|when|try|catch|finally|await|launch|emit|eval|give)\\b" },
+        { "name": "keyword.control.nyxel", "match": "\\b(if|then|else|match|return|throw|continue|break|for|in|while|when|try|catch|finally|await|launch|emit|eval|give)\\b" },
         { "name": "keyword.operator.word.nyxel", "match": "\\b(and|or|not|is|as)\\b" },
         { "name": "keyword.operator.range.nyxel", "match": "\\.\\.<|\\.\\.\\." },
         { "name": "constant.language.nyxel", "match": "\\b(true|false|null)\\b" },

@@ -1194,18 +1194,18 @@ CompilationUnit 1:1-131:1
                     IdentifierToken "Width"
               Block 109:37-111:14
                 OpenBraceToken "{"
-                ExpressionStatement 110:17-110:69
-                  InvocationExpression 110:17-110:69
+                ExpressionStatement 110:17-110:68
+                  InvocationExpression 110:17-110:68
                     SimpleMemberAccessExpression 110:17-110:28
                       IdentifierName 110:17-110:21
                         IdentifierToken "line"
                       DotToken "."
                       IdentifierName 110:22-110:28
                         IdentifierToken "Append"
-                    ArgumentList 110:28-110:69
+                    ArgumentList 110:28-110:68
                       OpenParenToken "("
-                      Argument 110:29-110:68
-                        IfExpression 110:29-110:68
+                      Argument 110:29-110:67
+                        IfExpression 110:29-110:67
                           IfKeyword "if"
                           InvocationExpression 110:32-110:49
                             SimpleMemberAccessExpression 110:32-110:43
@@ -1224,12 +1224,11 @@ CompilationUnit 1:1-131:1
                                 IdentifierName 110:47-110:48
                                   IdentifierToken "y"
                               CloseParenToken ")"
-                          MinusGreaterThanToken "->"
-                          CharacterLiteralExpression 110:53-110:56
+                          ThenKeyword "then"
+                          CharacterLiteralExpression 110:55-110:58
                             CharacterLiteralToken "'#'"
                           ElseKeyword "else"
-                          MinusGreaterThanToken "->"
-                          CharacterLiteralExpression 110:65-110:68
+                          CharacterLiteralExpression 110:64-110:67
                             CharacterLiteralToken "'.'"
                       CloseParenToken ")"
                 CloseBraceToken "}"

@@ -49,7 +49,7 @@ Nyxel：.NET 10 上的游戏脚本语言，编译成普通 .NET 程序集，由 
   2. `git fetch origin`；origin/main 有本地没有的提交（比如在网页上改过）就先 `git switch main && git merge --ff-only origin/main`，再在 dev 上 `git merge main`。
   3. 把 dev 的内容搬到 main 上，按仓库格式提交：`git switch main && git restore --source=dev --staged --worktree :/`（dev 删掉的文件也会删），然后 `git commit -F build/COMMIT_MSG.txt`（`<area>: <summary>` + 正文 + 测试结果；消息用 Write 工具写，别走 Bash heredoc）。
      - 一次迭代含几个独立主题时，restore 之后先 `git reset`，按文件分组 add、分几条提交。
-     - 几个主题改的是同一批文件时，按某个 wip 提交的状态切开：先 `--source=<那个 wip>` 提交一条，再 `--source=dev` 提交下一条。切开的每个状态先在 `git worktree` 里跑一遍 `tools\build.cmd --test`。
+     - 几个主题改的是同一批文件时，按某个 wip 提交的状态切开：先 `--source=<那个 wip>` 提交一条，再 `--source=dev` 提交下一条。切开的每个状态先在 `git worktree` 里跑一遍 `tools\build.cmd --test`（worktree 放 build/tmp/wt/ 下；各自的 build/ 互不干扰，几个状态可以同时跑）。
      - 提交完 `git diff dev main` 必须为空。
   4. `git switch dev && git merge -s ours -m "Merge main <新提交> into dev" main`：两边内容相同，这个合并只是在 dev 上记下这批 wip 压进了 main 的哪几条。
   5. `git push origin main`，推完 CI 会在 GitHub Actions 上跑。

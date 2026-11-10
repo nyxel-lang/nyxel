@@ -109,6 +109,7 @@ public enum SyntaxKind
     GiveKeyword,
     IfKeyword,
     ElseKeyword,
+    ThenKeyword,
     MatchKeyword,
     WhenKeyword,
     ForKeyword,

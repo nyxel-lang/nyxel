@@ -7,7 +7,7 @@
 - 代码块用花括号，结构由括号决定，与缩进无关。
 - 声明以关键字开头，类型写在名字后面：`hp: int`。
 - 语句以换行结束，不写分号。哪些换行不结束语句见“换行与续行”。
-- `if` / `while` 的条件不加括号，后面的块必须有花括号。
+- `if` / `while` 的条件不加括号，后面的块必须有花括号。按条件选一个值写 `if 条件 then 值 else 值`（ADR-0043，见“if 与 eval”）。
 - 花括号只跟在关键字或声明后面，`{ }` 块本身没有值（ADR-0025）。语句位置不能单独写 `{ ... }`：在自己的作用域里算一个值用 `eval`（见“if 与 eval”），否则拆成函数（ADR-0020）。
 - **冒号后面是类型，等号后面是值**（ADR-0011）：`var hp: int = 100`、`count: int = 1`、`class Slime : Behaviour`、`Spawn(count = 3)`。例外只有插值字符串里的格式说明符 `{speed:F2}`。
 - `_` 单独出现表示“这个位置的值不要”（ADR-0026）：解构 `let (_, max) = ...`、`out _`、取 case 数据 `case Burn(_, seconds)`、默认分支 `case _`、`catch _: T`。它是保留记号，不能当名字和值；`_x`、`x_` 仍是普通名字。待定：`for _ in 0..<n`、lambda 参数写 `_`。
@@ -42,15 +42,15 @@ if self.IsDead {
     self.Move()
 }
 
-// 当值用的 if / try（-> 形式）：下一行以 else、catch、finally 开头时接着上一行
-let speed = if self.IsFrozen -> 0
-    else -> self.BaseSpeed
+// 当值用的 if / try：下一行以 then、else、catch、finally 开头时接着上一行
+let speed = if self.IsFrozen then 0
+    else self.BaseSpeed
 ```
 
 - 圆括号、方括号里的换行不结束语句。
 - 下一行以 `.`、`?.`、`with`（ADR-0027）或二元运算符（`+`、`and`、`or`、`??`、`is`、`==` 等）开头时接着上一行。
 - 一行以赋值运算符（`=`、`+=`、`-=` 等）或 `->` 结尾时接着下一行（ADR-0013、ADR-0020）。
-- `->` 形式的 `if` / `try`：下一行以 `else`、`catch` 或 `finally` 开头时接着上一行（ADR-0025）。`match` 的默认分支是 `case _`，所以行首的 `else` 一定属于前面的 `if`（ADR-0026）。
+- 当值用的 `if` / `try`：下一行以 `then`、`else`、`catch` 或 `finally` 开头时接着上一行（ADR-0025、ADR-0043）。`then`、`else` 和运算符一样不能写在行尾。`match` 的默认分支是 `case _`，所以行首的 `else` 一定属于前面的 `if`（ADR-0026）。
 - 其余换行都结束语句。
 - 运算符一律放在行首，括号里也一样（ADR-0019）：二元运算符和 `.`、`?.` 写在行尾都是编译错误，诊断提示挪到下一行开头。
   ```nyxel
@@ -63,7 +63,7 @@ let speed = if self.IsFrozen -> 0
           offset,
       target)
   ```
-- `{` 必须和前面的内容在同一行；`{ }` 形式的 `else`、`catch`、`finally` 必须跟在 `}` 后面同一行。
+- `{` 必须和前面的内容在同一行；语句形式（`{ }`）的 `else`、`catch`、`finally` 必须跟在 `}` 后面同一行。
 - 每条语句、每个成员、每个 `case`、每个访问器各占一行；`{` 后面的第一个和 `}` 前面的最后一个可以和括号写在同一行（`get { return self.hp }`、`{ get }`）。
 
 ## 文件结构（ADR-0012、ADR-0033）
@@ -395,7 +395,7 @@ class Slime : Behaviour {
 - 局部变量必须在声明的地方给初始值（ADR-0042）；字段可以留给 `init` 赋值。`let label: string` 之后再各分支赋值是编译错误：
 
   ```nyxel
-  let label = if wave > 2 -> "late" else -> "early"     // 分几种情况算一个值：-> 形式的 if / match / try，或 eval
+  let label = if wave > 2 then "late" else "early"      // 分几种情况算一个值：当值用的 if / match / try，或 eval
   var best: Enemy? = null                               // 一开始没有：写成可空的
   ```
 - 静态字段写 `static var` / `static let`（ADR-0008）。
@@ -622,7 +622,7 @@ let nearest = enemies.MinBy(func(e: Enemy) -> float {
 
 ```nyxel
 static func Max<T: IComparable<T>>(a: T, b: T) -> T {
-    return if a.CompareTo(b) >= 0 -> a else -> b
+    return if a.CompareTo(b) >= 0 then a else b
 }
 
 class Pool<T: class and IPoolable> {
@@ -925,23 +925,24 @@ let psi = new ProcessStartInfo(fileName = "git")
 - Nyxel 自己没有“只能在创建时设置”的成员（C# 的 `init` 访问器、`required`）：创建后不能改用 `let` 字段加 `init` 参数，必须给值由确定初始化检查保证。
 - 待定：`with` 用在已有的值上（复制一份再改几个成员，同 C# 的 `with` 表达式）；Nyxel 自己声明只能在创建时设置的成员。
 
-## 分支与离开语句（ADR-0025、ADR-0026）
+## 分支与离开语句（ADR-0025、ADR-0026、ADR-0043）
 
 `if` / `try` 当值用的分支、`match` 和 `await all` / `await any` 的分支、`??` 的右边能写什么，是同一套规则，各节不再重复：
 
 - **离开语句**：`return`、`throw`、`break`、`continue`，`eval` 块里还有 `give`。
-- **产生值的位置**（`->` 形式的 `if` / `try` 的分支、当值用的 `match` / `await` 的分支、`??` 右边）：一个表达式，或一条离开语句。写 `{ }` 块是编译错误；要先执行语句再给出值，写 `eval { ... give 值 }`。
+- **产生值的位置**（当值用的 `if` / `try` 的分支、当值用的 `match` / `await` 的分支、`??` 右边）：一个表达式，或一条离开语句。写 `{ }` 块是编译错误；要先执行语句再给出值，写 `eval { ... give 值 }`。
 - **当语句用的分支**（`match` / `await` 当语句用）：一条简单语句，或一个 `{ }` 块。简单语句指一行写完、不带块的语句：调用、`await`、`launch`、赋值（含 `+=`、`??=`）、`emit`、离开语句。`let`、`using`、循环、`if` / `try` 语句要写进块。
-- `if` / `try` 当语句用时分支只能是 `{ }` 块，没有 `->`（见“if 与 eval”）。
+- `if` / `try` 当语句用时分支只能是 `{ }` 块（见“if 与 eval”）。
+- `->` 在分支里只跟在一种情况后面：`case 模式 ->` 和 `catch e: T ->`（ADR-0043）。
 
-## if 与 eval（ADR-0007、ADR-0025）
+## if 与 eval（ADR-0007、ADR-0025、ADR-0043）
 
 ```nyxel
-let label = if self.hp > 0 -> "alive" else -> "dead"
+let label = if self.hp > 0 then "alive" else "dead"
 
-let speed = if self.IsFrozen -> 0
-    else if self.IsHasted -> self.BaseSpeed * 2
-    else -> self.BaseSpeed
+let speed = if self.IsFrozen then 0
+    else if self.IsHasted then self.BaseSpeed * 2
+    else self.BaseSpeed
 
 if self.hp <= 0 {                   // 当语句用：分支写 { }
     self.Die()
@@ -954,16 +955,23 @@ let damage = eval {                 // 先执行几条语句，再给出值
         give 0
     }
     let reduced = hit.Amount - self.armor
-    give if reduced > 0 -> reduced else -> 0
+    give if reduced > 0 then reduced else 0
 }   // reduced 只在块里可见
 ```
 
 - `{ }` 块本身没有值。用语句算出一个值只有 `eval` 加 `give` 这一种写法。
-- `if` 当语句用时分支写 `{ 语句 }`；当值用时分支写 `-> 值`，必须有 `else`。看到 `if ... ->` 就知道它在产生值（`match` 的分支两种用法都写 `->`，是不是值看它写在哪）。
-  - 写反是编译错误：`{ }` 形式写在要值的地方，或者 `->` 形式单独当语句。同一个 `if` 的分支也不能两种混用。
+- `if` 当语句用时分支写 `{ 语句 }`；当值用时写 `if 条件 then 值 else 值`，必须有 `else`（ADR-0043）。看到 `if ... then` 就知道它在产生值，看到 `if ... {` 就知道是在执行语句（`match` 的分支两种用法都写 `->`，是不是值看它写在哪）。`then` 是保留字。
+  - 写反是编译错误：`{ }` 形式写在要值的地方，或者值形式单独当语句。同一个 `if` 的分支也不能两种混用。
+  - 语句形式不写 `then`：`{` 已经标出条件到哪结束。`if c then { ... }` 是编译错误，诊断提示去掉 `then`。
   - 当值用时，每个分支是一个表达式或一条离开语句（见“分支与离开语句”）。
-  - 最后一个分支一直延伸到表达式结束，同 C# 的 `?:`：`if c -> a else -> b + 1` 的 else 分支是 `b + 1`。所以 `->` 形式的 `if` / `try` 当运算数，或者直接写在另一个 `if` / `try` 的分支里时要加括号（`else if` 连写不算）：`(if hasBonus -> 2 else -> 1) * base`、`if a -> (if b -> 1 else -> 2) else -> 3`。`=` 后面、参数、`return` 后面、`match` 分支里不用加。
-- 没有 `?:` 三元运算符。
+  - 最后一个分支一直延伸到表达式结束，同 C# 的 `?:`：`if c then a else b + 1` 的 else 分支是 `b + 1`。所以当值用的 `if` / `try` 当运算数，或者直接写在另一个 `if` / `try` 的分支里时要加括号（`else if` 连写不算）：`(if hasBonus then 2 else 1) * base`、`if a then (if b then 1 else 2) else 3`。`=` 后面、参数、`return` 后面、`match` 分支里不用加。
+  - 长的可以拆成几行，`then`、`else` 放行首：
+    ```nyxel
+    let message = if self.hp > 0
+        then $"还剩 {self.hp} 点生命"
+        else "已经倒下"
+    ```
+- 没有 `?:` 三元运算符。原来的写法 `if c -> a else -> b` 是编译错误，诊断给出 `then` 的写法。
 - 函数体必须用 `return` 返回值。
 
 ### eval 块（ADR-0025）
@@ -1277,7 +1285,7 @@ let shown = speed as float
 - 规则同运算符：必须 `public`，可以按源类型写几个。源和目标有一个是这个类型，不能转成自己的基类或接口；扩展里不能写（C# 14 不支持）。
 - C# 那边是 `explicit operator`，C# 代码写 `(float)speed`。
 
-## 错误处理（ADR-0014）
+## 错误处理（ADR-0014、ADR-0043）
 
 ```nyxel
 try {
@@ -1291,9 +1299,9 @@ try {
     self.loading = false
 }
 
-let config = try -> Config.Load(path) catch e: IOException -> Config.Default
+let config = try Config.Load(path) catch e: IOException -> Config.Default
 
-let level = try -> Level.Load(name)
+let level = try Level.Load(name)
     catch e: FileNotFoundException -> return
     finally { self.loading = false }
 ```
@@ -1301,7 +1309,7 @@ let level = try -> Level.Load(name)
 - 用 .NET 的异常。`catch 名字: 类型`，名字必须写；用不到异常对象时写 `catch _: IOException`（ADR-0026）；捕获所有异常写 `catch e: Exception`。`when` 过滤同 C#。
 - 被前面的 `catch` 完全覆盖、永远到不了的 `catch` 是编译错误。`try` 后面至少有一个 `catch` 或 `finally`。
 - `{ }` 形式的 `} catch`、`} finally` 跟在 `}` 后面同一行。
-- `try` 当语句用时分支写 `{ }`；当值用时分支写 `->`，规则同 `if`（ADR-0025，见“分支与离开语句”）：`catch`、`finally` 可以写在下一行开头；`finally` 不产生值，照旧写 `finally { 语句 }`。
+- `try` 当语句用时分支写 `{ }`；当值用时写 `try 值 catch e: T -> 值`（ADR-0043）：`try` 后面同一行直接跟值，`catch` 后面是 `->`。规则同 `if`（ADR-0025，见“分支与离开语句”）：`catch`、`finally` 可以写在下一行开头；`finally` 不产生值，照旧写 `finally { 语句 }`。
 - `throw 异常对象` 是语句。在 `catch e` 里 `throw e` 重新抛出同一个异常，保留原来的调用栈（翻译成 C# 的 `throw;`）。
 - `finally` 里不能 `return`。
 - 文档注释里写会抛的异常：`- Throws 类型: 说明`（ADR-0035，见“注释”）。

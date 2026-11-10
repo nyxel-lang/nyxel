@@ -62,7 +62,7 @@
 3. **局部变量必须在声明的地方给初始值**（NYX1239）；类型照旧可以省略。
    ```nyxel
    let label: string                                    // 错误
-   let phase = if wave > 2 -> "late" else -> "early"    // 分几种情况算一个值：if / match / try 的 -> 形式，或 eval
+   let phase = if wave > 2 then "late" else "early"     // 分几种情况算一个值：当值用的 if / match / try，或 eval
    var best: Enemy? = null                              // 一开始没有：写成可空的
    ```
    - 字段不变：没有初始值的字段由 `init` 赋值（ADR-0008）。`for`、`catch`、`using`、`out let`、`case let` 引入的名字本来就带着值。
@@ -111,5 +111,5 @@
 - 代价：
   - 决策 1：确实要整除再当浮点用的地方多写一个 `as`。
   - 决策 2：被捕获的 `var` 每次用之前要先存进 `let`，即使那个 lambda 只读不写。
-  - 决策 3：按 C# 习惯写的“先声明、各分支赋值”会被拒，诊断指向 `if ... ->`、`match`、`eval`。
+  - 决策 3：按 C# 习惯写的“先声明、各分支赋值”会被拒，诊断指向当值用的 `if`、`match`、`eval`。
 - 错误码见 design/diagnostics.md。
