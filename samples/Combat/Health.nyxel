@@ -7,13 +7,13 @@ public struct Health {
     public let Max: int
     var current: int
 
-    public init(max: int) {
+    init(max: int) {
         self.Max = max
         self.current = max
     }
 
     /// 空血状态，比如等待复活时。
-    public init Empty(max: int) {
+    init Empty(max: int) {
         self.Max = max
         self.current = 0
     }

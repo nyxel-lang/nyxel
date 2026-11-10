@@ -90,8 +90,8 @@
   "else"=keyword.control  |  "if"=keyword.control  |  "'"=string.quoted.single  |  "$"=string.quoted.single  |  "'"=string.quoted.single
 > return map
   "return"=keyword.control
-> public func IsWall(self, x: int, y: int) -> bool = self[x, y] == Tile.Wall
-  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "int"=storage.type.primitive  |  "int"=storage.type.primitive  |  "->"=keyword.operator.arrow  |  "bool"=storage.type.primitive  |  "self"=variable.language.self
+> public func IsWall(self, x: int, y: int) -> bool = self[x, y] is Tile.Wall    // 判断 case 一律 is
+  "public"=storage.modifier  |  "func"=storage.type  |  "self"=variable.language.self  |  "int"=storage.type.primitive  |  "int"=storage.type.primitive  |  "->"=keyword.operator.arrow  |  "bool"=storage.type.primitive  |  "self"=variable.language.self  |  "is"=keyword.operator.word  |  "// 判断 case 一律 is"=comment.line.double-slash
 > /// 上下左右有几面墙。每一格按 [`TileMap.IsWall`] 判断，地图外面也算墙。
   "/// 上下左右有几面墙。每一格按 [`TileMap.IsWall`] 判断，地图外面也算墙。"=comment.line.documentation
 > public func WallsAround(self, x: int, y: int) -> int {

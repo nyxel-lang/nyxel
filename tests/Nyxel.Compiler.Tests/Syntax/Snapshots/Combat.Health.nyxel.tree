@@ -32,17 +32,16 @@ CompilationUnit 1:1-39:1
         PredefinedType 8:18-8:21
           IntKeyword "int"
     InitDeclaration 10:5-13:6
-      PublicKeyword "public"
       InitKeyword "init"
-      ParameterList 10:16-10:26
+      ParameterList 10:9-10:19
         OpenParenToken "("
-        Parameter 10:17-10:25
+        Parameter 10:10-10:18
           IdentifierToken "max"
           ColonToken ":"
-          PredefinedType 10:22-10:25
+          PredefinedType 10:15-10:18
             IntKeyword "int"
         CloseParenToken ")"
-      Block 10:27-13:6
+      Block 10:20-13:6
         OpenBraceToken "{"
         AssignmentStatement 11:9-11:23
           SimpleMemberAccessExpression 11:9-11:17
@@ -66,18 +65,17 @@ CompilationUnit 1:1-39:1
             IdentifierToken "max"
         CloseBraceToken "}"
     InitDeclaration 16:5-19:6
-      PublicKeyword "public"
       InitKeyword "init"
       IdentifierToken "Empty"
-      ParameterList 16:22-16:32
+      ParameterList 16:15-16:25
         OpenParenToken "("
-        Parameter 16:23-16:31
+        Parameter 16:16-16:24
           IdentifierToken "max"
           ColonToken ":"
-          PredefinedType 16:28-16:31
+          PredefinedType 16:21-16:24
             IntKeyword "int"
         CloseParenToken ")"
-      Block 16:33-19:6
+      Block 16:26-19:6
         OpenBraceToken "{"
         AssignmentStatement 17:9-17:23
           SimpleMemberAccessExpression 17:9-17:17

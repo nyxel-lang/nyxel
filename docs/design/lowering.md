@@ -34,7 +34,7 @@ ADR-0004 留下的选择：用列跟踪的文本写出器生成 C#，再 `CSharp
   - 类型一律写全名，`global::System.Collections.Generic.List<int>`，内置类型写 C# 关键字。这样 C# 的名字查找不用做任何决定，Nyxel 的查找规则（ADR-0033）和 C# 的差别不会影响结果。
   - 静态成员写在类型全名后面，实例成员写在接收者后面，`self` 是 `this`。
   - Nyxel 的名字是 C# 关键字时（`base`、`params`）加 `@`。
-- **成员**：`let` 字段是 `readonly`；`static func` 是 `static`；`init` 是构造函数；自动生成的无参 `init` 不写，C# 的默认构造函数就是它。可见性照写：私有是 `private`，类型默认是 `internal`。
+- **成员**：`let` 字段是 `readonly`；`static func` 是 `static`；`init` 是构造函数；自动生成的无参 `init` 不写，C# 的默认构造函数就是它。可见性照写：私有是 `private`，类型默认是 `internal`；`init` 不写修饰符是 `public`（ADR-0040）。
 - **调用**：实参按源码顺序写，源码里带名字的照样带名字（`point: x`），省略的可选参数交给 C# 填。C# 也按源码顺序求值，和 Nyxel 一致。
 - **转换**：数值转换（包括隐式的，比如 `int` 到 `float`）一律写成强制转换 `(float)x`，这样 C# 选的运算和重载一定是 Binder 选的那个；引用转换、装箱不写。`as` 是 `(T)x`。
 - **字面量**：按绑定后的类型写后缀：`1u`、`1L`、`0.5f`（`R` 格式，往返精确）、`0.5d`、`0.5m`，`byte` 等写成 `(byte)200`；负数加括号。字面量算式在绑定时已经折叠成一个值，`let x: float = 1.5 * 2` 生成 `3f`。

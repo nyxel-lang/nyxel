@@ -49,6 +49,7 @@ public class SemanticErrorTests
     [Theory]
     // A member of the type needs 'self.' or the type name (ADR-0008).
     [InlineData("class C {\n    var hp: int = 1\n    func F(self) {\n        hp = 2\n    }\n}", "NYX2003 4:9")]
+    [InlineData("class A {\n    private init() {\n    }\n}\nclass B {\n    static func F() {\n        let a = new A()\n    }\n}", "NYX2044 7:21")]
     [InlineData("class C {\n    static func Helper() {\n    }\n    func F(self) {\n        Helper()\n    }\n}", "NYX2003 5:9")]
     [InlineData("class C {\n    static func F() {\n        let a = self\n    }\n}", "NYX2020 3:17")]
     [InlineData("class C {\n    static func F(count: int) {\n        count = 2\n    }\n}", "NYX2027 3:9")]

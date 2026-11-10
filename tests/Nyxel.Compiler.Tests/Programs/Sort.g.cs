@@ -12,7 +12,7 @@ namespace Programs
         private int steps = 0;
 #line hidden
         public Sorter(global::System.Collections.Generic.List<int> numbers)
-#line (11, 37) - (11, 37) 9 "Sort.nyxel"
+#line (11, 30) - (11, 30) 9 "Sort.nyxel"
         {
 #line (12, 9) - (12, 30) 13 "Sort.nyxel"
             this.numbers = numbers;

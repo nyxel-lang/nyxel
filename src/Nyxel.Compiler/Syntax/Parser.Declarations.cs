@@ -118,8 +118,9 @@ internal sealed partial class Parser
         SkipFlagsAttribute();
         var first = Current;
         var modifiers = ParseModifiers();
-        // Members are private by default; 'private' is only written on accessors (ADR-0026).
-        if (modifiers.FirstOrDefault(m => m.Kind == SyntaxKind.PrivateKeyword) is { } privateKeyword)
+        // Members are private by default; 'private' is only written on accessors (ADR-0026) and on 'init',
+        // which is public by default (ADR-0040).
+        if (Current.Kind != SyntaxKind.InitKeyword && modifiers.FirstOrDefault(m => m.Kind == SyntaxKind.PrivateKeyword) is { } privateKeyword)
         {
             Report(DiagnosticDescriptors.PrivateMember, privateKeyword.Span);
         }

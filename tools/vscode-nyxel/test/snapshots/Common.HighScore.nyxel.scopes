@@ -10,8 +10,8 @@
   "public"=storage.modifier  |  "class"=storage.type
 > let path: string
   "let"=storage.type  |  "string"=storage.type.primitive
-> public init(path: string) {
-  "public"=storage.modifier  |  "init"=storage.type  |  "string"=storage.type.primitive
+> init(path: string) {
+  "init"=storage.type  |  "string"=storage.type.primitive
 > self.path = path
   "self"=variable.language.self
 > /// 读不到或文件损坏时当作 0 分。

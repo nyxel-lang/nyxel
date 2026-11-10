@@ -67,7 +67,7 @@ public class TileMap {
         return map
     }
 
-    public func IsWall(self, x: int, y: int) -> bool = self[x, y] == Tile.Wall
+    public func IsWall(self, x: int, y: int) -> bool = self[x, y] is Tile.Wall    // 判断 case 一律 is
 
     /// 上下左右有几面墙。每一格按 [`TileMap.IsWall`] 判断，地图外面也算墙。
     public func WallsAround(self, x: int, y: int) -> int {

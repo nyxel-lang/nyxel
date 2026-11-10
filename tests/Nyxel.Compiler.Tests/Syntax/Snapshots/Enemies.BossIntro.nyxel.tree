@@ -406,11 +406,11 @@ CompilationUnit 1:1-99:1
                         OpenParenToken "("
                         CloseParenToken ")"
                     MinusGreaterThanToken "->"
-                    EqualsExpression 41:57-41:74
+                    IsExpression 41:57-41:74
                       IdentifierName 41:57-41:60
                         IdentifierToken "key"
-                      EqualsEqualsToken "=="
-                      SimpleMemberAccessExpression 41:64-41:74
+                      IsKeyword "is"
+                      QualifiedName 41:64-41:74
                         IdentifierName 41:64-41:67
                           IdentifierToken "Key"
                         DotToken "."

@@ -64,7 +64,10 @@ internal sealed class SourceMethodSymbol : MethodSymbol
 
     public override bool IsStatic { get; }
 
-    public override Accessibility Accessibility => Syntax is null ? Accessibility.Public : MemberAccessibility(Syntax.Modifiers);
+    /// <summary>An <c>init</c> is public unless marked <c>private</c> or <c>protected</c> (ADR-0040); other members are private by default.</summary>
+    public override Accessibility Accessibility => Syntax is null ? Accessibility.Public
+        : MethodKind == MethodKind.Constructor ? InitAccessibility(Syntax.Modifiers)
+        : MemberAccessibility(Syntax.Modifiers);
 
     public override bool IsAsync => Syntax?.Modifiers.Any(m => m.Kind == SyntaxKind.AsyncKeyword) == true;
 
@@ -86,6 +89,11 @@ internal sealed class SourceMethodSymbol : MethodSymbol
         InitDeclarationSyntax init => (SyntaxNode?)init.Identifier ?? init.InitKeyword,
         _ => ContainingType.Syntax.Identifier,
     };
+
+    internal static Accessibility InitAccessibility(SyntaxList<SyntaxToken> modifiers) =>
+        modifiers.Any(m => m.Kind == SyntaxKind.PrivateKeyword) ? Accessibility.Private
+        : modifiers.Any(m => m.Kind == SyntaxKind.ProtectedKeyword) ? Accessibility.Protected
+        : Accessibility.Public;
 
     internal static Accessibility MemberAccessibility(SyntaxList<SyntaxToken> modifiers) =>
         modifiers.Any(m => m.Kind == SyntaxKind.PublicKeyword) ? Accessibility.Public

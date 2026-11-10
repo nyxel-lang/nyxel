@@ -10,16 +10,16 @@
   "public"=storage.modifier  |  "let"=storage.type  |  "float"=storage.type.primitive
 > var age: float = 0
   "var"=storage.type  |  "float"=storage.type.primitive  |  "0"=constant.numeric.decimal
-> public init(power: int, radius: float) {
-  "public"=storage.modifier  |  "init"=storage.type  |  "int"=storage.type.primitive  |  "float"=storage.type.primitive
+> init(power: int, radius: float) {
+  "init"=storage.type  |  "int"=storage.type.primitive  |  "float"=storage.type.primitive
 > init super(power = power)
   "init"=storage.type  |  "super"=variable.language.super
 > self.StartRadius = radius
   "self"=variable.language.self
 > /// 威力和半径都取较小固定值的火球。
   "/// 威力和半径都取较小固定值的火球。"=comment.line.documentation
-> public init Small() {
-  "public"=storage.modifier  |  "init"=storage.type
+> init Small() {
+  "init"=storage.type
 > init self(power = 5, radius = 0.5)
   "init"=storage.type  |  "self"=variable.language.self  |  "5"=constant.numeric.decimal  |  "0.5"=constant.numeric.decimal
 > public property Radius: float {

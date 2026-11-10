@@ -1,6 +1,6 @@
 # ADR-0026: `case _` 默认分支、`_` 保留记号、`catch _`、成员不写 `private`、getter 的表达式体
 
-- 状态：已接受
+- 状态：已接受（2026-11-04 修订）
 - 日期：2026-10-09
 
 ## 背景
@@ -40,7 +40,7 @@
 
 3. **`catch _: 类型`**：用不到异常对象时名字写 `_`，不引入名字，`when` 过滤里引用不到它。`catch 名字: 类型` 的形状不变（ADR-0014）。
 
-4. **成员上不写 `private`。** 成员默认私有（ADR-0006），写 `private` 是编译错误（NYX1196），诊断说明默认就是私有。`private` 只写在访问器上（`private set`，ADR-0011），那里它比属性本身窄，是有信息的。修饰符顺序（ADR-0019）里的“可见性”在成员上只有 `public` / `protected`。
+4. **成员上不写 `private`。** 成员默认私有（ADR-0006），写 `private` 是编译错误（NYX1196），诊断说明默认就是私有。`private` 只写在访问器上（`private set`，ADR-0011），那里它比属性本身窄，是有信息的。修饰符顺序（ADR-0019）里的“可见性”在成员上只有 `public` / `protected`。`init` 除外：它默认公开，`private init` 比默认窄、有信息（ADR-0040）。
 
 5. **getter 可以写表达式体 `get = 表达式`**，同函数的 `= 表达式`（ADR-0012）。setter 的体是语句（几乎都是赋值），只能写块，`set(value) = ...` 是编译错误（NYX1197）。
 
@@ -77,3 +77,7 @@
 - 语法树：`_` 是 `UnderscoreToken`；`case _` 是 `DiscardPatternSyntax`；`out _` 是 `DiscardExpressionSyntax`；解构、case 数据、`catch` 的名字位置上 `_` 就放在名字记号的位置；`AccessorDeclarationSyntax` 增加 `ExpressionBody`。
 - 新错误码 NYX1193–1197；NYX1123 的消息改成按用法说明。见 design/diagnostics.md。
 - 待定：`for _ in 区间`；`_` 当 lambda 参数（`func(_) = 0`）。
+
+## 修订记录
+
+- 2026-11-04：决策 4 加上例外：`init` 默认公开，`private init` 可以写，见 ADR-0040。

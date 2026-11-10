@@ -1,6 +1,6 @@
 # ADR-0029: 索引器 `property self[...]`、enum 里写成员和实现接口、不加 `field` 和事件访问器
 
-- 状态：已接受
+- 状态：已接受（2026-11-04 修订）
 - 日期：2026-10-16
 
 ## 背景
@@ -114,7 +114,7 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
            case Lightning -> Element.Fire
        }
 
-       public property IsHot: bool { get = self == Element.Fire }
+       public property IsHot: bool { get = self is Element.Fire }
 
        public static func Parse(text: string) -> Element? { ... }
    }
@@ -204,3 +204,7 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
   - 不带数据的 `struct enum` 当参数默认值。
 - 留给降级（M2 / M3）：enum 成员的翻译（extension 块、基类、struct）；C# 那边怎么判断一个 enum 值是哪个 case、怎么取数据（ADR-0024 留下的）。候选方向（用户提议）：给带数据的 enum 和 `struct enum` 生成一个内嵌的 C# enum 列出所有 case，再加一个属性返回当前是哪个 case，手写的 C# 就能 `switch (e.Case) { case Element.Kind.Fire: ... }`，也能用 `Enum.GetValues`、转成整数。它解决不了 `Element.Fire` 本身不是常量（参数默认值、特性的参数），也不会让编辑器和序列化器把 `struct enum` 当成 enum。
 - 待定：extension 里的索引器（等 C# 支持）；带数据 enum 的 `ToString`。
+
+## 修订记录
+
+- 2026-11-04：例子里的 `self == Element.Fire` 改成 `self is Element.Fire`（判断 case 一律 `is`），见 ADR-0040。

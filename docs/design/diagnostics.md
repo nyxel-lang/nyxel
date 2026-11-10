@@ -101,7 +101,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1192` | `->` 形式的 `if` 没有 `else` | `if b -> 1` |
 | `NYX1194` | `_` 用作名字（ADR-0026：它是保留记号） | `let _ = 1`、`for _ in xs` |
 | `NYX1195` | `_` 用作值 | `let a = _`、`F(_)`；只有 `out _` 可以 |
-| `NYX1196` | 成员上写了 `private`（ADR-0026：默认就是私有，只有访问器写 `private set`） | `private var x: int = 0` |
+| `NYX1196` | 成员上写了 `private`（ADR-0026：默认就是私有，只有访问器写 `private set`；`init` 默认公开，可以写 `private init`，ADR-0040） | `private var x: int = 0` |
 | `NYX1197` | setter 写了表达式体（ADR-0026：只有 getter 能写 `get = 表达式`） | `set(value) = x` |
 | `NYX1198` | `with (...)` 不在 `new 类型(...)` 后面（ADR-0027：复制已有的值再改几个成员还是待定） | `self.pos with (Y = 0)` |
 | `NYX1199` | `with (...)` 里的一项没写成员名 | `new Spin() with (2)` 写成 `with (Speed = 2)` |
@@ -240,6 +240,8 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2052` | 不能用 `[...]` 取元素的值 | `count[0]` |
 | `NYX2053` | 编译器内部错误：降级出的 C# 编译不过（ADR-0004 的兜底）。出现一次说明前端漏了一项检查 | 报告这个问题 |
 | `NYX2054` | 整数字面量相除放在按浮点算的字面量表达式里（ADR-0038）：整数除法会截断 | `let x: float = 1 / 2` 写成 `1.0 / 2` |
+| `NYX2055` | `==` / `!=` 右边直接写 enum case（ADR-0040；还没实现，等 enum 进 Binder） | `state == SlimeState.Idle` 写成 `state is SlimeState.Idle` |
+| `NYX2056` | 两个 case 同一个值（ADR-0040；还没实现，等 enum 进 Binder） | `case Old = 1` 和 `case New = 1`：后一个写成 `static let Old: E = E.New` |
 
 ## 不在语法阶段报的
 

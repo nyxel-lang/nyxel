@@ -63,5 +63,6 @@
 | [0037](decisions/0037-literal-arguments-follow-typed-arguments.md) | 调用里的数值字面量跟着有类型的实参选重载（`Math.Max(speed, 0.5)` 选 `float` 的那个）；选不出唯一一个时按 C# |
 | [0038](decisions/0038-literal-integer-division-static-let-const.md) | 整数字面量相除永远是整数除法，放在按浮点算的位置是编译错误（`let x: float = 1 / 2` 写 `1.0 / 2`）；初始值是常量表达式的 `static let` 自动成为编译期常量（C# `const`），能当默认参数值和 `case` 标签 |
 | [0039](decisions/0039-static-func-enum-storage-explicit.md) | 没有 `self` 的函数必须写 `static func`（有 `self` 又写 `static` 是错误）；带数据的 enum 必须写明 `struct enum`（值类型）或 `class enum`（堆上、可递归），光写 `enum` 是错误 |
+| [0040](decisions/0040-init-public-enum-case-is-no-alias.md) | `init` 默认公开，要藏起来写 `private init`；判断 enum case 一律 `is`，`x == 类型.Case` 是错误；两个 case 不能同一个值；`case` 三用、`->` 分支延伸、没标注的程序集当 `T?`、收窄改名四项不改 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

@@ -6,7 +6,7 @@ public struct Fixed {
 
     let raw: int
 
-    init FromRaw(raw: int) {
+    private init FromRaw(raw: int) {     // init 默认公开；只给下面的运算符用，藏起来要写 private
         self.raw = raw
     }
 

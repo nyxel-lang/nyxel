@@ -8,8 +8,8 @@
   "static"=storage.modifier  |  "let"=storage.type  |  "int"=storage.type.primitive  |  "1"=constant.numeric.decimal  |  "16"=constant.numeric.decimal
 > let raw: int
   "let"=storage.type  |  "int"=storage.type.primitive
-> init FromRaw(raw: int) {
-  "init"=storage.type  |  "int"=storage.type.primitive
+> private init FromRaw(raw: int) {     // init 默认公开；只给下面的运算符用，藏起来要写 private
+  "private"=storage.modifier  |  "init"=storage.type  |  "int"=storage.type.primitive  |  "// init 默认公开；只给下面的运算符用，藏起来要写 private"=comment.line.double-slash
 > self.raw = raw
   "self"=variable.language.self
 > // 运算符没有 self，两个操作数都是参数；必须写 public。

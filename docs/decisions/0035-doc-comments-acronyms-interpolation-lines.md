@@ -48,7 +48,7 @@ C# 项目引用 Nyxel 程序集时，IntelliSense 显示的是 XML 文档：补�
 
    ```nyxel
    /// 这一格是不是墙，地图外面也算墙。地图由 [`TileMap.Parse`] 读进来，[`x`] 是列，从 0 开始。
-   public func IsWall(self, x: int, y: int) -> bool = self[x, y] == Tile.Wall
+   public func IsWall(self, x: int, y: int) -> bool = self[x, y] is Tile.Wall
    ```
 
    - 名字的写法同代码：类型直接写名字，成员写 `类型.成员`，因为代码里不带接收者的名字只能是局部变量或参数（ADR-0008）。参数和泛型参数直接写名字。

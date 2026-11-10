@@ -195,7 +195,7 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - `Symbols/`：`Symbol` 和各种类型、成员；`SymbolTable` 包装 Roslyn 读出的元数据，管数组类型；源码符号在 `SourceSymbols.cs`；`SymbolDisplay` 用 Nyxel 的写法显示名字。
 - `Binding/`：`Declarer`（第 1 到 4 遍）、`ImportScope`、`MethodBinder`（第 5 遍，按语句、表达式、调用分文件）、`Conversions`、`FlowAnalysis`、绑定树的节点和打印。
 - `NyxelCompilation`：`Create`、`GetDiagnostics`、`EmitCSharp`、`Emit`。
-- 语义诊断 NYX2001 到 NYX2054（diagnostics.md“语义”）。
+- 语义诊断 NYX2001 到 NYX2054（diagnostics.md“语义”；NYX2055、2056 已分配给 ADR-0040，还没实现）。
 - 测试：`BinderTests`、`SemanticErrorTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
 
 和设计不同、或者还没做到的：
@@ -204,6 +204,7 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - 没有初始值的局部变量（`var x: int`）报 NYX2001，要先有局部变量的确定赋值。`let` / `var` 字段在 `init` 里的确定赋值已经有了（NYX2050）。
 - 元数据的类型只看 public 的；嵌套类型、泛型方法、扩展方法、事件、`params` 的展开形式还不支持。
 - 收窄还没有，随“空值和收窄”一步实现。
+- enum 还没进 Binder。进来时要带上 ADR-0040 的两条：`x == 类型.Case` / `!=` 报 NYX2055（建议 `is` / `is not`），Nyxel 声明的 enum 两个 case 同一个值报 NYX2056（.NET 的枚举照收，`match` 里两个别名都列出来时报重复）。
 - `static let` 还没有常量求值：按 ADR-0038，初始值是常量表达式、类型能 `const` 的 `static let` 要生成 C# 的 `const`，默认参数值、`case` 标签、枚举值引用它时检查它是不是常量。需要给 `SourceFieldSymbol` 加 `ConstantValue`、一个常量表达式求值器（字面量折叠的 `Fold` 是它的雏形），随“属性、struct、enum”一步实现。
 
 ## 写设计时定下的语言规则

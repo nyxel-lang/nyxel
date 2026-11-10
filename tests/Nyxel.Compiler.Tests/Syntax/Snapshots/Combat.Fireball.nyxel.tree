@@ -40,23 +40,22 @@ CompilationUnit 1:1-36:1
         NumericLiteralExpression 8:22-8:23
           NumericLiteralToken "0"
     InitDeclaration 10:5-13:6
-      PublicKeyword "public"
       InitKeyword "init"
-      ParameterList 10:16-10:43
+      ParameterList 10:9-10:36
         OpenParenToken "("
-        Parameter 10:17-10:27
+        Parameter 10:10-10:20
           IdentifierToken "power"
           ColonToken ":"
-          PredefinedType 10:24-10:27
+          PredefinedType 10:17-10:20
             IntKeyword "int"
         CommaToken ","
-        Parameter 10:29-10:42
+        Parameter 10:22-10:35
           IdentifierToken "radius"
           ColonToken ":"
-          PredefinedType 10:37-10:42
+          PredefinedType 10:30-10:35
             FloatKeyword "float"
         CloseParenToken ")"
-      Block 10:44-13:6
+      Block 10:37-13:6
         OpenBraceToken "{"
         InitStatement 11:9-11:34
           InitKeyword "init"
@@ -83,13 +82,12 @@ CompilationUnit 1:1-36:1
             IdentifierToken "radius"
         CloseBraceToken "}"
     InitDeclaration 16:5-18:6
-      PublicKeyword "public"
       InitKeyword "init"
       IdentifierToken "Small"
-      ParameterList 16:22-16:24
+      ParameterList 16:15-16:17
         OpenParenToken "("
         CloseParenToken ")"
-      Block 16:25-18:6
+      Block 16:18-18:6
         OpenBraceToken "{"
         InitStatement 17:9-17:43
           InitKeyword "init"

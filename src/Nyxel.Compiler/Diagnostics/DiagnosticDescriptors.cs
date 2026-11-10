@@ -231,7 +231,7 @@ public static class DiagnosticDescriptors
         Error("NYX1195", "'_' is not a value; it marks a value that is not needed, as in 'out _' or 'case _'.");
 
     public static readonly DiagnosticDescriptor PrivateMember =
-        Error("NYX1196", "Remove 'private': members are private unless marked 'public' or 'protected'. 'private' is only written on an accessor, as in 'private set'.");
+        Error("NYX1196", "Remove 'private': members are private unless marked 'public' or 'protected'. 'private' is only written on an accessor ('private set') or on an init ('private init').");
 
     public static readonly DiagnosticDescriptor SetterExpressionBody =
         Error("NYX1197", "A setter has no expression body; write 'set(value) {{ ... }}'.");

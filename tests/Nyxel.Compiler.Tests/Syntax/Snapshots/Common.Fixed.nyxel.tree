@@ -36,17 +36,18 @@ CompilationUnit 1:1-46:1
         PredefinedType 7:14-7:17
           IntKeyword "int"
     InitDeclaration 9:5-11:6
+      PrivateKeyword "private"
       InitKeyword "init"
       IdentifierToken "FromRaw"
-      ParameterList 9:17-9:27
+      ParameterList 9:25-9:35
         OpenParenToken "("
-        Parameter 9:18-9:26
+        Parameter 9:26-9:34
           IdentifierToken "raw"
           ColonToken ":"
-          PredefinedType 9:23-9:26
+          PredefinedType 9:31-9:34
             IntKeyword "int"
         CloseParenToken ")"
-      Block 9:28-11:6
+      Block 9:36-11:6
         OpenBraceToken "{"
         AssignmentStatement 10:9-10:23
           SimpleMemberAccessExpression 10:9-10:17

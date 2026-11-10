@@ -10,16 +10,16 @@
   "public"=storage.modifier  |  "let"=storage.type  |  "int"=storage.type.primitive
 > var current: int
   "var"=storage.type  |  "int"=storage.type.primitive
-> public init(max: int) {
-  "public"=storage.modifier  |  "init"=storage.type  |  "int"=storage.type.primitive
+> init(max: int) {
+  "init"=storage.type  |  "int"=storage.type.primitive
 > self.Max = max
   "self"=variable.language.self
 > self.current = max
   "self"=variable.language.self
 > /// 空血状态，比如等待复活时。
   "/// 空血状态，比如等待复活时。"=comment.line.documentation
-> public init Empty(max: int) {
-  "public"=storage.modifier  |  "init"=storage.type  |  "int"=storage.type.primitive
+> init Empty(max: int) {
+  "init"=storage.type  |  "int"=storage.type.primitive
 > self.Max = max
   "self"=variable.language.self
 > self.current = 0

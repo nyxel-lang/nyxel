@@ -79,6 +79,7 @@ public class ParserErrorTests
     [InlineData("let x = 1", "NYX1115 2:5")]
     [InlineData("private var x: int = 0", "NYX1196 2:1")]
     [InlineData("private static func F() { }", "NYX1196 2:1")]
+    [InlineData("private property P: int { get = 1 }", "NYX1196 2:1")]
     [InlineData("property P: int {\n    set(value) = x\n}", "NYX1197 3:16")]
     public void MemberErrors(string member, string expected) => AssertFileErrors("class C {\n" + member + "\n}\n", expected);
 

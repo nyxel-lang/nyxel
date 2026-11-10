@@ -38,7 +38,7 @@ public class BossIntro : Behaviour {
         for line in self.lines {
             self.Hud.Say(line)
             let skipRest = await any {      // 按 Esc 跳过剩下的台词；按别的键、或者 4 秒后到下一句
-                case let key = Input.WaitForAnyKey() -> key == Key.Escape
+                case let key = Input.WaitForAnyKey() -> key is Key.Escape
                 case Wait.Seconds(4) -> false
             }
             if skipRest {

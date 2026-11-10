@@ -51,7 +51,7 @@ public class RecentList<T: class> {
     let items: array<T?>
     var next: int = 0
 
-    init(capacity: int) {
+    init(capacity: int) {                              // init 默认公开，不用写 public
         self.items = new array<T?>(capacity)           // 元素是 T?：可以直接创建，一开始全是 null
     }
 

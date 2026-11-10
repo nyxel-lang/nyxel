@@ -7,13 +7,13 @@ public class Fireball : Projectile {
     public let StartRadius: float
     var age: float = 0
 
-    public init(power: int, radius: float) {
+    init(power: int, radius: float) {
         init super(power = power)
         self.StartRadius = radius
     }
 
     /// 威力和半径都取较小固定值的火球。
-    public init Small() {
+    init Small() {
         init self(power = 5, radius = 0.5)
     }
 

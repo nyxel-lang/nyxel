@@ -58,8 +58,8 @@
   "self"=variable.language.self
 > let skipRest = await any {      // 按 Esc 跳过剩下的台词；按别的键、或者 4 秒后到下一句
   "let"=storage.type  |  "await"=keyword.control  |  "any"=keyword.control  |  "// 按 Esc 跳过剩下的台词；按别的键、或者 4 秒后到下一句"=comment.line.double-slash
-> case let key = Input.WaitForAnyKey() -> key == Key.Escape
-  "case"=storage.type  |  "let"=storage.type  |  "->"=keyword.operator.arrow
+> case let key = Input.WaitForAnyKey() -> key is Key.Escape
+  "case"=storage.type  |  "let"=storage.type  |  "->"=keyword.operator.arrow  |  "is"=keyword.operator.word
 > case Wait.Seconds(4) -> false
   "case"=storage.type  |  "4"=constant.numeric.decimal  |  "->"=keyword.operator.arrow  |  "false"=constant.language
 > if skipRest {

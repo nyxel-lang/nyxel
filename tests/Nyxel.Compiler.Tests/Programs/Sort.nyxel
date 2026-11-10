@@ -8,7 +8,7 @@ class Sorter {
     let numbers: List<int>
     var steps: int = 0
 
-    public init(numbers: List<int>) {
+    init(numbers: List<int>) {
         self.numbers = numbers
     }
 

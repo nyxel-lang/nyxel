@@ -70,8 +70,8 @@
   "let"=storage.type  |  "array"=storage.type.array
 > var next: int = 0
   "var"=storage.type  |  "int"=storage.type.primitive  |  "0"=constant.numeric.decimal
-> init(capacity: int) {
-  "init"=storage.type  |  "int"=storage.type.primitive
+> init(capacity: int) {                              // init 默认公开，不用写 public
+  "init"=storage.type  |  "int"=storage.type.primitive  |  "// init 默认公开，不用写 public"=comment.line.double-slash
 > self.items = new array<T?>(capacity)           // 元素是 T?：可以直接创建，一开始全是 null
   "self"=variable.language.self  |  "new"=keyword.other.new  |  "array"=storage.type.array  |  "// 元素是 T?：可以直接创建，一开始全是 null"=comment.line.double-slash
 > public func Add(self, item: T) {
