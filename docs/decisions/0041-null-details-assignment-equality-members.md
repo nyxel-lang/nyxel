@@ -28,6 +28,7 @@
    ```
    - 只管是不是 null，不按值的具体类型收窄：`var weapon: Weapon? = new Sword()` 之后 `weapon` 是 `Weapon`，不是 `Sword`，同 C#。类型的收窄只来自 `is`（ADR-0010）。
    - 循环里的规则不变：循环体里赋过值的变量，在循环开头不算收窄（semantic-analysis.md“流分析”）。
+   - 被 lambda 捕获的 `var` 局部变量不收窄，赋了非空的值也一样（ADR-0042）。
 2. **`T?` 的运算符：只有 `==` / `!=` 像 C# 那样接受 `int?`，算术、大小比较、位运算都不接受。**
    - 两边去掉 `?` 以后能用 `==` 比的（数字、`bool`、`char`），带 `?` 也能比，规则同 C#：
 
@@ -71,4 +72,4 @@
 - 改了已合进 main 的 ADR-0009：决策 1（`int?` 的运算符和成员、没标注的程序集只管最外层）、决策 2（赋值后收窄），原来的“值类型的 `int?` 与 C# 相同”挪进它的备选方案。
 - language-reference“空值”一节改写。
 - 语义分析（M2）：决策 1、2、3、5 随本 ADR 实现；决策 4 现在不报，“不可空的值类型”那半照旧报 NYX2063，警告等编译器有了警告再加（semantic-analysis.md“实现状态”）。
-- 写 samples 时观察：`var current = node`（`node` 已经收窄）推断出的类型是 `Node`，之后 `current = current.next` 编不过，要写 `var current: Node? = node`。这是“局部变量的类型就是初始值的类型”的直接结果；C# 的 `var` 在这里推断成可空的。真的常碰到再讨论。
+- 写 samples 时观察：`var current = node`（`node` 已经收窄）推断出的类型是 `Node`，之后 `current = current.next` 编不过，要写 `var current: Node? = node`。这是“局部变量的类型就是初始值的类型”的直接结果；C# 的 `var` 在这里推断成可空的。后来定了（ADR-0042 决策 6）：规则不变，赋 null 时的诊断（NYX2069）直接给出 `var current: Node? = node`。

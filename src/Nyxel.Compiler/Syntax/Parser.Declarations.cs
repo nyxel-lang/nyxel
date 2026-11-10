@@ -124,6 +124,11 @@ internal sealed partial class Parser
         {
             Report(DiagnosticDescriptors.PrivateMember, privateKeyword.Span);
         }
+        // The other way round on 'init': 'public' says what the default already says (ADR-0042).
+        if (Current.Kind == SyntaxKind.InitKeyword && modifiers.FirstOrDefault(m => m.Kind == SyntaxKind.PublicKeyword) is { } publicKeyword)
+        {
+            Report(DiagnosticDescriptors.PublicInit, publicKeyword.Span);
+        }
         if (!(modifiers.Count > 0 && AtLineBreak) && TrySkipCSharpOperator(modifiers))
         {
             return null;

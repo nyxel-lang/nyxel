@@ -67,12 +67,30 @@ public class BinderTests
     [Fact]
     public void IntegerDivisionStaysIntegerNextToAVariable()
     {
-        // Wave is an int: 'wave / 2' divides integers, then converts to float (ADR-0013 rule 1).
-        var body = BindClean("let wave = 3\nlet speed: float = wave / 2");
+        // Wave is an int: 'wave / 2' divides integers wherever it stands (ADR-0013 rule 1). Its result becomes a float
+        // only when asked with 'as' (ADR-0042).
+        var body = BindClean("let wave = 3\nlet speed: float = (wave / 2) as float");
         var conversion = Assert.IsType<BoundConversion>(ValueOf(body, "speed"));
-        Assert.Equal(ConversionKind.ImplicitNumeric, conversion.ConversionKind);
+        Assert.True(conversion.IsExplicit);
         var division = Assert.IsType<BoundBinary>(conversion.Operand);
         Assert.Equal("int", SymbolDisplay.FormatType(division.Type));
+    }
+
+    [Theory]
+    // A side made a decimal first: the division is a decimal one.
+    [InlineData("let kills = 3\nlet total = 4\nlet x: float = kills as float / total", "float")]
+    [InlineData("let wave = 3\nlet x: float = wave / 2.0", "float")]
+    [InlineData("let wave = 3\nlet x = 10.0 / wave", "double")]
+    // Whole numbers all the way: nothing is lost that the reader can't see.
+    [InlineData("let wave = 3\nlet x = wave / 2 * 10", "int")]
+    [InlineData("let wave = 3\nlet x: long = wave / 2", "long")]
+    // A remainder is exact, and a call or a shift in between shows the whole number is wanted.
+    [InlineData("let wave = 3\nlet x: float = wave % 2", "float")]
+    [InlineData("let wave = 3\nlet x: float = Math.Abs(wave / 2)", "float")]
+    [InlineData("let wave = 3\nlet x: float = 1 << (wave / 2)", "float")]
+    public void DivisionsThatAreNotAWholeNumberBecomingADecimal(string statements, string type)
+    {
+        Assert.Equal(type, TypeOf(BindClean(statements), "x"));
     }
 
     [Theory]
@@ -95,7 +113,7 @@ public class BinderTests
                 var count: int = 0
                 let step: int
 
-                public init(step: int) {
+                init(step: int) {
                     self.step = step
                 }
 

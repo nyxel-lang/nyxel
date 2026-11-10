@@ -1,28 +1,27 @@
 # 当前状态
 
 > 每次收工**覆盖**本文件，保持一屏以内。历史在 [progress/](progress/)，计划在 [roadmap.md](roadmap.md)。
-> 最后更新：2026-11-09
+> 最后更新：2026-11-10
 
 ## 在哪
 
 - 里程碑：**M2 语义分析与代码生成**，日志在 [progress/M2.md](progress/M2.md)。M1 只剩“待定的逐轮讨论”没勾，和 M2 交错进行。开发在 `dev` 分支上做，每轮提交一次 wip；用户说"整理合并"时再整理进 main 并推到 GitHub（AGENTS.md "提交"）。
-- GitHub：https://github.com/nyxel-lang/nyxel，只推 `main`。2026-11-03 整理合并到 1f6a2be，CI 通过。之后 dev 上新增：ADR-0038、0039、0040、0041，Binder 的空值和收窄（还没进 main）。
-- 语言设计：ADR-0004 到 0027、0029 到 0041，汇总在 design/language-reference.md。
+- GitHub：https://github.com/nyxel-lang/nyxel，只推 `main`。2026-11-03 整理合并到 1f6a2be，CI 通过。之后 dev 上新增：ADR-0038 到 0042，Binder 的空值和收窄（还没进 main）。
+- 语言设计：ADR-0004 到 0027、0029 到 0042，汇总在 design/language-reference.md。
 - **M2 验收通过**（第一条线 2026-10-31，断点 2026-11-02）。M2 还没勾的：Binder 和降级逐步加宽、警告（命名、文档注释、多余的 null 检查）。
-- **Binder 加宽第一步：空值和收窄**（2026-11-06 实现，2026-11-09 按 ADR-0041 定稿）：`T?`、元数据的可空标注、`== null`、`is`、`?.`、`??`（含 `?? return`）、`??=`、`throw`、数组元素的检查；收窄跟着 `if` / `and` / `or` / 循环 / 赋值走；`int?` 只有 `==` / `!=` 提升。记录在 design/semantic-analysis.md“实现状态 · 空值和收窄”，降级在 design/lowering.md。
-- 错误码：下一个是 NYX1239 / NYX2066（design/diagnostics.md；2055、2056 已分配给 ADR-0040，还没实现）。编译器还没有警告。
-- 最近一次全绿：2026-11-09，`tools\build.cmd --test`，11 + 1031 个测试，高亮快照 19 项；`dotnet format --verify-no-changes` 通过。
+- **review 第四批**（2026-11-10，ADR-0042）：整数相除的结果不能隐式变成浮点（NYX2066）；被 lambda 捕获的 `var` 不收窄（等 lambda 进 Binder 再实现）；局部变量必须有初始值（NYX1239）；`not` 和位运算的优先级不动，加诊断（NYX2067、2068）；`public init` 是错误（NYX1240）；推断出类型的 `var` 赋 null 时诊断指到声明（NYX2069）。
+- 错误码：下一个是 NYX1241 / NYX2070（design/diagnostics.md；2055、2056 已分配给 ADR-0040，还没实现）。编译器还没有警告。
+- 最近一次全绿：2026-11-10，`tools\build.cmd --test`，11 + 1076 个测试，高亮快照 19 项；`dotnet format --verify-no-changes` 通过。
 
 ## 下一步
 
-1. 接着加宽 Binder（semantic-analysis.md“实现状态”）：属性、struct、enum（含 `class enum`、NYX2055 / 2056）、`static let` 常量（ADR-0038）→ `match`（含 `case null`、`case is T` 的收窄）→ lambda 和泛型推断（LINQ）→ 继承和接口、扩展 → `try`、`using`、`eval`、`with` → 运算符、索引器、事件 → 协程。
+1. 接着加宽 Binder（semantic-analysis.md“实现状态”）：属性、struct、enum（含 `class enum`、NYX2055 / 2056）、`static let` 常量（ADR-0038）→ `match`（含 `case null`、`case is T` 的收窄）→ lambda 和泛型推断（LINQ；带上 ADR-0042 的“被捕获的 `var` 不收窄”）→ 继承和接口、扩展 → `try`、`using`、`eval`、`with` → 运算符、索引器、事件 → 协程。
 2. 让 samples/ 能完整地绑定：给假想的 `Engine` API 写一个只有签名的 C# 桩程序集。
 3. 警告：命名检查（ADR-0006、0035）、文档注释的检查（ADR-0035）、对不会是 null 的引用类型做 null 检查（ADR-0041）。
 
 ## 悬而未决
 
-- ADR-0041 后果里记的观察点：`var current = node`（`node` 已收窄）推断成 `Node`，之后 `current = current.next` 编不过，要写 `var current: Node? = node`。写 samples 时看常不常碰到。
-- ADR-0040 留下的小问题：`public init` 要不要像成员上的 `private` 一样禁掉（现在允许，和默认一样、没有信息）。
+- **当值用的 `if` 的写法**（2026-11-10 用户提出）：`if c -> a else -> b` 不够好看，问能不能只留 `match`、或者换一种写法。方案已经列给用户，等用户选；定了写 ADR、改 ADR-0025。
 - ADR-0036 的只收窄局部变量会不会逼人改名：写 samples 时观察（ADR-0040 决策 4）。
 - 之前几轮新增的待定：
   - `match` 里的元组模式、嵌套解构、解构时写类型、重写 .NET 里元组元素没有名字的成员（M3）。
@@ -33,6 +32,6 @@
   - enum 和接口里的运算符（泛型数学）；自定义复合赋值 `operator +=`；struct 自定义相等（ADR-0030）。
   - 声明协变 / 逆变（ADR-0031）；ref 局部变量（ADR-0032）。
   - 等一个事件触发（`await signal`，ADR-0034）；ADR-0034 后果里 M3 / M4 要定的协程细节。
-- 特性（attribute）的写法：roadmap 记在 M3。项目文件 `.nyxelproj` 的格式和按程序集的“当作非空”开关：roadmap 记在 M4。
+- 特性（attribute）的写法、`typeof` / `nameof`（ADR-0042 决策 7）：roadmap 记在 M3。项目文件 `.nyxelproj` 的格式和按程序集的“当作非空”开关：roadmap 记在 M4。
 - roadmap “公开仓库前”剩下的几项（商标政策、命名 RFC、README 快速开始、Discord 等）和正式商标检索（brand.md），用户定什么时候做。
 - `nyxelc` 是独立可执行文件还是 `nyxel build` 的别名（ADR-0001 后果）。

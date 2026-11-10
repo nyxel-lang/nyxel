@@ -54,6 +54,23 @@ public class ParserErrorTests
     [Fact]
     public void LineThatCannotContinue() => AssertStatementErrors("let a = 1\n= 2", "NYX1107 4:1");
 
+    [Theory]
+    // A local always starts with a value (ADR-0042); fields may get theirs in an init.
+    [InlineData("let label: string", "NYX1239 3:5")]
+    [InlineData("var count: int\ncount = 1", "NYX1239 3:5")]
+    [InlineData("var x", "NYX1239 3:5")]
+    // Another error on the line is the one to report.
+    [InlineData("let a\n= 1", "NYX1107 4:1")]
+    [InlineData("let a 1", "NYX1106 3:7")]
+    public void LocalWithoutAValue(string statements, string expected) => AssertStatementErrors(statements, expected);
+
+    [Fact]
+    public void LocalWithoutAValueMessageShowsTheDeclaration()
+    {
+        var diagnostic = SyntaxTree.Parse(InMethod("let label: string")).Diagnostics.Single();
+        Assert.Equal("'label' needs its value where it is declared: 'let label: string = ...'. To choose between values, write 'if c -> a else -> b', 'match' or 'eval { ... }'.", diagnostic.Message);
+    }
+
     [Fact]
     public void ReturnValueOnTheNextLineIsAnotherStatement()
     {
@@ -80,12 +97,18 @@ public class ParserErrorTests
     [InlineData("private var x: int = 0", "NYX1196 2:1")]
     [InlineData("private static func F() { }", "NYX1196 2:1")]
     [InlineData("private property P: int { get = 1 }", "NYX1196 2:1")]
+    [InlineData("public init() { }", "NYX1240 2:1")]
+    [InlineData("public init FromPolar(radius: float) { }", "NYX1240 2:1")]
     [InlineData("property P: int {\n    set(value) = x\n}", "NYX1197 3:16")]
     public void MemberErrors(string member, string expected) => AssertFileErrors("class C {\n" + member + "\n}\n", expected);
 
     [Fact]
     public void PrivateIsOnlyWrittenOnAccessors() =>
         AssertFileErrors("class C {\n    public property P: int = 0 {\n        get\n        private set\n    }\n}\n");
+
+    [Fact]
+    public void AnInitTakesPrivateOrProtectedButNotPublic() =>
+        AssertFileErrors("class C {\n    init() { }\n    private init A() { }\n    protected init B() { }\n}\n");
 
     [Fact]
     public void ModifierOrderMessageListsAllModifiers()

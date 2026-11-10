@@ -1,6 +1,6 @@
 # ADR-0029: 索引器 `property self[...]`、enum 里写成员和实现接口、不加 `field` 和事件访问器
 
-- 状态：已接受（2026-11-04 修订）
+- 状态：已接受（2026-11-10 修订）
 - 日期：2026-10-16
 
 ## 背景
@@ -73,7 +73,7 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
          public event Clicked()
          let button: Button
 
-         public init(button: Button) {
+         init(button: Button) {
              self.button = button
              self.button.Clicked += self.OnButtonClicked
          }
@@ -208,3 +208,4 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
 ## 修订记录
 
 - 2026-11-04：例子里的 `self == Element.Fire` 改成 `self is Element.Fire`（判断 case 一律 `is`），见 ADR-0040。
+- 2026-11-10：例子里的 `public init` 去掉 `public`，见 ADR-0042。

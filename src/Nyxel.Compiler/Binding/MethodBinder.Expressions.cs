@@ -148,9 +148,61 @@ internal sealed partial class MethodBinder
         return division.Left is LiteralExpressionSyntax leftLiteral && IsPlainDigits(leftLiteral.Token.Text) ? $"{left}.0 {op} {right}"
             : division.Right is LiteralExpressionSyntax rightLiteral && IsPlainDigits(rightLiteral.Token.Text) ? $"{left} {op} {right}.0"
             : $"{left} * 1.0 {op} {right}";
-
-        static bool IsPlainDigits(string text) => text.All(c => char.IsAsciiDigit(c) || c == '_');
     }
+
+    /// <summary>
+    /// A whole-number calculation with a <c>/</c> in it that is about to become a <c>float</c>, <c>double</c> or
+    /// <c>decimal</c> without anyone asking (ADR-0042): <c>let ratio: float = kills / total</c> has already dropped
+    /// the fraction. Reported with the two ways to say which was meant: convert a side first, or convert the result
+    /// with <c>as</c>. The same check for literals alone is NYX2054 (ADR-0038).
+    /// </summary>
+    private bool ReportIntegerDivisionAsDecimal(BoundExpression expression, TypeSymbol target)
+    {
+        var targetType = target.NonNullable;
+        var isDecimal = Conversions.IsFloating(targetType.SpecialType) || targetType.SpecialType == SpecialType.System_Decimal;
+        if (!isDecimal || !Conversions.IsIntegral(expression.Type.SpecialType)
+            || IntegerDivisionIn(expression) is not { Syntax: BinaryExpressionSyntax division })
+        {
+            return false;
+        }
+        var typeName = SymbolDisplay.FormatType(targetType);
+        Report(DiagnosticDescriptors.IntegerDivisionAsDecimal, division, division.ToString(), typeName, DecimalDivisionSuggestion(division, typeName), expression.Syntax.ToString());
+        return true;
+    }
+
+    /// <summary>
+    /// The <c>/</c> of two whole numbers whose result reaches this expression through whole-number arithmetic only
+    /// (<c>a / b</c>, <c>a / b * 100</c>, <c>-(a / b)</c>). A call, an <c>as</c>, a shift or anything else in between
+    /// shows the whole number is wanted.
+    /// </summary>
+    private static BoundBinary? IntegerDivisionIn(BoundExpression expression) => expression switch
+    {
+        BoundBinary { OperatorKind: BinaryOperatorKind.Divide } division when Conversions.IsIntegral(division.Type.SpecialType) => division,
+        BoundBinary { OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply or BinaryOperatorKind.Modulo } binary
+            when Conversions.IsIntegral(binary.Type.SpecialType) => IntegerDivisionIn(binary.Left) ?? IntegerDivisionIn(binary.Right),
+        BoundUnary { OperatorKind: UnaryOperatorKind.Negate or UnaryOperatorKind.Plus } unary => IntegerDivisionIn(unary.Operand),
+        BoundConversion { IsExplicit: false, ConversionKind: ConversionKind.ImplicitNumeric } conversion => IntegerDivisionIn(conversion.Operand),
+        _ => null,
+    };
+
+    /// <summary>The division with one side made a decimal first: <c>10.0 / count</c>, <c>count / 2.0</c>, <c>kills as float / total</c>.</summary>
+    private static string DecimalDivisionSuggestion(BinaryExpressionSyntax division, string typeName)
+    {
+        var left = division.Left.ToString();
+        var right = division.Right.ToString();
+        if (division.Left is LiteralExpressionSyntax leftLiteral && IsPlainDigits(leftLiteral.Token.Text))
+        {
+            return $"{left}.0 / {right}";
+        }
+        if (division.Right is LiteralExpressionSyntax rightLiteral && IsPlainDigits(rightLiteral.Token.Text))
+        {
+            return $"{left} / {right}.0";
+        }
+        // 'as' binds tighter than '*' and '/' (ADR-0014), so only a calculation on the left needs parentheses.
+        return division.Left is BinaryExpressionSyntax ? $"({left}) as {typeName} / {right}" : $"{left} as {typeName} / {right}";
+    }
+
+    private static bool IsPlainDigits(string text) => text.All(c => char.IsAsciiDigit(c) || c == '_');
 
     private static bool IsLiteralOnly(ExpressionSyntax syntax) => syntax switch
     {
@@ -627,6 +679,10 @@ internal sealed partial class MethodBinder
         };
         if (result is not { } resultType)
         {
+            if (operatorKind == UnaryOperatorKind.LogicalNot && ReportNotBeforeComparison(syntax))
+            {
+                return Bad(syntax, operand);
+            }
             if (operand.Type.IsNullable)
             {
                 ReportMaybeNull(operand, operand.Syntax, suggestConditional: false);
@@ -637,6 +693,80 @@ internal sealed partial class MethodBinder
         }
         var typeSymbol = _context.GetSpecialType(resultType);
         return new BoundUnary(syntax, operatorKind, Convert(operand, typeSymbol), typeSymbol);
+    }
+
+    /// <summary>
+    /// <c>not hp &gt; 0</c>: <c>not</c> binds tighter than a comparison, as C#'s <c>!</c> does (ADR-0010), so it got
+    /// <c>hp</c> alone. The precedence stays (ADR-0042); the message gives the comparison turned round and the
+    /// parenthesized form instead of "not can't be applied to int".
+    /// </summary>
+    private bool ReportNotBeforeComparison(UnaryExpressionSyntax syntax)
+    {
+        var operand = syntax.Operand.ToString();
+        string? whole = null, turned = null;
+        switch (syntax.Parent)
+        {
+            case BinaryExpressionSyntax binary when ReferenceEquals(binary.Left, syntax) && TurnedComparison(binary.Kind) is { } opposite:
+                whole = $"{operand} {binary.OperatorToken.Text} {binary.Right}";
+                turned = $"{operand} {opposite} {binary.Right}";
+                break;
+            case IsExpressionSyntax isExpression when ReferenceEquals(isExpression.Expression, syntax):
+                whole = $"{operand} is {(isExpression.NotKeyword is null ? "" : "not ")}{isExpression.Type}";
+                turned = $"{operand} is {(isExpression.NotKeyword is null ? "not " : "")}{isExpression.Type}";
+                break;
+        }
+        if (whole is null || turned is null)
+        {
+            return false;
+        }
+        Report(DiagnosticDescriptors.NotBeforeComparison, syntax.OperatorToken, operand, whole, turned);
+        return true;
+
+        static string? TurnedComparison(SyntaxKind kind) => kind switch
+        {
+            SyntaxKind.LessThanExpression => ">=",
+            SyntaxKind.LessThanOrEqualExpression => ">",
+            SyntaxKind.GreaterThanExpression => "<=",
+            SyntaxKind.GreaterThanOrEqualExpression => "<",
+            SyntaxKind.EqualsExpression => "!=",
+            SyntaxKind.NotEqualsExpression => "==",
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// <c>mask &amp; 4 != 0</c>: <c>&amp;</c>, <c>^</c> and <c>|</c> bind looser than comparisons, as in C# (ADR-0010),
+    /// so the comparison ran first and its <c>bool</c> met a number. The precedence stays (ADR-0042); the message
+    /// shows how it was read and where the parentheses go.
+    /// </summary>
+    private bool ReportBitwiseBeforeComparison(SyntaxNode syntax, BoundExpression left, BoundExpression right)
+    {
+        if (syntax is not BinaryExpressionSyntax bitwise)
+        {
+            return false;
+        }
+        var op = bitwise.OperatorToken.Text;
+        if (bitwise.Right is BinaryExpressionSyntax rightComparison && IsComparison(rightComparison.Kind) && left.Type.SpecialType != SpecialType.System_Boolean)
+        {
+            var compare = rightComparison.OperatorToken.Text;
+            Report(DiagnosticDescriptors.BitwiseBeforeComparison, bitwise.OperatorToken, op, compare,
+                $"{bitwise.Left} {op} ({rightComparison})",
+                $"({bitwise.Left} {op} {rightComparison.Left}) {compare} {rightComparison.Right}");
+            return true;
+        }
+        if (bitwise.Left is BinaryExpressionSyntax leftComparison && IsComparison(leftComparison.Kind) && right.Type.SpecialType != SpecialType.System_Boolean)
+        {
+            var compare = leftComparison.OperatorToken.Text;
+            Report(DiagnosticDescriptors.BitwiseBeforeComparison, bitwise.OperatorToken, op, compare,
+                $"({leftComparison}) {op} {bitwise.Right}",
+                $"{leftComparison.Left} {compare} ({leftComparison.Right} {op} {bitwise.Right})");
+            return true;
+        }
+        return false;
+
+        static bool IsComparison(SyntaxKind kind) => kind is SyntaxKind.LessThanExpression or SyntaxKind.LessThanOrEqualExpression
+            or SyntaxKind.GreaterThanExpression or SyntaxKind.GreaterThanOrEqualExpression
+            or SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression;
     }
 
     /// <summary>C#'s unary numeric promotion: the small integer types and <c>char</c> become <c>int</c>.</summary>
@@ -730,7 +860,11 @@ internal sealed partial class MethodBinder
                 {
                     return new BoundBinary(syntax, operatorKind, left, right, boolType);
                 }
-                return Conversions.IsIntegral(l) && Conversions.IsIntegral(r) ? Numeric(null) : NotDefined();
+                if (Conversions.IsIntegral(l) && Conversions.IsIntegral(r))
+                {
+                    return Numeric(null);
+                }
+                return ReportBitwiseBeforeComparison(syntax, left, right) ? Bad(syntax, left, right) : NotDefined();
             case BinaryOperatorKind.LeftShift or BinaryOperatorKind.RightShift:
                 if (Conversions.IsIntegral(l) && Conversions.ClassifyImplicit(right.Type, _context.Int) is not null)
                 {

@@ -43,7 +43,42 @@ public class SemanticErrorTests
     [InlineData("let a = 1 / 2 * 4.0", "NYX2054 6:9")]
     [InlineData("let f: float = 1\nlet a = f * (1 / 2)", "NYX2054 7:14")]
     [InlineData("let a = Math.Max(1, 2.5) as cuont", "NYX2004 6:29")]
+    // A whole-number division whose result becomes a decimal without 'as' (ADR-0042).
+    [InlineData("let wave = 3\nlet speed: float = wave / 2", "NYX2066 7:20")]
+    [InlineData("let wave = 3\nlet speed: float = (wave / 2)", "NYX2066 7:21")]
+    [InlineData("let wave = 3\nlet scaled = wave / 2 * 0.5", "NYX2066 7:14")]
+    [InlineData("let kills = 3\nlet total = 4\nlet percent: float = kills / total * 100", "NYX2066 8:22")]
+    [InlineData("let wave = 3\nlet x: double = -(wave / 2) + 1", "NYX2066 7:19")]
+    [InlineData("let wave = 3\nlet f: float = 1\nlet x = f + wave / 2", "NYX2066 8:13")]
+    [InlineData("let wave = 3\nvar f: float = 1\nf += wave / 2", "NYX2066 8:6")]
+    [InlineData("let wave = 3\nlet big = wave / 2 > 0.5", "NYX2066 7:11")]
+    [InlineData("let wave = 3\nlet root = Math.Sqrt(wave / 2)", "NYX2066 7:22")]
+    [InlineData("let wave = 3\nlet x: float? = wave / 2", "NYX2066 7:17")]
+    // 'not' and the bitwise operators keep C#'s precedence; the message says how to write what was meant (ADR-0042).
+    [InlineData("let hp = 5\nif not hp > 0 {\n}", "NYX2067 7:4")]
+    [InlineData("let hp = 5\nlet dead = not hp == 0", "NYX2067 7:12")]
+    [InlineData("let o: object = \"a\"\nif not o is string {\n}", "NYX2067 7:4")]
+    [InlineData("let s = Console.ReadLine()\nif not s == null {\n}", "NYX2067 7:4")]
+    [InlineData("let mask = 5\nif mask & 4 != 0 {\n}", "NYX2068 7:9")]
+    [InlineData("let mask = 5\nlet on = 4 == mask | 1", "NYX2068 7:20")]
+    // A 'var' whose type came from its first value can't hold null later (ADR-0042).
+    [InlineData("var name = \"a\"\nname = Console.ReadLine()", "NYX2069 7:8")]
+    [InlineData("var name = \"a\"\nname = null", "NYX2069 7:8")]
+    [InlineData("var count = 1\ncount = Console.ReadLine()?.Length", "NYX2069 7:9")]
     public void ErrorsInAFunction(string statements, string expected) => Assert.Equal([expected], DiagnosticsOf(InFunction(statements)));
+
+    [Theory]
+    [InlineData("let wave = 3\nlet speed: float = wave / 2", "'wave / 2' divides whole numbers, which drops the fraction, but its result is used as a 'float'. To divide as decimals write 'wave / 2.0'; to keep the whole-number division write '(wave / 2) as float'.")]
+    [InlineData("let kills = 3\nlet total = 4\nlet percent: float = kills / total * 100", "'kills / total' divides whole numbers, which drops the fraction, but its result is used as a 'float'. To divide as decimals write 'kills as float / total'; to keep the whole-number division write '(kills / total * 100) as float'.")]
+    [InlineData("let a = 3\nlet b = 4\nlet x: double = a * 2 / b", "'a * 2 / b' divides whole numbers, which drops the fraction, but its result is used as a 'double'. To divide as decimals write '(a * 2) as double / b'; to keep the whole-number division write '(a * 2 / b) as double'.")]
+    [InlineData("let n = 4\nlet x: float = 10 / n", "'10 / n' divides whole numbers, which drops the fraction, but its result is used as a 'float'. To divide as decimals write '10.0 / n'; to keep the whole-number division write '(10 / n) as float'.")]
+    [InlineData("let hp = 5\nif not hp > 0 {\n}", "'not' applies to 'hp' alone, not to the whole 'hp > 0'. Write 'hp <= 0' or 'not (hp > 0)'.")]
+    [InlineData("let o: object = \"a\"\nif not o is string {\n}", "'not' applies to 'o' alone, not to the whole 'o is string'. Write 'o is not string' or 'not (o is string)'.")]
+    [InlineData("let mask = 5\nif mask & 4 != 0 {\n}", "'&' is applied after '!=', so this reads as 'mask & (4 != 0)'. Write '(mask & 4) != 0'.")]
+    [InlineData("let mask = 5\nlet on = 4 == mask | 1", "'|' is applied after '==', so this reads as '(4 == mask) | 1'. Write '4 == (mask | 1)'.")]
+    [InlineData("var name = \"a\"\nname = Console.ReadLine()", "'name' is a 'string', the type of its first value, so it can't be given a value that may be null. Declare it as 'var name: string? = ...' to let it hold null.")]
+    public void MessagesSayHowToWriteIt(string statements, string message) =>
+        Assert.Equal([message], Compile(InFunction(statements)).GetDiagnostics().Select(d => d.Message));
 
     [Theory]
     // A member of the type needs 'self.' or the type name (ADR-0008).

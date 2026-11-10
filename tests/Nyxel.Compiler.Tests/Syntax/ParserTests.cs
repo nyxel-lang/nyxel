@@ -141,8 +141,8 @@ public class ParserTests
             Stmt("let help = \"\"\"\n    Usage:\n    \"\"\""));
 
     [Theory]
-    [InlineData("var hits: array<RaycastHit>", "(LocalDeclarationStatement var hits (TypeAnnotation : (ArrayType array < RaycastHit >)))")]
-    [InlineData("let rows: array<array<int>?>?", "(LocalDeclarationStatement let rows (TypeAnnotation : (NullableType (ArrayType array < (NullableType (ArrayType array < int >) ?) >) ?)))")]
+    [InlineData("var hits: array<RaycastHit> = x", "(LocalDeclarationStatement var hits (TypeAnnotation : (ArrayType array < RaycastHit >)) (EqualsValueClause = x))")]
+    [InlineData("let rows: array<array<int>?>? = x", "(LocalDeclarationStatement let rows (TypeAnnotation : (NullableType (ArrayType array < (NullableType (ArrayType array < int >) ?) >) ?)) (EqualsValueClause = x))")]
     [InlineData("let a = new array<int>(16)", "(LocalDeclarationStatement let a (EqualsValueClause = (ObjectCreationExpression new (ArrayType array < int >) (ArgumentList ( (Argument 16) )))))")]
     [InlineData("let a = new array<int>(length = 3)", "(LocalDeclarationStatement let a (EqualsValueClause = (ObjectCreationExpression new (ArrayType array < int >) (ArgumentList ( (Argument (NameEquals length =) 3) )))))")]
     [InlineData("let ok = x is array<int>", "(LocalDeclarationStatement let ok (EqualsValueClause = (IsExpression x is (ArrayType array < int >))))")]
@@ -487,7 +487,7 @@ public class ParserTests
     [InlineData("func TryLoad(self, key: string, data: out SaveData) -> bool", "(FunctionDeclaration func TryLoad (ParameterList ( (SelfParameter self) , (Parameter key : string) , (Parameter data : out SaveData) )) (ReturnTypeClause -> bool))")]
     [InlineData("func Spawn(self, count: int = 1) { }", "(FunctionDeclaration func Spawn (ParameterList ( (SelfParameter self) , (Parameter count : int (EqualsValueClause = 1)) )) (Block { }))")]
     [InlineData("static func Max<T: IComparable<T>>(a: T, b: T) -> T = a", "(FunctionDeclaration static func Max (TypeParameterList < (TypeParameter T (TypeParameterConstraintClause : (TypeConstraint (GenericName IComparable (TypeArgumentList < T >))))) >) (ParameterList ( (Parameter a : T) , (Parameter b : T) )) (ReturnTypeClause -> T) (ExpressionBody = a))")]
-    [InlineData("public init FromPolar(radius: float) { }", "(InitDeclaration public init FromPolar (ParameterList ( (Parameter radius : float) )) (Block { }))")]
+    [InlineData("protected init FromPolar(radius: float) { }", "(InitDeclaration protected init FromPolar (ParameterList ( (Parameter radius : float) )) (Block { }))")]
     [InlineData("private init FromRaw(raw: int) { }", "(InitDeclaration private init FromRaw (ParameterList ( (Parameter raw : int) )) (Block { }))")]
     [InlineData("public event Died(slime: Slime)", "(EventDeclaration public event Died (ParameterList ( (Parameter slime : Slime) )))")]
     [InlineData("static func MinMax(values: List<int>) -> (Min: int, Max: int) = (0, 0)", "(FunctionDeclaration static func MinMax (ParameterList ( (Parameter values : (GenericName List (TypeArgumentList < int >))) )) (ReturnTypeClause -> (TupleType ( (TupleElement Min : int) , (TupleElement Max : int) ))) (ExpressionBody = (TupleExpression ( (Argument 0) , (Argument 0) ))))")]

@@ -39,9 +39,10 @@ internal sealed partial class MethodBinder
         var declaredType = syntax.TypeAnnotation is { } annotation ? _scope.BindType(annotation.Type) : null;
         if (syntax.Initializer is not { } initializer)
         {
-            var missing = NotSupported(syntax.Identifier, "A local variable without an initial value");
-            DeclareLocal(syntax.Identifier, declaredType ?? ErrorTypeSymbol.Instance, isReadOnly);
-            return new BoundExpressionStatement(syntax, missing);
+            // A local always starts with a value (ADR-0042); the parser reported it (NYX1239). Declared as a 'var' so
+            // that the assignments meant to give it its value don't each report again.
+            DeclareLocal(syntax.Identifier, declaredType ?? ErrorTypeSymbol.Instance, isReadOnly: false);
+            return new BoundExpressionStatement(syntax, Bad(syntax.Identifier));
         }
 
         var value = BindStatementValue(initializer.Value, declaredType);
@@ -101,6 +102,11 @@ internal sealed partial class MethodBinder
             {
                 NarrowAfterAssignment(variable, declared, value.HasErrors ? ErrorTypeSymbol.Instance : value.Type);
             }
+            if (assignable && InferredLocalGivenNull(target, value) is { } inferred)
+            {
+                Report(DiagnosticDescriptors.InferredLocalCannotBeNull, syntax.Value, inferred.Name, SymbolDisplay.FormatType(inferred.Type));
+                return new BoundAssignment(syntax, target, Bad(syntax.Value, value));
+            }
             return new BoundAssignment(syntax, target, assignable ? Convert(value, target.Type, syntax.Value) : value);
         }
         if (syntax.OperatorToken.Kind == SyntaxKind.QuestionQuestionEqualsToken)
@@ -142,6 +148,23 @@ internal sealed partial class MethodBinder
             return new BoundCompoundAssignment(syntax, target, operatorKind, binary.Right);
         }
         return new BoundCompoundAssignment(syntax, target, operatorKind, right);
+    }
+
+    /// <summary>
+    /// A <c>var</c> whose type came from its first value (<c>var current = node</c>, a <c>Node</c>) that is now given
+    /// <c>null</c> or a <c>Node?</c>: the fix is at the declaration, <c>var current: Node? = node</c> (ADR-0042).
+    /// </summary>
+    private static LocalSymbol? InferredLocalGivenNull(BoundExpression target, BoundExpression value)
+    {
+        if (target is not BoundLocalAccess { Local: { IsReadOnly: false, Type: { IsNullable: false, IsError: false } type } local }
+            || local.Identifier.Parent is not LocalDeclarationStatementSyntax { TypeAnnotation: null }
+            || value.HasErrors)
+        {
+            return null;
+        }
+        var mayBeNull = value.Type is NullTypeSymbol
+            || (value.Type.IsNullable && Conversions.ClassifyImplicit(value.Type.NonNullable, type) is not null);
+        return mayBeNull ? local : null;
     }
 
     /// <summary>

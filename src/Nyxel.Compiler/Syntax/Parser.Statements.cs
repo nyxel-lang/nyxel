@@ -111,6 +111,12 @@ internal sealed partial class Parser
         var identifier = ExpectIdentifier();
         var typeAnnotation = TryParseTypeAnnotation();
         var initializer = TryParseInitializer();
+        // A local always starts with a value (ADR-0042). When something else is wrong with the line (leftovers, or
+        // the '=' on the next line), that error is the one to report.
+        if (initializer == null && !identifier.IsMissing && AtStatementEnd && Current.Kind != SyntaxKind.EqualsToken)
+        {
+            Report(DiagnosticDescriptors.LocalNeedsInitialValue, identifier.Span, identifier.Text, $"{keyword.Text} {identifier.Text}{typeAnnotation}");
+        }
         return new LocalDeclarationStatementSyntax(keyword, identifier, typeAnnotation, initializer);
     }
 

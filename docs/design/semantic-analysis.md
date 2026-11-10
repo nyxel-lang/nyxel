@@ -118,9 +118,10 @@ Symbol（Name、Kind、ContainingSymbol、Accessibility、Locations）
 - **收窄，在绑定时做**：`if other is not Projectile { return }` 之后 `other` 的类型是 `Projectile`，后面绑定 `other.Power` 时马上就要用到。
   - Binder 绑定语句时带着一个“流状态”：哪些局部变量和参数在这一点被收窄成了什么类型。
   - 只有局部变量和参数会收窄（language-reference“空值”“类型检查”两节）。`let` 和参数不能重新赋值，收窄后一直有效；`var` 局部变量被赋值后取消收窄。
+  - 被 lambda 捕获的 `var` 局部变量不收窄（ADR-0042）：lambda 可能在检查和使用之间把它改掉。绑定函数体之前先在语法树上扫一遍，记下被 lambda 读或写的 `var`（按名字找就行，一个函数里一个名字只指一个变量，ADR-0036），收窄和赋值后收窄都跳过它们；报 NYX2057 / NYX2058 时说明它被 lambda 捕获了，建议先存进 `let`。
   - 收窄来自 `is`、`!= null`、`?? return` / `?? throw`、提前 `return` 的 `if`。分支汇合时只保留两边都成立的收窄；循环体里赋过值的变量，在循环开头就不算收窄。
 - **在绑定树上另走一遍**：
-  - 确定赋值：`let` 字段在每个 `init` 里都赋过值（ADR-0006、ADR-0027）。
+  - 确定赋值：`let` 字段在每个 `init` 里都赋过值（ADR-0006、ADR-0027）。局部变量不需要：它们必须在声明处给初始值（ADR-0042，Parser 报 NYX1239）。
   - 可达性：有返回值的函数每条路径都 `return`（ADR-0007），`eval` 块每条路径都 `give` 或 `throw`（ADR-0025）。
 
 ## 前几轮留下的检查放在哪一遍
@@ -195,7 +196,7 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - `Symbols/`：`Symbol` 和各种类型、成员；`SymbolTable` 包装 Roslyn 读出的元数据，管数组类型；源码符号在 `SourceSymbols.cs`；`SymbolDisplay` 用 Nyxel 的写法显示名字。
 - `Binding/`：`Declarer`（第 1 到 4 遍）、`ImportScope`、`MethodBinder`（第 5 遍，按语句、表达式、调用分文件）、`Conversions`、`FlowAnalysis`、绑定树的节点和打印。
 - `NyxelCompilation`：`Create`、`GetDiagnostics`、`EmitCSharp`、`Emit`。
-- 语义诊断 NYX2001 到 NYX2065（diagnostics.md“语义”；NYX2055、2056 已分配给 ADR-0040，还没实现）。
+- 语义诊断 NYX2001 到 NYX2069（diagnostics.md“语义”；NYX2055、2056 已分配给 ADR-0040，还没实现）。
 - 测试：`BinderTests`、`SemanticErrorTests`、`NullSafetyTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
 
 ### 空值和收窄（2026-11-06）
@@ -216,9 +217,17 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - 实现时先按最严的方式处理、2026-11-09 和用户定下的五处细节见 ADR-0041：赋值后收窄、`int?` 只有 `==` / `!=` 提升、`T?` 没有成员、多余的检查是警告、没标注的程序集只管最外层。字符串拼接 `"a" + s` 照 C# 可以（它是 `string + object`）。
 - `x == 3` 成立时 `x` 不收窄（Kotlin 会），收窄只来自 ADR 列的写法。
 
+### 整数相除、优先级的诊断、推断出的 `var`（2026-11-10，ADR-0042）
+
+- **整数相除的结果不隐式变浮点**（NYX2066）：查在 `MethodBinder.Convert` 里，所有隐式转换都从这里过。目标是 `float` / `double` / `decimal`（或它们的 `T?`）、值是整数时，`IntegerDivisionIn` 沿着绑定树往里找：整数的 `+ - * %`、取负、整数之间的隐式转换都穿过去，碰到两边是整数的 `/` 就报；调用、`as`、移位、别的节点都停。括号在绑定树里没有节点，自然穿过。重载照旧先选（OverloadResolution 不知道这条规则），选完做转换时才报。只有字面量的式子绑定时就折叠成一个 `BoundLiteral`，走不到这里，由 NYX2054 管（ADR-0038）。
+- **`not` 后面的比较**（NYX2067）：`ResolveUnary` 发现 `not` 的操作数不是 `bool` 时，看语法树上的父节点：`not` 是比较、`==` / `!=` 或 `is` 的左边，就换成这条诊断，给出反过来的比较（`hp <= 0`、`x is not T`）和加括号的写法。操作数是 `bool` 时（`not a == b`）照常通过。
+- **位运算和比较混写**（NYX2068）：`ResolveBinary` 里 `& ^ |` 的两边既不都是 `bool` 也不都是整数时，看语法上哪一边是没加括号的比较（加了括号的是 `ParenthesizedExpressionSyntax`），另一边不是 `bool` 就报，消息里拼出它被读成的样子和该加的括号。
+- **推断出类型的 `var` 赋了可能是 null 的值**（NYX2069）：`BindAssignment` 在做转换之前查：目标是没写类型的 `var` 局部变量（标识符的父节点是 `TypeAnnotation` 为空的声明）、类型不可空，值是 `null` 或去掉 `?` 以后能转成它的 `T?`。别的情况照旧是 NYX2058 / NYX2059。
+- **局部变量没有初始值**：Parser 报 NYX1239；Binder 不再报，把它当 `var` 声明出来（类型取写的类型，没写是错误类型），后面给它赋值的语句不连带报错。
+
 和设计不同、或者还没做到的：
 
-- 没有初始值的局部变量（`var x: int`）报 NYX2001，要先有局部变量的确定赋值。`let` / `var` 字段在 `init` 里的确定赋值已经有了（NYX2050）。
+- 被 lambda 捕获的 `var` 不收窄（ADR-0042 决策 2）还没实现：Binder 还不支持 lambda，随“lambda 和泛型推断”一步做，做法见“流分析”。
 - 元数据的类型只看 public 的；嵌套类型、泛型方法、扩展方法、事件、`params` 的展开形式还不支持。
 - C# 的 `[NotNullWhen]` 这类特性不读：`if string.IsNullOrEmpty(s) { return }` 之后 `s` 仍是 `string?`。收窄只来自 ADR 列的几种写法。
 - `match` 的 `case null`、`case is T` 收窄随 `match` 一步做。

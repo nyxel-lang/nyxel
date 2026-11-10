@@ -17,7 +17,7 @@
 1. **`init` 默认公开；要藏起来写 `private init`。**
    ```nyxel
    public class RecentList<T: class> {
-       init(capacity: int) { ... }             // 公开，和 public init 一样
+       init(capacity: int) { ... }             // 公开；不写 public
    }
 
    public struct Fixed {
@@ -29,6 +29,7 @@
    - `private` 写在它比默认窄、有信息的地方，和 ADR-0026 保留 `private set` 是同一个理由。`protected init` 照旧（抽象基类）。
    - 这是 ADR-0006“成员默认私有”和 ADR-0026“成员上不写 `private`”各开的一个口子：只有 `init`。别的成员上写 `private` 仍然是 NYX1196。
    - 命名 `init` 同样默认公开。
+   - `init` 上写 `public` 是编译错误（ADR-0042）：和默认一样、没有信息，理由同成员上的 `private`。
 2. **判断是不是某个 enum case 一律写 `is`；`x == 类型.Case`、`x != 类型.Case` 是编译错误**，诊断给出 `is` / `is not`。
    ```nyxel
    if self.state is SlimeState.Idle { }    // 判断 case
@@ -74,5 +75,4 @@
   - 语义分析（M2）：`init` 的可见性默认公开（已随本 ADR 实现）；`x == 类型.Case` 报 NYX2055、两个 case 同一个值报 NYX2056（enum 还没进 Binder，随“属性、struct、enum”一步实现，semantic-analysis.md“实现状态”）。
 - samples：`TileMap.IsWall`、`BossIntro` 的 `key == Key.Escape` 改成 `is`；`Fixed.FromRaw` 写成 `private init`，`RecentList`、`TileMap` 的 `init` 不写修饰符就是公开。
 - roadmap M4 加一条：项目文件里按程序集的“当作非空”开关。
-- 待定：`public init` 要不要像成员上的 `private` 一样禁掉（现在允许；和默认一样、没有信息）。
 - 错误码见 design/diagnostics.md。

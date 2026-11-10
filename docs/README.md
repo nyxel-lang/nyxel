@@ -29,7 +29,7 @@
 | [0003](decisions/0003-design-goals.md) | 设计优先级：读者能正确理解 > Agent 能一次写对 > .NET 互操作 > 性能 > 手写省键 |
 | [0004](decisions/0004-compile-to-csharp-via-roslyn.md) | 编译模型：自研前端，降级成 C# 交给进程内 Roslyn 出 dll + pdb，`#line` 映射回 .nyxel |
 | [0005](decisions/0005-syntax-family.md) | 语法风格：现代花括号系（关键字开头的声明、类型后置、无分号、条件无括号但必须有花括号） |
-| [0006](decisions/0006-declarations.md) | 声明：`let` / `var`、字段和签名必须写类型、`func ... -> R`、默认私有 + `public`、.NET 命名约定由编译器检查、关键字用完整单词或通用缩写 |
+| [0006](decisions/0006-declarations.md) | 声明：`let` / `var`、字段和签名必须写类型、局部变量必须有初始值、`func ... -> R`、默认私有 + `public`、.NET 命名约定由编译器检查、关键字用完整单词或通用缩写 |
 | [0007](decisions/0007-comments-literals-expressions.md) | 只有 `//` 和 `///`（Markdown）；C# 内置类型名；数值字面量随上下文定型、无后缀；`if` / `match` 是表达式、无 `?:`、函数必须 `return`；`$"..."` 插值同 C# |
 | [0008](decisions/0008-type-definitions.md) | 类型：class / struct / interface 同 C#；`enum` + `case`（可带数据）；`init` 最多一个不带名字、其余命名；创建一律 `new`；成员一律 `self.` / `类型名.`；参数里有 `self` 是实例方法，struct 改自己写 `var self`，`let` 的 struct 整个不可变 |
 | [0009](decisions/0009-null-safety-and-match.md) | 空值：`T` / `T?`，违反是编译错误，无标注 .NET API 当 `T?`；局部变量流分析收窄；`??` 可接 `return` / `throw` / `continue` / `break`；没有强制解包。match：`case 模式 -> 值`、默认分支 `case _`、按位置取 case 的数据、必须穷尽 |
@@ -65,5 +65,6 @@
 | [0039](decisions/0039-static-func-enum-storage-explicit.md) | 没有 `self` 的函数必须写 `static func`（有 `self` 又写 `static` 是错误）；带数据的 enum 必须写明 `struct enum`（值类型）或 `class enum`（堆上、可递归），光写 `enum` 是错误 |
 | [0040](decisions/0040-init-public-enum-case-is-no-alias.md) | `init` 默认公开，要藏起来写 `private init`；判断 enum case 一律 `is`，`x == 类型.Case` 是错误；两个 case 不能同一个值；`case` 三用、`->` 分支延伸、没标注的程序集当 `T?`、收窄改名四项不改 |
 | [0041](decisions/0041-null-details-assignment-equality-members.md) | 空值的五处细节：赋了不可能是 null 的值之后当作非空；`int?` 只有 `==` / `!=` 像 C# 那样提升；`T?` 没有成员（`.Value` 也不行）；对不会是 null 的引用类型做 null 检查是警告；没标注的程序集只管最外层 |
+| [0042](decisions/0042-integer-division-captured-var-local-initial-value-precedence-hints.md) | 整体 review 第四批：整数相除的结果不能隐式变成浮点（写 `a as float / b` 或 `(a / b) as float`）；被 lambda 捕获的 `var` 局部变量不收窄；局部变量必须在声明处给初始值；`not` 和位运算的优先级不动、加专门的诊断；`init` 上写 `public` 是错误；推断出类型的 `var` 赋 null 时诊断指到声明；`typeof` / `nameof` 记入待定 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

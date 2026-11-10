@@ -1,6 +1,6 @@
 # ADR-0019: 括号里的续行、修饰符顺序、区间优先级、错误码前缀
 
-- 状态：已接受（2026-11-04 修订）
+- 状态：已接受（2026-11-10 修订）
 - 日期：2026-10-06
 
 ## 背景
@@ -28,7 +28,7 @@
            offset,
        target)
    ```
-2. **修饰符顺序固定**：可见性（`public` / `protected`；访问器和 `init` 上还有 `private`，别的成员上不写，ADR-0026、ADR-0040）→ `static` → `abstract` / `sealed` / `virtual` / `override` → `async`。这一组里出现两个时 `override` 写在最后（`sealed override`、`abstract override`，组合是否合法同 C#）。顺序不对、同一个修饰符写两次都是编译错误，诊断给出正确的写法。
+2. **修饰符顺序固定**：可见性（`public` / `protected`；访问器和 `init` 上还有 `private`，别的成员上不写，ADR-0026、ADR-0040；`init` 上不写 `public`，ADR-0042）→ `static` → `abstract` / `sealed` / `virtual` / `override` → `async`。这一组里出现两个时 `override` 写在最后（`sealed override`、`abstract override`，组合是否合法同 C#）。顺序不对、同一个修饰符写两次都是编译错误，诊断给出正确的写法。
    ```nyxel
    public static var Killed: int = 0          // 正确
    protected override func OnEnable(self) {}  // 正确
@@ -61,3 +61,4 @@
 
 - 2026-10-09：成员上不写 `private`（默认私有），`private` 只出现在访问器上（决策 2 的可见性），见 ADR-0026。
 - 2026-11-04：`init` 上也能写 `private`（它默认公开），见 ADR-0040。
+- 2026-11-10：`init` 上不写 `public`（决策 2 的可见性），见 ADR-0042。

@@ -1,6 +1,6 @@
 # ADR-0027: 创建时设置成员 `with (...)`、调用其他 init 写 `init super(...)`
 
-- 状态：已接受
+- 状态：已接受（2026-11-10 修订）
 - 日期：2026-10-15
 
 ## 背景
@@ -46,12 +46,12 @@
 
    ```nyxel
    public class Missile : Projectile {
-       public init(target: Entity) {
+       init(target: Entity) {
            init super.Homing(power = 10, target = target)  // 基类的命名 init
            ...
        }
 
-       public init Dud() {
+       init Dud() {
            init self(target = Entity.None)                 // 本类不带名字的 init
        }
    }
@@ -92,3 +92,6 @@
 - 新错误码 NYX1198（`with` 不在 `new` 后面）、NYX1199（`with` 里的一项没写名字）、NYX1200（`super.init(...)` / `self.init(...)`）；NYX1167 的消息按内容给出 `with` 或集合字面量。
 - 留给语义分析（M2）：`init super` / `init self` 只能是 `init` 的第一句、`with` 里的成员能不能设、`required` 是否齐全、命名 init 不继承。
 - 待定：`with` 用在已有的值上（复制一份再改几个成员，C# 的 `with` 表达式）；Nyxel 自己声明只能在创建时设置的成员。
+
+## 修订记录
+- 2026-11-10：例子里的 `public init` 去掉 `public`（`init` 默认公开，写 `public` 是编译错误），见 ADR-0042。

@@ -176,14 +176,15 @@ let count = 10                          // 都没有：int（同 C#）
   - 转义同字符串：`'\n'`、`'\''`。
   - 双引号永远是 `string`。
 
-### 运算里的字面量（ADR-0013、ADR-0038）
+### 运算里的字面量（ADR-0013、ADR-0038、ADR-0042）
 
 期望的类型往里传，但不改变整数运算：
 
 ```nyxel
 // Wave: int，Speed: float
 slime.Speed = 2 + self.Wave * 0.5   // float
-slime.Speed = self.Wave / 2         // 整数除法再转 float（Wave 是 3 时得 1.0）
+slime.Speed = self.Wave / 2         // 错误：整数除法的结果不能悄悄变成 float（见下）
+let half = self.Wave / 2            // int：整数除法（Wave 是 3 时得 1）
 let a = self.Wave * 0.5             // double（没有期望的类型）
 let b: int = self.Wave * 1.5        // 错误：期望整数，1.5 不是整数
 let c: float = 1.5 * 2              // 3.0：两边都是字面量，看期望的类型
@@ -191,7 +192,7 @@ let d: float = 1 / 2                // 错误：整数相除是整数除法，�
 let e: int = 7 / 2                  // 3，同 C#
 ```
 
-1. 运算的一边是有确定类型的值（变量、字段、属性、调用结果）时，字面量跟着它。`self.Wave / 2` 不管放在哪里都是整数除法。
+1. 运算的一边是有确定类型的值（变量、字段、属性、调用结果）时，字面量跟着它。`self.Wave / 2` 不管放在哪里都是整数除法；它的结果要当浮点用得写明（见“整数相除的结果”）。
 2. 整数值配小数字面量时按浮点算：期望的类型是浮点类型就用它，没有期望的类型时用 `double`。
 3. 两边都是字面量时看期望的类型。例外：整数字面量之间的 `/` 和 `%` 永远是整数运算，这样的运算出现在按浮点算的字面量表达式里是编译错误，诊断提示把一边写成小数（ADR-0038）。“按浮点算”指期望的类型是 `float`、`double`、`decimal`，或者没有期望的类型但式子里有小数字面量：`let x: float = 10 / 2`、`let y = 1 / 2 * 4.0` 都报错。期望整数类型、或者没有期望的类型且全是整数时照 C#：`let n = 1 / 2` 是 0。
 
@@ -214,6 +215,27 @@ let m = Math.Max(1, 2.5)                    // double：只有字面量，用默
 - 泛型推断同样：类型实参由有类型的实参推出，字面量跟着它。
 - 调用不看外面期望的类型（同 C#）：`self.speed = Math.Max(self.wave, 0.5)` 是 `double`，要写 `as float`。
 - 跟着 `float` 实参的字面量表达式同样不能有整数相除：`Math.Max(self.speed, 1 / 2)` 是编译错误（ADR-0038）。
+
+### 整数相除的结果（ADR-0042）
+
+整数相除会丢掉小数部分。丢了以后再变成浮点，多半不是写的人想要的，所以这一步不能隐式发生：
+
+```nyxel
+// kills、total、wave: int
+let ratio: float = kills / total                // 错误：3 / 4 已经是 0
+let exact: float = kills as float / total       // 0.75：先把一边转成浮点，按浮点除
+let cells: float = (kills / total) as float     // 0.0：确实要整除，对结果写 as
+let percent: float = kills / total * 100        // 错误：整除之后再乘，还是那个 0
+let scaled = wave / 2 * 0.5                     // 错误：wave / 2 的结果要和 0.5 相乘
+let smooth = wave / 2.0 * 0.5                   // 字面量写成小数就按浮点除
+let half = wave / 2                             // int：没有变成浮点，照常
+```
+
+- 两边都是整数的 `/`，连同它外面再做的整数加、减、乘、取余、取负和括号，这样一个整数算式的值不能隐式转换成 `float`、`double`、`decimal`。
+- 隐式转换出现的地方都算：赋值和声明的类型、实参、返回值、和浮点值做运算或比较、`+=` 这类复合赋值的右边。
+- 两种写法：要小数就先把一边转成浮点（`kills as float / total`，字面量写成小数 `wave / 2.0`）；确实要整除就对结果写 `as`（`(kills / total) as float`）。
+- 相除的结果先传给要整数的参数（`Math.Abs(a / b)`）、写了 `as`、当移位的操作数时，表明要的就是整数，之后怎么用都行。单独的 `%` 不受影响。
+- 只有字面量的 `1 / 2` 见上面“运算里的字面量”。
 
 ## 字符串（ADR-0007）
 
@@ -352,7 +374,7 @@ let (quotient, remainder) = Math.DivRem(17, 5)
   - 解构里只写名字。
 - 待定：`match` 里的元组模式（`case (0, 0)`）；嵌套解构；解构时写类型；重写 .NET 里元组元素没有名字的成员。
 
-## 变量与字段（ADR-0006、ADR-0036）
+## 变量与字段（ADR-0006、ADR-0036、ADR-0042）
 
 ```nyxel
 class Slime : Behaviour {
@@ -369,7 +391,13 @@ class Slime : Behaviour {
 - `let` 不可变，`var` 可变。不可变的是名字本身，不是它指向的对象：`let enemies = new List<Enemy>()` 之后可以 `enemies.Add(e)`，但不能 `enemies = ...`。
 - class 变量存的是引用（对象在哪），struct 变量存的是数据本身（赋值时复制一份）。所以 `let` 的 class 变量仍然可以改对象的字段，`let` 的 struct 整个不可变：不能给它的字段赋值，也不能调用它的 `var self` 方法（ADR-0008）。
 - 给 `let` 重新赋值是编译错误。
-- 字段必须写类型。局部变量有初始值时可以省略类型。
+- 字段必须写类型。局部变量的类型可以省略，由初始值推断。
+- 局部变量必须在声明的地方给初始值（ADR-0042）；字段可以留给 `init` 赋值。`let label: string` 之后再各分支赋值是编译错误：
+
+  ```nyxel
+  let label = if wave > 2 -> "late" else -> "early"     // 分几种情况算一个值：-> 形式的 if / match / try，或 eval
+  var best: Enemy? = null                               // 一开始没有：写成可空的
+  ```
 - 静态字段写 `static var` / `static let`（ADR-0008）。
 - `static let` 的初始值是常量表达式（字面量、不带数据的 enum case、别的常量和它们的运算）、类型是数字、`bool`、`char`、`string` 或 enum 时，它是编译期常量（C# 那边是 `const`），可以当默认参数值、`match` 的 `case` 标签和 enum case 的值（ADR-0038）。其余的 `static let`（`Vector3`、数组、调用的结果）是启动时算一次的只读字段（C# 的 `static readonly`），用在这些位置是编译错误，诊断说明它的初始值不是常量表达式。读的一方不用区分：两种都是“不会变的值”。
 
@@ -835,7 +863,7 @@ let b = new Point.FromPolar(radius = 1, angle = 0.5)
 
 - 不带名字的 `init` 最多一个，其余必须有名字。构造函数不按参数类型重载。
 - 没有默认值的字段，每个 `init` 结束前都必须赋过值（确定初始化检查）。
-- `init` 默认公开（ADR-0040），和别的成员相反：构造函数十个里九个是公开的，自动生成的那个也公开。要藏起来写 `private init`（只给工厂函数用），只给子类用写 `protected init`。`init` 里的 `self` 是正在构造的对象。
+- `init` 默认公开（ADR-0040），和别的成员相反：构造函数十个里九个是公开的，自动生成的那个也公开。要藏起来写 `private init`（只给工厂函数用），只给子类用写 `protected init`。写 `public init` 是编译错误（ADR-0042）：和不写一样。`init` 里的 `self` 是正在构造的对象。
 - C# 那边：不带名字的 `init` 是构造函数，命名 `init` 是同名静态方法（`Point.FromPolar(1, 0.5)`）。
 - 没写 `init` 的类自动有一个公开的无参 `init`（ADR-0013），前提是每个字段都有初始值，否则编译错误。声明了任何 `init` 就不再自动生成；声明了 `init` 的 struct 不能写 `new Health()`。
 
@@ -845,16 +873,16 @@ let b = new Point.FromPolar(radius = 1, angle = 0.5)
 public class Fireball : Projectile {
     public let Radius: float
 
-    public init(power: int, radius: float) {
+    init(power: int, radius: float) {
         init super(power = power)           // 构造基类部分：必须是第一句
         self.Radius = radius
     }
 
-    public init Small() {
+    init Small() {
         init self(power = 5, radius = 0.5)  // 委托给本类的另一个 init
     }
 
-    public init Seeking(target: Entity) {
+    init Seeking(target: Entity) {
         init super.Homing(power = 8, target = target)   // 基类的命名 init
         self.Radius = 1
     }
@@ -1003,9 +1031,9 @@ let scale = match self.size {
   - 比较 `case < 10`；区间 `case 10..<50`、`case 1...3`；
   - 组合 `case 1 or 2`、`case > 0 and < 10`、`case not null`；
   - 类型 `case is Enemy`（被匹配的局部变量 / 参数在分支里收窄成该类型）；
-  - 附加条件 `case Burn(seconds) when seconds > 3`。
+  - 附加条件 `case Burn(_, seconds) when seconds > 3`。
 
-## 空值（ADR-0009、ADR-0023、ADR-0041）
+## 空值（ADR-0009、ADR-0023、ADR-0041、ADR-0042）
 
 ```nyxel
 class Turret : Behaviour {
@@ -1032,6 +1060,15 @@ class Turret : Behaviour {
 - `T?` 用之前要检查：它没有成员（`int?` 的 `.Value`、`.HasValue`、`.GetValueOrDefault()` 也不能用，ADR-0041），不能传给要 `T` 的地方。
 - C# 程序集的可空标注照单全收；没有标注的程序集，返回值、字段、属性当作 `T?`，参数可以接受 `null`。只管最外层：`List<Enemy>` 当作 `List<Enemy>?`，元素仍是 `Enemy`（ADR-0041）。
 - 检查后自动收窄：只对局部变量和参数；字段、属性、调用结果先存进局部变量。
+- 被 lambda 捕获的 `var` 局部变量不收窄（ADR-0042）：函数里只要有一个 lambda 读或写了它，它在整个函数里（lambda 里面也算）一直是声明的类型，因为 lambda 可能在检查和使用之间把它改掉。先存进 `let` 再用；`let` 和参数不能重新赋值，被捕获了也照常收窄。
+  ```nyxel
+  var target: Enemy? = self.FindTarget()
+  slime.Died += func(s) { target = null }
+  if target == null { return }
+  target.Attack()                         // 错误：target 仍是 Enemy?
+  let current = target ?? return          // 存进 let
+  current.Attack()
+  ```
 - 给局部变量赋一个不可能是 null 的值（声明时的初始值也算），之后它当作非空；赋了可能是 null 的值，之前的检查作废（ADR-0041）。只管是不是 null：`var weapon: Weapon? = new Sword()` 之后 `weapon` 是 `Weapon`，类型的收窄只来自 `is`。
   ```nyxel
   var target: Enemy? = self.target
@@ -1040,6 +1077,7 @@ class Turret : Behaviour {
   }
   target.Attack()                         // 两条路径上都不是 null
   ```
+- 没写类型的 `var` 的类型就是初始值的类型（ADR-0042）：`var current = node`（`node` 已经收窄成 `Node`）是 `Node`，之后 `current = current.next`（`Node?`）是编译错误，诊断给出 `var current: Node? = node`。
 - 运算符里只有 `==` / `!=` 接受 `int?` 这样的值类型 `T?`，同 C#（ADR-0041）：两边都是 null 相等，一边是 null 不等，都有值时比值；`a != b` 永远是 `not (a == b)`。算术、大小比较、位运算要先检查：`(hp ?? 0) + 1`、`if hp != null and hp < 10`。
   - 注意 null 落在哪一边：`self.target?.IsDead != true` 在没有目标时也是 true（“不能确定已经死了”）；要“有目标而且活着”写 `self.target?.IsDead == false`。
 - `?.`、`??` 同 C#；`??` 右边还可以是一条离开语句（ADR-0025，见“分支与离开语句”）。
@@ -1092,7 +1130,7 @@ while self.hp > 0 {
 }
 ```
 
-- `for 名字 in 集合`，循环变量不可变。`while 条件 { }`。没有 C 风格的 `for`，没有 `do` / `while`。
+- `for 名字 in 集合`，循环变量不可变，每一轮是一个新的变量：lambda 捕获到的是这一轮的值，遍历区间时也一样。`while 条件 { }`。没有 C 风格的 `for`，没有 `do` / `while`。
 - `for (a, b) in 集合` 把每个元素按位置解构（ADR-0021，见“元组”）。
   - 字典写 `for (key, value) in dict`。
   - 同时拿下标用 .NET 的 `Index()`：`for (i, item) in list.Index()`。编译器把它翻译成计数器加普通遍历，不分配，结果和 `Index()` 相同。
@@ -1123,7 +1161,7 @@ let stem = path[..<path.Length - 4]     // 去掉末尾 4 个字符
 - 能切的类型和结果同 C#：字符串得到新字符串，数组和 List 复制出新的一份（会分配，改它不影响原来的），`Span` 只指向原来的那一段。
 - 没有 C# 的 `^1`（从末尾数）：最后一个写 `items[items.Count - 1]`，数组和字符串用 `Length`。`^` 只是异或。
 
-## 运算符（ADR-0010）
+## 运算符（ADR-0010、ADR-0042）
 
 ```nyxel
 if not self.IsDead and target != null {
@@ -1135,9 +1173,11 @@ self.combo += 1
 
 - 逻辑运算用单词 `and`、`or`、`not`（短路、优先级同 C#）。没有 `&&`、`||`、`!`。
 - 没有 `++` / `--`，写 `+= 1`。
-- 算术、比较、位运算、复合赋值、整数除法、隐式数值转换同 C#。`??=` 见“空值”；Nyxel 的 enum 只有 flags enum 能位运算，见“enum 的值与 flags”。
+- 算术、比较、位运算、复合赋值、整数除法、隐式数值转换同 C#，只有一处例外：整数相除的结果不能隐式变成浮点，见“整数相除的结果”（ADR-0042）。`??=` 见“空值”；Nyxel 的 enum 只有 flags enum 能位运算，见“enum 的值与 flags”。
 - 赋值（包括 `+=` 等）是语句，不产生值：不能 `a = b = 0`，不能写在条件里（ADR-0011）。
 - 优先级从高到低（ADR-0019）：成员访问、调用、下标 → 一元（`-` `+` `~` `not` `await` `launch`）→ `as` → `*` `/` `%` → `+` `-` → `<<` `>>` → `..<` `...` → `<` `>` `<=` `>=` `is` → `==` `!=` → `&` → `^` → `|` → `and` → `or` → `??`。除了 `as`（ADR-0014）和区间，其余同 C#。`??` 从右往左结合，区间不结合，其余从左往右。
+  - `not` 和 C# 的 `!` 一样只管紧跟着的那个值：`not hp > 0` 是 `(not hp) > 0`，编译错误，诊断给出 `hp <= 0` 和 `not (hp > 0)`；`not x is T` 写 `x is not T`（ADR-0042）。
+  - `&`、`^`、`|` 比比较低：`mask & 4 != 0` 是 `mask & (4 != 0)`，编译错误，诊断给出 `(mask & 4) != 0`（ADR-0042）。
 - .NET 类型定义的运算符照 C# 用：`(a - b).Length()`、`matrix * other`。
 
 ### 自己的类型定义运算符（ADR-0030）
@@ -1198,14 +1238,14 @@ func OnHit(self, other: Collider) {
 ```
 
 - `x is T` 得到 bool；`x is not T` 是否定。`is` 后面只能写类型或 enum case。
-- 被检查的是局部变量或参数时自动收窄（同空值收窄的规则），不另起变量名。
+- 被检查的是局部变量或参数时自动收窄（同空值收窄的规则，被 lambda 捕获的 `var` 不收窄），不另起变量名。
 - `x is 类型.Case` 判断是不是某个 enum case（ADR-0024）：`if self.state is SlimeState.Idle`、`hit is not Damage.Heal`。只判断，不取数据，也不收窄；要数据写 `match`。`==` 右边直接写 case 名（`state == SlimeState.Idle`、`key == Key.Escape`）是编译错误，诊断给出 `is`（ADR-0040）；两个 enum 值之间照常 `==`。
 
 ## 类型转换（ADR-0014）
 
 ```nyxel
 let cells = self.distance as int                 // 向零截断：2.7 → 2，-2.7 → -2
-let percent = self.current as float / self.Max   // 先转换再除，不是整数除法
+let percent = self.current as float / self.Max   // 先转换再除，不是整数除法；不写 as 赋给 float 是错误
 let index = MathF.Round(self.t * 10) as int      // 要四舍五入就先 Round
 let code = Element.Fire as int                   // 枚举和整数互转
 
@@ -1409,7 +1449,7 @@ interface IDamageable {
 ```
 
 - `property` 声明属性；`var` / `let` 只声明字段。
-- 访问器要么都带函数体（计算属性），要么都不带（自动属性，初始值写在类型后面）。每个访问器一行，可以单独加可见性（`private set`，这是 `private` 唯一能出现的位置）。
+- 访问器要么都带函数体（计算属性），要么都不带（自动属性，初始值写在类型后面）。每个访问器一行，可以单独加可见性（`private set`；`private` 只出现在访问器和 `init` 上）。
 - getter 的函数体可以是块，也可以是 `= 表达式`，同函数（ADR-0026）。setter 的体是语句，只能写块。
 - setter 的新值在括号里命名：`set(value)`。访问器里 `self` 隐式可用。静态属性写 `static property`。
 - 默认用字段；实现接口的属性、对外只读对内可写、值需要计算时用属性。
@@ -1497,13 +1537,13 @@ match self.state {
 - 新加一个状态，所有没处理它的 `match` 都会编译报错。
 - 状态写成 `struct enum`（ADR-0024、ADR-0039）：切换状态不在堆上分配，数据全是 unmanaged 时还能放进 ECS 组件。
 
-## 可见性（ADR-0006、ADR-0008、ADR-0040）
+## 可见性（ADR-0006、ADR-0008、ADR-0040、ADR-0042）
 
-- 成员默认私有；公开写 `public`，只给子类用写 `protected`（ADR-0015），含义与 C# 相同。struct 的成员不能是 `protected`。成员上写 `private` 是编译错误（ADR-0026）：它只出现在访问器（`private set`）和 `init` 上（`init` 默认公开，ADR-0040）。
+- 成员默认私有；公开写 `public`，只给子类用写 `protected`（ADR-0015），含义与 C# 相同。struct 的成员不能是 `protected`。成员上写 `private` 是编译错误（ADR-0026）：它只出现在访问器（`private set`）和 `init` 上（`init` 默认公开，ADR-0040）。反过来，`init` 上写 `public` 也是编译错误（ADR-0042）。
 - 类型默认只在本程序集可见；给其他程序集用写 `public`。
 - 重写时可见性必须和基类一致：基类是 `protected virtual` 就写 `protected override`。
 - 没有 `internal`，也没有 C# 的 `protected internal`、`private protected`。
-- 修饰符的顺序固定（ADR-0019）：可见性（`public` / `protected`；访问器和 `init` 上还有 `private`）→ `static` → `abstract` / `sealed` / `virtual` → `override` → `async`。顺序不对、重复都是编译错误，诊断给出正确的写法：`public static var`、`public static func`、`protected override func`、`public override async func`、`sealed override`。
+- 修饰符的顺序固定（ADR-0019）：可见性（`public` / `protected`；访问器和 `init` 上还有 `private`，`init` 上不写 `public`）→ `static` → `abstract` / `sealed` / `virtual` → `override` → `async`。顺序不对、重复都是编译错误，诊断给出正确的写法：`public static var`、`public static func`、`protected override func`、`public override async func`、`sealed override`。
 
 ## 命名（ADR-0006、ADR-0035）
 
@@ -1529,4 +1569,4 @@ match self.state {
 
 大的主题都讨论过了。剩下的细节记在各节末尾的“待定”里，写 samples 或实现时遇到再逐个讨论。还没定的写法一律是编译错误：以后放开不会让已有代码失效。诊断见 design/diagnostics.md。
 
-不属于任何一节的：特性（C# 的 `[Serializable]`、`[Obsolete]`）还没讨论过，roadmap 记在 M3。
+不属于任何一节的：特性（C# 的 `[Serializable]`、`[Obsolete]`）还没讨论过，roadmap 记在 M3；取类型对象和成员名字（C# 的 `typeof(T)`、`nameof(x)`）和它一起讨论（ADR-0042）。

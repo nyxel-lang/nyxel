@@ -233,6 +233,12 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor PrivateMember =
         Error("NYX1196", "Remove 'private': members are private unless marked 'public' or 'protected'. 'private' is only written on an accessor ('private set') or on an init ('private init').");
 
+    public static readonly DiagnosticDescriptor LocalNeedsInitialValue =
+        Error("NYX1239", "'{0}' needs its value where it is declared: '{1} = ...'. To choose between values, write 'if c -> a else -> b', 'match' or 'eval {{ ... }}'.");
+
+    public static readonly DiagnosticDescriptor PublicInit =
+        Error("NYX1240", "Remove 'public': an init is public unless marked 'private' or 'protected'.");
+
     public static readonly DiagnosticDescriptor SetterExpressionBody =
         Error("NYX1197", "A setter has no expression body; write 'set(value) {{ ... }}'.");
 
@@ -617,6 +623,18 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor NotException =
         Error("NYX2065", "'throw' needs an exception, and '{0}' isn't an 'Exception'.");
+
+    public static readonly DiagnosticDescriptor IntegerDivisionAsDecimal =
+        Error("NYX2066", "'{0}' divides whole numbers, which drops the fraction, but its result is used as a '{1}'. To divide as decimals write '{2}'; to keep the whole-number division write '({3}) as {1}'.");
+
+    public static readonly DiagnosticDescriptor NotBeforeComparison =
+        Error("NYX2067", "'not' applies to '{0}' alone, not to the whole '{1}'. Write '{2}' or 'not ({1})'.");
+
+    public static readonly DiagnosticDescriptor BitwiseBeforeComparison =
+        Error("NYX2068", "'{0}' is applied after '{1}', so this reads as '{2}'. Write '{3}'.");
+
+    public static readonly DiagnosticDescriptor InferredLocalCannotBeNull =
+        Error("NYX2069", "'{0}' is a '{1}', the type of its first value, so it can't be given a value that may be null. Declare it as 'var {0}: {1}? = ...' to let it hold null.");
 
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);

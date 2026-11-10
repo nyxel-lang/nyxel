@@ -161,6 +161,10 @@ internal sealed partial class MethodBinder
         }
         if (kind is { } conversion)
         {
+            if (ReportIntegerDivisionAsDecimal(expression, target))
+            {
+                return Bad(syntax ?? expression.Syntax, expression);
+            }
             return new BoundConversion(syntax ?? expression.Syntax, expression, conversion, target, isExplicit: false);
         }
         var location = syntax ?? expression.Syntax;

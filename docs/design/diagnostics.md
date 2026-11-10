@@ -132,6 +132,8 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1230` | 一项给已有的变量或成员赋值（各项谁先完成不确定）；右边照常读成这一项 | `case self.texture = Load()` 写成 `case let t = Load() -> self.texture = t` |
 | `NYX1231` | `await all` / `await any` 不到两项 | 只等一样东西就写 `await` |
 | `NYX1232` | 一项起了名字但没有 `->` 分支（名字只在自己的分支里可见） | `case let tex = Load()`；要在块后面用，写 `let (a, b) = await all { ... }` |
+| `NYX1239` | 局部变量没写初始值（ADR-0042：局部变量在声明的地方给值；字段可以留给 `init`）。这一行另有错误时只报那个错误 | `let label: string` 之后各分支赋值，写成 `let label = if c -> "a" else -> "b"` |
+| `NYX1240` | `init` 上写了 `public`（ADR-0042：`init` 默认公开，只写 `private init`、`protected init`） | `public init() { }` 写成 `init() { }` |
 
 ### 其他语言的写法
 
@@ -251,6 +253,10 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2063` | 对不会是 null 的值类型用 `??`、`?.`、`??=`、`== null`（不可空的引用类型上是多余，以后给警告，ADR-0041） | `count ?? 0`（`count: int`） |
 | `NYX2064` | 元素是 class、接口、数组或 Nyxel 的 struct 的数组直接 `new`，元素一开始是 null 或跳过了 `init`（ADR-0023） | `new array<Enemy>(16)` 写成 `array<Enemy?>`，或者用 `element` 给出每个元素 |
 | `NYX2065` | `throw` 的不是异常 | `throw "oops"` 写成 `throw new InvalidOperationException("oops")` |
+| `NYX2066` | 整数相除的结果没写 `as` 就当浮点或 `decimal` 用（ADR-0042）：小数部分已经丢了。相除之后再做整数的加减乘、取余、取负也算；中间隔着调用、`as`、移位的不算。只有字面量的是 `NYX2054` | `let ratio: float = kills / total` 写成 `kills as float / total`；确实要整除写 `(kills / total) as float` |
+| `NYX2067` | `not` 后面跟着比较或 `is`，而它只管到紧跟着的那个值（优先级同 C# 的 `!`，ADR-0010、ADR-0042），那个值又不是 `bool` | `not hp > 0` 写成 `hp <= 0` 或 `not (hp > 0)`；`not x is T` 写成 `x is not T` |
+| `NYX2068` | `&`、`^`、`\|` 和比较混写，比较先算（优先级同 C#，ADR-0010、ADR-0042），得到的 `bool` 和数字没法做位运算 | `mask & 4 != 0` 写成 `(mask & 4) != 0` |
+| `NYX2069` | 类型由初始值推断出来的 `var`，后来赋了 `null` 或 `T?` 的值（ADR-0041、ADR-0042） | `var current = node` 写成 `var current: Node? = node` |
 
 ## 不在语法阶段报的
 

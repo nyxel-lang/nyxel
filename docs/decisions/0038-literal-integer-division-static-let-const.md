@@ -67,6 +67,7 @@
 
 ## 后果
 
+- 变量相除再当浮点用（`let ratio: float = kills / total`）后来也定为编译错误，见 ADR-0042。
 - 第 1 项让字面量规则和 C# 不同的只剩一类：C# 会报错的混合运算（`2 + self.Wave * 0.5` 赋给 `float`，ADR-0013）。所有能编过的纯字面量运算结果都和 C# 相同。
 - 新错误码 NYX2054（diagnostics.md）。Binder 的 `BindLiteralOnly` 在按浮点折叠前查有没有整数字面量相除，BinderTests 的 `let x: float = 1 / 2` 改成期待错误。
 - 第 2 项的代价是 C# `const` 的老问题：别的程序集引用它时值被复制过去，只重编译定义方不会更新使用方。游戏脚本整体一起编译，碰不到；以后要是出了 Nyxel 写的库再议。

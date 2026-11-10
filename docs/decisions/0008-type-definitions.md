@@ -1,6 +1,6 @@
 # ADR-0008: 类型定义：class / struct / enum、命名构造、new、self
 
-- 状态：已接受（2026-11-04 修订）
+- 状态：已接受（2026-11-10 修订）
 - 日期：2026-10-02
 
 ## 背景
@@ -25,7 +25,7 @@
 3. **构造函数是 `init`**：
    - 最多一个不带名字的 `init`；其余必须有名字：`init FromPolar(radius: float, angle: float)`。构造函数不靠参数类型重载区分。
    - **确定初始化检查**：没有默认值的字段，在每个 `init` 结束前都必须赋过值，否则编译错误。`let` 字段只能在声明处或 `init` 里赋值。
-   - `init` 默认公开，要藏起来写 `private init`（ADR-0040；原来同别的成员默认私有，见备选方案）。
+   - `init` 默认公开，要藏起来写 `private init`（ADR-0040；原来同别的成员默认私有，见备选方案）。写 `public init` 是编译错误：和不写一样（ADR-0042）。
    - `init` 里的 `self` 是正在构造的对象，不写在参数列表里。
    - 翻译：不带名字的 `init` 是 C# 构造函数；带名字的 `init` 是一个子类也能调用的构造函数（protected，带一个隐藏参数，避免和别的构造函数签名冲突），加一个同名的公开静态方法。所以 C# 那边看到的是 `Point.FromPolar(1, 0.5)`。
 4. **创建值一律写 `new`**：`new Slime(maxHP = 30)`、`new Point.FromPolar(radius = 1, angle = 0.5)`、`new Damage.Burn(Amount = 12, Seconds = 3)`（命名实参的写法见 ADR-0011）、`new List<Enemy>()`。不带数据的 case 是常量，不写 `new`：`Element.Fire`。不带 `new` 的 `名字(...)` 一定是函数调用。
@@ -77,3 +77,4 @@
 - 2026-10-30：数组元素、`Span<T>` 的元素、返回 `ref` 的函数不算临时副本（决策 6），见 ADR-0032。
 - 2026-11-04：带数据的 enum 必须写明 `struct enum` / `class enum`（决策 2）；没有 `self` 的函数必须写 `static func`（决策 6），见 ADR-0039。
 - 2026-11-04：`init` 默认公开（决策 3，原来默认私有），见 ADR-0040。
+- 2026-11-10：`init` 上写 `public` 是编译错误（决策 3），见 ADR-0042。

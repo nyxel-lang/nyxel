@@ -28,7 +28,7 @@ public partial class DiagnosticCatalogTests
     {
         foreach (var descriptor in All())
         {
-            var message = string.Format(CultureInfo.InvariantCulture, descriptor.MessageFormat, "x", "y", "z");
+            var message = string.Format(CultureInfo.InvariantCulture, descriptor.MessageFormat, "x", "y", "z", "w");
             Assert.True(message.EndsWith('.') || message.EndsWith('?'), message);
         }
     }
