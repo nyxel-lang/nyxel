@@ -195,15 +195,33 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - `Symbols/`：`Symbol` 和各种类型、成员；`SymbolTable` 包装 Roslyn 读出的元数据，管数组类型；源码符号在 `SourceSymbols.cs`；`SymbolDisplay` 用 Nyxel 的写法显示名字。
 - `Binding/`：`Declarer`（第 1 到 4 遍）、`ImportScope`、`MethodBinder`（第 5 遍，按语句、表达式、调用分文件）、`Conversions`、`FlowAnalysis`、绑定树的节点和打印。
 - `NyxelCompilation`：`Create`、`GetDiagnostics`、`EmitCSharp`、`Emit`。
-- 语义诊断 NYX2001 到 NYX2054（diagnostics.md“语义”；NYX2055、2056 已分配给 ADR-0040，还没实现）。
-- 测试：`BinderTests`、`SemanticErrorTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
+- 语义诊断 NYX2001 到 NYX2065（diagnostics.md“语义”；NYX2055、2056 已分配给 ADR-0040，还没实现）。
+- 测试：`BinderTests`、`SemanticErrorTests`、`NullSafetyTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
+
+### 空值和收窄（2026-11-06）
+
+- **`T?`** 是 `NullableTypeSymbol`，每个底层类型一个（`SymbolTable.GetNullableType`）；`null` 字面量的类型是 `NullTypeSymbol`，只能转成 `T?`。`T?` 没有成员、基类、接口：用之前必须检查。
+- **读元数据**：`SymbolTable.GetType` 按 C# 的可空标注转换（`string?`、`Nullable<int>` 都成 `T?`）；成员的类型走 `GetMemberType`，没有标注的程序集（Roslyn 的 `NullableAnnotation.None`）的返回值、字段、属性、参数是 `T?`，只管最外层，类型实参和数组元素照程序集写的。.NET 里没约束的 `T?` 代入值类型时是 `T` 本身（`TypeMap.Substitute`，ADR-0031）。重载决议里 `string` 和 `string?` 算同一个类型，同 C#。
+- **流状态**：`MethodBinder` 带着一张“局部变量 / 参数 → 此刻收窄成的类型”的不可变表（`_flow`）。读变量时取表里的类型，`BoundLocalAccess` / `BoundParameterAccess` 的 `Type` 就是它。
+  - 条件绑定成三样东西：表达式、条件成立时的状态、不成立时的状态（`BindConditionFlow`）。`x != null`、`x is T` 在成立时收窄，`== null`、`is not` 在不成立时；`not` 交换两边；`and` 的右边在左边成立的状态里绑定，`or` 的右边在左边不成立的状态里。当值用的 `and` / `or` / `not` 绑完以后两边汇合。
+  - `if`：两个分支分别从成立 / 不成立的状态开始，之后取能走到结尾的分支的交集（`FlowAnalysis.CanComplete` 判断），所以 `if x == null { return }` 之后 `x` 是非空的。
+  - 循环：循环体里赋过值的变量（按名字在语法树上找）在进入循环前就取消收窄；`while` 正常结束时条件不成立，有 `break` 时只保留进入循环时的状态。
+  - 给局部变量赋值（包括声明时的初始值）先取消它的收窄，值不可能是 null 时再收窄成声明的类型去掉 `?`（`NarrowAfterAssignment`，ADR-0041）；`??=` 同样（ADR-0023）；`let t = x ?? return` 之后 `x` 也收窄。
+  - `== null`、`??`、`?.` 读一个声明成 `T?`、此刻已经收窄的变量时，按 `T?` 看它（`AsMaybeNull`）：再检查一次只是多余，降级出的 C# 也是在声明的类型上检查（`n is null`，不是 `((int)n) is null`）。
+- **`?.`**：`a?.B.C()` 先绑定 `a`，再把整条链（成员访问、调用、下标，括号截断）在“`a` 换成一个占位的非空接收者”的情况下重新绑定，结果类型是 `T?`（`BindConditionalAccess`）。链后面的收窄不带出来（链可能没执行）。
+- **`??`**：右边的数字跟着左边的类型（ADR-0013）；结果类型按 C# 的三条规则。
+- **`int?` 的 `==` / `!=`**（ADR-0041）：两边去掉 `?` 以后按 C# 的规则定出比较的类型（数字的提升、`bool`），两边都转成它的 `T?` 再比，降级成 C# 的提升运算符。别的运算符碰到 `T?` 报 NYX2057。和 `int?` 比较的数字字面量取它去掉 `?` 的类型（`f == 0.5` 比 `float`）。
+- **多余的检查**（ADR-0041）：`CheckCanBeNull` 只对不可空的值类型报 NYX2063；不可空的引用类型照 C# 处理，等编译器有了警告在这里加。右边是 `return` / `break` / `continue` 时只能出现在整条语句的值上（`IsStatementValue`，降级见 lowering.md），`throw` 哪都行。
+- **新的写法**：`throw` 语句（类型要是 `Exception`）、`is` / `is not`（两个类型没关系时报 NYX2061）、`new array<T>(n)` 的元素类型检查（ADR-0023，NYX2064）。
+- 实现时先按最严的方式处理、2026-11-09 和用户定下的五处细节见 ADR-0041：赋值后收窄、`int?` 只有 `==` / `!=` 提升、`T?` 没有成员、多余的检查是警告、没标注的程序集只管最外层。字符串拼接 `"a" + s` 照 C# 可以（它是 `string + object`）。
+- `x == 3` 成立时 `x` 不收窄（Kotlin 会），收窄只来自 ADR 列的写法。
 
 和设计不同、或者还没做到的：
 
-- 元数据里引用类型的可空标注先忽略，都当作不会是 null；`T?` 本身报 NYX2001。按 ADR-0009，没有标注的程序集的返回值应当是 `T?`，随“空值和收窄”一步实现。
 - 没有初始值的局部变量（`var x: int`）报 NYX2001，要先有局部变量的确定赋值。`let` / `var` 字段在 `init` 里的确定赋值已经有了（NYX2050）。
 - 元数据的类型只看 public 的；嵌套类型、泛型方法、扩展方法、事件、`params` 的展开形式还不支持。
-- 收窄还没有，随“空值和收窄”一步实现。
+- C# 的 `[NotNullWhen]` 这类特性不读：`if string.IsNullOrEmpty(s) { return }` 之后 `s` 仍是 `string?`。收窄只来自 ADR 列的几种写法。
+- `match` 的 `case null`、`case is T` 收窄随 `match` 一步做。
 - enum 还没进 Binder。进来时要带上 ADR-0040 的两条：`x == 类型.Case` / `!=` 报 NYX2055（建议 `is` / `is not`），Nyxel 声明的 enum 两个 case 同一个值报 NYX2056（.NET 的枚举照收，`match` 里两个别名都列出来时报重复）。
 - `static let` 还没有常量求值：按 ADR-0038，初始值是常量表达式、类型能 `const` 的 `static let` 要生成 C# 的 `const`，默认参数值、`case` 标签、枚举值引用它时检查它是不是常量。需要给 `SourceFieldSymbol` 加 `ConstantValue`、一个常量表达式求值器（字面量折叠的 `Fold` 是它的雏形），随“属性、struct、enum”一步实现。
 

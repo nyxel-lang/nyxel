@@ -25,6 +25,7 @@ public static class SymbolDisplay
     public static string FormatType(TypeSymbol type) => type switch
     {
         ArrayTypeSymbol array => $"{array.Name}<{FormatType(array.ElementType)}>",
+        NullableTypeSymbol nullable => $"{FormatType(nullable.UnderlyingType)}?",
         NamedTypeSymbol named when Keyword(named.SpecialType) is { } keyword => keyword,
         NamedTypeSymbol { Arity: > 0 } generic => $"{generic.Name}<{string.Join(", ", generic.TypeArguments.Select(FormatType))}>",
         _ => type.Name,

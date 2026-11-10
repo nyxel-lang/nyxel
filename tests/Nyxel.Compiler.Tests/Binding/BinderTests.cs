@@ -24,7 +24,7 @@ public class BinderTests
         Assert.Empty(compilation.GetDiagnostics());
         Assert.Equal("Main", compilation.Bind().EntryPoint?.Name);
         var call = Body(compilation, "Main").DescendantsAndSelf().OfType<BoundCall>().Single();
-        Assert.Equal("Console.WriteLine(value: string)", SymbolDisplay.Format(call.Method));
+        Assert.Equal("Console.WriteLine(value: string?)", SymbolDisplay.Format(call.Method));
     }
 
     // ADR-0007, ADR-0013: a number's type comes from where it is used.
@@ -41,7 +41,7 @@ public class BinderTests
     [InlineData("let x = 'c'", "char")]
     [InlineData("let x = 1 < 2", "bool")]
     [InlineData("let x = new List<int>()", "List<int>")]
-    [InlineData("let x = new array<string>(3)", "array<string>")]
+    [InlineData("let x = new array<string?>(3)", "array<string?>")]
     [InlineData("let x = new array2d<int>(2, 3)", "array2d<int>")]
     [InlineData("let x = Math.Max(1, 2)", "int")]
     [InlineData("let x = Math.Sqrt(2)", "double")]

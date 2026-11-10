@@ -104,6 +104,11 @@ internal sealed partial class MethodBinder
                 Report(DiagnosticDescriptors.IndexCount, syntax.ArgumentList, SymbolDisplay.FormatType(array), array.Rank, arguments.Length);
                 return Bad(syntax);
             }
+            if (!ZeroIsValid(array.ElementType))
+            {
+                Report(DiagnosticDescriptors.ArrayElementsStartNull, syntax.Type, SymbolDisplay.FormatType(array), SymbolDisplay.FormatType(array.ElementType));
+                return Bad(syntax);
+            }
             var lengths = arguments.Select(a => Convert(a.IsLiteral ? BindLiteralOnly(a.Syntax.Expression, _context.Int) : a.Value, _context.Int)).ToImmutableArray();
             return new BoundArrayCreation(syntax, array, lengths);
         }
@@ -133,9 +138,23 @@ internal sealed partial class MethodBinder
         return new BoundObjectCreation(syntax, named, constructor, result.Arguments);
     }
 
+    /// <summary>
+    /// Whether an array of the type can start as .NET makes it, all zeros (ADR-0023): <c>T?</c>, numbers, <c>bool</c>,
+    /// <c>char</c>, enums and the structs of C#. Not classes, interfaces or arrays (the elements would be null) and not
+    /// Nyxel's own structs (zero would skip their <c>init</c>).
+    /// </summary>
+    private static bool ZeroIsValid(TypeSymbol element) =>
+        element.IsError || element.IsNullable || element.TypeKind == TypeKind.Enum
+        || (element.TypeKind == TypeKind.Struct && element is not SourceNamedTypeSymbol);
+
     private BoundExpression BindElementAccess(ElementAccessExpressionSyntax syntax)
     {
         var receiver = BindValue(syntax.Expression);
+        if (receiver.Type.IsNullable)
+        {
+            ReportMaybeNull(receiver, syntax.Expression, suggestConditional: false);
+            return Bad(syntax, receiver);
+        }
         if (syntax.ArgumentList.Arguments.FirstOrDefault(a => a.Expression is RangeExpressionSyntax) is { } slice)
         {
             return NotSupported(slice, "A slice");
@@ -342,7 +361,10 @@ internal sealed partial class MethodBinder
         {
             if (!argument.IsLiteral)
             {
-                return ReferenceEquals(argument.Value.Type, parameterType) ? ConversionKind.Identity : null;
+                // The arguments with a type go in as they are; null has none and goes into any T?.
+                return Conversions.IsSameRuntimeType(argument.Value.Type, parameterType) ? Conversions.ClassifyImplicit(argument.Value.Type, parameterType)
+                    : argument.Value.Type is NullTypeSymbol ? Conversions.ClassifyImplicit(argument.Value.Type, parameterType)
+                    : null;
             }
             // A literal goes into any numeric type that holds its value, or is boxed in its natural type.
             return IsLiteralTarget(parameterType.SpecialType)
@@ -427,15 +449,16 @@ internal sealed partial class MethodBinder
     /// <summary>C#'s better conversion from an argument of type <paramref name="source"/> to one of two parameter types.</summary>
     private static int BetterConversion(TypeSymbol source, TypeSymbol first, TypeSymbol second)
     {
-        if (ReferenceEquals(first, second))
+        // C# treats string and string? as one type here.
+        if (Conversions.IsSameRuntimeType(first, second))
         {
             return 0;
         }
-        if (ReferenceEquals(source, first))
+        if (Conversions.IsSameRuntimeType(source, first))
         {
             return 1;
         }
-        if (ReferenceEquals(source, second))
+        if (Conversions.IsSameRuntimeType(source, second))
         {
             return -1;
         }

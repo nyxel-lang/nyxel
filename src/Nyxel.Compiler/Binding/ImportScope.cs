@@ -131,8 +131,8 @@ internal sealed class ImportScope
                     NamespaceSymbol ns => Error(DiagnosticDescriptors.TypeNotFound, name, ns.FullName),
                     _ => ErrorTypeSymbol.Instance,
                 };
-            case NullableTypeSyntax:
-                return Error(DiagnosticDescriptors.NotSupportedYet, syntax, "'T?'");
+            case NullableTypeSyntax nullable:
+                return _context.Table.GetNullableType(BindType(nullable.ElementType));
             case FunctionTypeSyntax:
                 return Error(DiagnosticDescriptors.NotSupportedYet, syntax, "A function type");
             case TupleTypeSyntax:
@@ -185,9 +185,10 @@ internal sealed class ImportScope
     private ImmutableArray<TypeSymbol> TypeArguments(SimpleNameSyntax name) =>
         name is GenericNameSyntax generic ? [.. generic.TypeArgumentList.Arguments.Select(BindType)] : [];
 
-    private static TypeSymbol Construct(NamedTypeSymbol type, ImmutableArray<TypeSymbol> arguments) =>
+    private TypeSymbol Construct(NamedTypeSymbol type, ImmutableArray<TypeSymbol> arguments) =>
         arguments.Length == 0 ? type
         : arguments.Any(a => a.IsError) ? ErrorTypeSymbol.Instance
+        : type.SpecialType == Microsoft.CodeAnalysis.SpecialType.System_Nullable_T ? _context.Table.GetNullableType(arguments[0])
         : type.Construct(arguments);
 
     private static string QualifiedName(NamedTypeSymbol type) =>

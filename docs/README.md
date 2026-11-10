@@ -64,5 +64,6 @@
 | [0038](decisions/0038-literal-integer-division-static-let-const.md) | 整数字面量相除永远是整数除法，放在按浮点算的位置是编译错误（`let x: float = 1 / 2` 写 `1.0 / 2`）；初始值是常量表达式的 `static let` 自动成为编译期常量（C# `const`），能当默认参数值和 `case` 标签 |
 | [0039](decisions/0039-static-func-enum-storage-explicit.md) | 没有 `self` 的函数必须写 `static func`（有 `self` 又写 `static` 是错误）；带数据的 enum 必须写明 `struct enum`（值类型）或 `class enum`（堆上、可递归），光写 `enum` 是错误 |
 | [0040](decisions/0040-init-public-enum-case-is-no-alias.md) | `init` 默认公开，要藏起来写 `private init`；判断 enum case 一律 `is`，`x == 类型.Case` 是错误；两个 case 不能同一个值；`case` 三用、`->` 分支延伸、没标注的程序集当 `T?`、收窄改名四项不改 |
+| [0041](decisions/0041-null-details-assignment-equality-members.md) | 空值的五处细节：赋了不可能是 null 的值之后当作非空；`int?` 只有 `==` / `!=` 像 C# 那样提升；`T?` 没有成员（`.Value` 也不行）；对不会是 null 的引用类型做 null 检查是警告；没标注的程序集只管最外层 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

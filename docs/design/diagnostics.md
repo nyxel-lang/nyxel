@@ -242,6 +242,15 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2054` | 整数字面量相除放在按浮点算的字面量表达式里（ADR-0038）：整数除法会截断 | `let x: float = 1 / 2` 写成 `1.0 / 2` |
 | `NYX2055` | `==` / `!=` 右边直接写 enum case（ADR-0040；还没实现，等 enum 进 Binder） | `state == SlimeState.Idle` 写成 `state is SlimeState.Idle` |
 | `NYX2056` | 两个 case 同一个值（ADR-0040；还没实现，等 enum 进 Binder） | `case Old = 1` 和 `case New = 1`：后一个写成 `static let Old: E = E.New` |
+| `NYX2057` | 没检查就用了 `T?` 的值（ADR-0009、ADR-0041）：成员（`int?` 的 `.Value`、`.HasValue` 也算）、下标、`for ... in`、`==` / `!=` 以外的运算符 | 局部变量 `if x != null { ... }`；字段、调用结果 `let x = self.target ?? return`；或者 `?.`、`??` |
+| `NYX2058` | `T?` 的值用在要 `T` 的地方（ADR-0009） | `let t: string = Console.ReadLine()` 写成 `... ?? return` 或 `... ?? ""` |
+| `NYX2059` | `null` 给了不能为 null 的类型（ADR-0009） | `let t: string = null` 写成 `string?` |
+| `NYX2060` | 局部变量的类型推不出来：初始值是 `null` | `let t = null` 写成 `let t: Enemy? = null` |
+| `NYX2061` | `x is T` 永远不成立：两个类型没有继承或接口关系 | `"a" is int` |
+| `NYX2062` | `is` 后面写了 `T?`：`is` 本来就只在不是 null 时成立 | `x is Enemy?` 写成 `x is Enemy` |
+| `NYX2063` | 对不会是 null 的值类型用 `??`、`?.`、`??=`、`== null`（不可空的引用类型上是多余，以后给警告，ADR-0041） | `count ?? 0`（`count: int`） |
+| `NYX2064` | 元素是 class、接口、数组或 Nyxel 的 struct 的数组直接 `new`，元素一开始是 null 或跳过了 `init`（ADR-0023） | `new array<Enemy>(16)` 写成 `array<Enemy?>`，或者用 `element` 给出每个元素 |
+| `NYX2065` | `throw` 的不是异常 | `throw "oops"` 写成 `throw new InvalidOperationException("oops")` |
 
 ## 不在语法阶段报的
 

@@ -112,6 +112,20 @@ internal sealed class BoundBreak(SyntaxNode syntax) : BoundStatement(syntax);
 
 internal sealed class BoundContinue(SyntaxNode syntax) : BoundStatement(syntax);
 
+/// <summary><c>throw exception</c>; also the right of <c>x ?? throw ...</c>.</summary>
+internal sealed class BoundThrow(SyntaxNode syntax, BoundExpression exception) : BoundStatement(syntax)
+{
+    public BoundExpression Exception { get; } = exception;
+}
+
+/// <summary><c>target ??= value</c> (ADR-0023): sets the target only when it is null. The value is converted.</summary>
+internal sealed class BoundCoalesceAssignment(SyntaxNode syntax, BoundExpression target, BoundExpression value) : BoundStatement(syntax)
+{
+    public BoundExpression Target { get; } = target;
+
+    public BoundExpression Value { get; } = value;
+}
+
 // Expressions --------------------------------------------------------------------------------------------------
 
 internal sealed class BoundLiteral(SyntaxNode syntax, object? value, TypeSymbol type) : BoundExpression(syntax, type)
@@ -121,13 +135,28 @@ internal sealed class BoundLiteral(SyntaxNode syntax, object? value, TypeSymbol 
     public override object? ConstantValue => Value;
 }
 
-internal sealed class BoundLocalAccess(SyntaxNode syntax, LocalSymbol local) : BoundExpression(syntax, local.Type)
+/// <summary>
+/// A local variable. Its type is the one at this point of the function: narrower than the declared type after a
+/// check (<c>x != null</c>, <c>x is Enemy</c>), and lowering converts it then.
+/// </summary>
+internal sealed class BoundLocalAccess(SyntaxNode syntax, LocalSymbol local, TypeSymbol type) : BoundExpression(syntax, type)
 {
+    public BoundLocalAccess(SyntaxNode syntax, LocalSymbol local)
+        : this(syntax, local, local.Type)
+    {
+    }
+
     public LocalSymbol Local { get; } = local;
 }
 
-internal sealed class BoundParameterAccess(SyntaxNode syntax, ParameterSymbol parameter) : BoundExpression(syntax, parameter.Type)
+/// <summary>A parameter, with the type at this point of the function as for <see cref="BoundLocalAccess"/>.</summary>
+internal sealed class BoundParameterAccess(SyntaxNode syntax, ParameterSymbol parameter, TypeSymbol type) : BoundExpression(syntax, type)
 {
+    public BoundParameterAccess(SyntaxNode syntax, ParameterSymbol parameter)
+        : this(syntax, parameter, parameter.Type)
+    {
+    }
+
     public ParameterSymbol Parameter { get; } = parameter;
 }
 
@@ -254,6 +283,12 @@ internal enum ConversionKind
     ImplicitNumeric,
     ImplicitReference,
     Boxing,
+
+    /// <summary>A value to <c>T?</c>: <c>Enemy</c> to <c>Enemy?</c>, <c>int</c> to <c>int?</c> or <c>long?</c>.</summary>
+    ImplicitNullable,
+
+    /// <summary><c>null</c> to a <c>T?</c>.</summary>
+    NullLiteral,
     ExplicitNumeric,
 }
 
@@ -266,6 +301,63 @@ internal sealed class BoundConversion(SyntaxNode syntax, BoundExpression operand
     public ConversionKind ConversionKind { get; } = conversionKind;
 
     public bool IsExplicit { get; } = isExplicit;
+}
+
+/// <summary>
+/// <c>x == null</c> or <c>x != null</c>: whether the reference is null, never an overloaded <c>==</c> (ADR-0023).
+/// </summary>
+internal sealed class BoundNullCheck(SyntaxNode syntax, BoundExpression operand, bool isNull, TypeSymbol boolType) : BoundExpression(syntax, boolType)
+{
+    public BoundExpression Operand { get; } = operand;
+
+    public bool IsNull { get; } = isNull;
+}
+
+/// <summary><c>x is T</c>, or <c>x is not T</c> when negated (ADR-0010).</summary>
+internal sealed class BoundIsType(SyntaxNode syntax, BoundExpression operand, TypeSymbol testedType, bool isNegated, TypeSymbol boolType)
+    : BoundExpression(syntax, boolType)
+{
+    public BoundExpression Operand { get; } = operand;
+
+    public TypeSymbol TestedType { get; } = testedType;
+
+    public bool IsNegated { get; } = isNegated;
+}
+
+/// <summary>
+/// <c>receiver?.rest</c>, with C#'s meaning: when the receiver is null the whole chain after <c>?.</c> is skipped
+/// and the value is null. <see cref="Access"/> is the chain with a <see cref="BoundConditionalReceiver"/> where the
+/// receiver was; its type is <c>T</c>, the access's is <c>T?</c> (or nothing for a function without a result).
+/// </summary>
+internal sealed class BoundConditionalAccess(SyntaxNode syntax, BoundExpression receiver, BoundExpression access, TypeSymbol type)
+    : BoundExpression(syntax, type)
+{
+    public BoundExpression Receiver { get; } = receiver;
+
+    public BoundExpression Access { get; } = access;
+}
+
+/// <summary>The receiver of a <see cref="BoundConditionalAccess"/> inside its access, known not to be null.</summary>
+internal sealed class BoundConditionalReceiver(SyntaxNode syntax, TypeSymbol type) : BoundExpression(syntax, type);
+
+/// <summary>
+/// <c>left ?? right</c>. The right is a value, or a statement that leaves (<see cref="Jump"/>: return, throw, break,
+/// continue; ADR-0009), in which case the result is the left's value, known not to be null.
+/// </summary>
+internal sealed class BoundCoalesce(SyntaxNode syntax, BoundExpression left, BoundExpression? right, BoundStatement? jump, TypeSymbol type)
+    : BoundExpression(syntax, type)
+{
+    public BoundExpression Left { get; } = left;
+
+    public BoundExpression? Right { get; } = right;
+
+    public BoundStatement? Jump { get; } = jump;
+}
+
+/// <summary>A value lowering made into a temporary variable; never produced by binding.</summary>
+internal sealed class BoundTemporary(SyntaxNode syntax, string name, TypeSymbol type) : BoundExpression(syntax, type)
+{
+    public string Name { get; } = name;
 }
 
 /// <summary>One piece of <c>$"..."</c>: text, or a hole with its optional alignment and format.</summary>

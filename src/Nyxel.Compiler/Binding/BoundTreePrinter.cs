@@ -52,6 +52,8 @@ internal static class BoundTreePrinter
             BoundConversion conversion => conversion.IsExplicit ? $"{conversion.ConversionKind} (as)" : conversion.ConversionKind.ToString(),
             BoundForRange range => $"{range.Variable.Name}: {SymbolDisplay.FormatType(range.Variable.Type)}{(range.IncludesEnd ? " ..." : " ..<")}",
             BoundForEach each => $"{each.Variable.Name}: {SymbolDisplay.FormatType(each.Variable.Type)}",
+            BoundNullCheck check => check.IsNull ? "== null" : "!= null",
+            BoundIsType isType => $"{(isType.IsNegated ? "is not" : "is")} {SymbolDisplay.FormatType(isType.TestedType)}",
             _ => "",
         };
         var type = node is BoundExpression { Type.IsError: false } expression and not BoundTypeExpression ? $": {SymbolDisplay.FormatType(expression.Type)}" : "";

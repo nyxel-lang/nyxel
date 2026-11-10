@@ -5,8 +5,9 @@ namespace Nyxel.Compiler.Binding;
 
 /// <summary>
 /// Which conversions exist between two types. The implicit ones are C#'s (ADR-0010, ADR-0030): numeric widening such
-/// as <c>int</c> to <c>float</c>, a class to its base class or interfaces, boxing. Nyxel defines no implicit
-/// conversions of its own. C#'s user-defined implicit conversions come in a later step.
+/// as <c>int</c> to <c>float</c>, a class to its base class or interfaces, boxing, and a value or <c>null</c> to a
+/// <c>T?</c>. A <c>T?</c> never converts to a type that can't be null (ADR-0009): it has to be checked first. Nyxel
+/// defines no implicit conversions of its own. C#'s user-defined implicit conversions come in a later step.
 /// </summary>
 internal static class Conversions
 {
@@ -15,6 +16,25 @@ internal static class Conversions
         if (ReferenceEquals(from, to) || from.IsError || to.IsError)
         {
             return ConversionKind.Identity;
+        }
+        if (from is NullTypeSymbol)
+        {
+            return to.IsNullable ? ConversionKind.NullLiteral : null;
+        }
+        if (to is NullableTypeSymbol target)
+        {
+            // T to T? and T? to U? go the way T goes to U: int to long?, Slime? to Enemy?, int? to object?.
+            return ClassifyImplicit(from.NonNullable, target.UnderlyingType) switch
+            {
+                ConversionKind.Identity or ConversionKind.ImplicitNumeric => ConversionKind.ImplicitNullable,
+                ConversionKind.ImplicitReference => ConversionKind.ImplicitReference,
+                ConversionKind.Boxing => ConversionKind.Boxing,
+                _ => null,
+            };
+        }
+        if (from.IsNullable)
+        {
+            return null;
         }
         if (IsImplicitNumeric(from.SpecialType, to.SpecialType))
         {
@@ -38,7 +58,8 @@ internal static class Conversions
         {
             return implicitConversion;
         }
-        if (IsNumeric(from.SpecialType) && IsNumeric(to.SpecialType))
+        // Between numeric types; between two numeric T? too (long? as int?), but a T? never becomes a T.
+        if (from.IsNullable == to.IsNullable && IsNumeric(from.NonNullable.SpecialType) && IsNumeric(to.NonNullable.SpecialType))
         {
             return ConversionKind.ExplicitNumeric;
         }
@@ -46,7 +67,35 @@ internal static class Conversions
     }
 
     /// <summary>A conversion to a base class or an interface the other way round: the kind <c>as</c> can't make.</summary>
-    public static bool IsDowncast(TypeSymbol from, TypeSymbol to) => !from.IsError && !to.IsError && IsBaseOrInterface(to, from);
+    public static bool IsDowncast(TypeSymbol from, TypeSymbol to) =>
+        !from.IsError && !to.IsError && IsBaseOrInterface(to.NonNullable, from.NonNullable);
+
+    /// <summary>
+    /// The same .NET type: identical, or <c>T</c> and <c>T?</c> of a reference type, which C# treats as one type when
+    /// it chooses an overload.
+    /// </summary>
+    public static bool IsSameRuntimeType(TypeSymbol a, TypeSymbol b) =>
+        ReferenceEquals(a, b)
+        || (a.IsReferenceType && ReferenceEquals(a.NonNullable, b.NonNullable));
+
+    /// <summary>
+    /// Whether <c>value is target</c> can be true: the value's type and the target are related by inheritance or an
+    /// interface (C# reports a pattern that never matches as an error too).
+    /// </summary>
+    public static bool CanBe(TypeSymbol valueType, TypeSymbol target)
+    {
+        var source = valueType.NonNullable;
+        if (source.IsError || target.IsError || ClassifyImplicit(source, target) is not null || IsBaseOrInterface(target, source))
+        {
+            return true;
+        }
+        // An interface and a class that isn't sealed can meet in a derived class; two interfaces always can.
+        static bool Open(TypeSymbol type) => type.TypeKind == TypeKind.Interface
+            || (type.TypeKind == TypeKind.Class && type is not NamedTypeSymbol { IsSealed: true })
+            || type.TypeKind == TypeKind.TypeParameter;
+        return (source.TypeKind == TypeKind.Interface && Open(target)) || (target.TypeKind == TypeKind.Interface && Open(source))
+            || source.TypeKind == TypeKind.TypeParameter || target.TypeKind == TypeKind.TypeParameter;
+    }
 
     public static bool IsNumeric(SpecialType type) => IsIntegral(type) || IsFloating(type) || type == SpecialType.System_Decimal;
 

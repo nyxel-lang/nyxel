@@ -1005,7 +1005,7 @@ let scale = match self.size {
   - 类型 `case is Enemy`（被匹配的局部变量 / 参数在分支里收窄成该类型）；
   - 附加条件 `case Burn(seconds) when seconds > 3`。
 
-## 空值（ADR-0009）
+## 空值（ADR-0009、ADR-0023、ADR-0041）
 
 ```nyxel
 class Turret : Behaviour {
@@ -1028,11 +1028,23 @@ class Turret : Behaviour {
 }
 ```
 
-- `T` 一定有值，`T?` 可能为 `null`，违反是编译错误。值类型 `int?` 同 C#。
-- C# 程序集的可空标注照单全收；没有标注的程序集，返回值和字段当作 `T?`，参数可以接受 `null`。
+- `T` 一定有值，`T?` 可能为 `null`，违反是编译错误。值类型的 `int?` 就是 C# 的 `int?`，规则和引用类型的 `T?` 一样。
+- `T?` 用之前要检查：它没有成员（`int?` 的 `.Value`、`.HasValue`、`.GetValueOrDefault()` 也不能用，ADR-0041），不能传给要 `T` 的地方。
+- C# 程序集的可空标注照单全收；没有标注的程序集，返回值、字段、属性当作 `T?`，参数可以接受 `null`。只管最外层：`List<Enemy>` 当作 `List<Enemy>?`，元素仍是 `Enemy`（ADR-0041）。
 - 检查后自动收窄：只对局部变量和参数；字段、属性、调用结果先存进局部变量。
+- 给局部变量赋一个不可能是 null 的值（声明时的初始值也算），之后它当作非空；赋了可能是 null 的值，之前的检查作废（ADR-0041）。只管是不是 null：`var weapon: Weapon? = new Sword()` 之后 `weapon` 是 `Weapon`，类型的收窄只来自 `is`。
+  ```nyxel
+  var target: Enemy? = self.target
+  if target == null {
+      target = self.FindNearest()         // FindNearest 返回 Enemy
+  }
+  target.Attack()                         // 两条路径上都不是 null
+  ```
+- 运算符里只有 `==` / `!=` 接受 `int?` 这样的值类型 `T?`，同 C#（ADR-0041）：两边都是 null 相等，一边是 null 不等，都有值时比值；`a != b` 永远是 `not (a == b)`。算术、大小比较、位运算要先检查：`(hp ?? 0) + 1`、`if hp != null and hp < 10`。
+  - 注意 null 落在哪一边：`self.target?.IsDead != true` 在没有目标时也是 true（“不能确定已经死了”）；要“有目标而且活着”写 `self.target?.IsDead == false`。
 - `?.`、`??` 同 C#；`??` 右边还可以是一条离开语句（ADR-0025，见“分支与离开语句”）。
 - 和 `null` 比较只看引用是不是空的（ADR-0023）：`x == null` 是 C# 的 `x is null`，不调用类型重载的 `==`。所以 `== null`、`!= null`、`?.`、`??`、`case null`、收窄的意思都一样。两个值之间的 `a == b` 照常调用重载。“已销毁”这类状态用引擎提供的属性或方法查（`world.IsAlive(entity)`），不借用 null。
+- 对不会是 null 的引用类型写 `== null`、`??`、`?.`、`??=` 是警告（ADR-0041）：类型说它一定有值，检查是多余的；和 C# 交界的地方（C# 调用 Nyxel 的 `public` 函数时可能传 null）照样可以写。不可空的值类型（`int`）上写是错误。
 - `x ??= value`（ADR-0023）：`x` 是 null 时才赋值，同 C#，是语句。局部变量和参数之后当作非空；字段不收窄。
   ```nyxel
   name ??= "无名"                          // 之后 name 当作非空

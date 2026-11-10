@@ -6,6 +6,8 @@ public enum SymbolKind
     NamedType,
     ArrayType,
     TypeParameter,
+    NullableType,
+    NullType,
     ErrorType,
     Method,
     Field,

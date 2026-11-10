@@ -1,0 +1,100 @@
+namespace Programs
+
+import System
+
+/// One link of a list; the last one has no next.
+class Node {
+    public let value: int
+    public let next: Node?
+
+    init(value: int, next: Node?) {
+        self.value = value
+        self.next = next
+    }
+}
+
+/// T?, the checks that narrow it, ?. and ?? (ADR-0009, ADR-0010, ADR-0023).
+class Nulls {
+    static func Main() {
+        let list = new Node(value = 1, next = new Node(value = 2, next = new Node(value = 3, next = null)))
+        var node: Node? = list
+        var total = 0
+        while node != null {
+            total += node.value
+            node = node.next
+        }
+        Console.WriteLine($"total: {total}")
+
+        Console.WriteLine(Nulls.Describe(null))
+        Console.WriteLine(Nulls.Describe("slime"))
+        Console.WriteLine(Nulls.LengthOr(null))
+        Console.WriteLine(Nulls.LengthOr("bat"))
+
+        let names = new array<string?>(4)
+        names[1] = "ab"
+        names[3] = "cde"
+        Console.WriteLine($"letters: {Nulls.CountLetters(names)}")
+
+        Console.WriteLine(Nulls.Kind("four"))
+        Console.WriteLine(Nulls.Kind(41))
+        Console.WriteLine(Nulls.Kind(2.5))
+
+        var label: string? = null
+        label ??= "default"
+        label ??= "ignored"
+        Console.WriteLine($"{label} has {label.Length} letters")
+
+        var best: int? = null
+        for x in 0..<5 {
+            let score = (x * 7) % 5
+            if best == null or score > best {
+                best = score
+            }
+        }
+        Console.WriteLine($"best: {best ?? -1}")
+        Console.WriteLine($"best is 4: {best == 4}, not 3: {best != 3}")
+
+        // A value that can't be null makes the variable checked (ADR-0041).
+        var found: string? = null
+        if label.Length > 100 {
+            found = "long"
+        }
+        if found == null {
+            found = "fallback"
+        }
+        Console.WriteLine($"{found} has {found.Length} letters")
+
+        // == and != on an int? as in C#: null equals only null (ADR-0041).
+        let missing: string? = null
+        Console.WriteLine($"{missing?.Length == 3} {missing?.Length != 3} {missing?.Length == null}")
+    }
+
+    static func Describe(name: string?) -> string {
+        let shown = name ?? "nobody"
+        return $"{shown} ({name?.Length ?? 0} letters)"
+    }
+
+    static func LengthOr(text: string?) -> int {
+        let checked = text ?? return -1
+        return checked.Length
+    }
+
+    static func CountLetters(items: array<string?>) -> int {
+        var count = 0
+        for item in items {
+            let text = item ?? continue
+            count += text.Length
+        }
+        return count
+    }
+
+    static func Kind(value: object) -> string {
+        if value is string {
+            return $"a string of {value.Length}"
+        }
+        if value is not int {
+            return "something else"
+        }
+        return $"an int before {value + 1}"
+    }
+}

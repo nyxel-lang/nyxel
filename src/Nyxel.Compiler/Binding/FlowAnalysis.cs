@@ -12,18 +12,31 @@ internal static class FlowAnalysis
     public static bool CanComplete(BoundStatement statement) => statement switch
     {
         BoundBlock block => block.Statements.All(CanComplete),
-        BoundReturn or BoundBreak or BoundContinue => false,
+        BoundReturn or BoundBreak or BoundContinue or BoundThrow => false,
         BoundIf ifStatement => ifStatement.Else is null || CanComplete(ifStatement.Then) || CanComplete(ifStatement.Else),
         BoundWhile loop => loop.Condition.ConstantValue is not true || ContainsBreak(loop.Body),
         _ => true,
     };
 
-    private static bool ContainsBreak(BoundStatement statement) => statement switch
+    /// <summary>Whether a <c>break</c> leaves the loop this is the body of (not one of a loop inside it).</summary>
+    public static bool ContainsBreak(BoundStatement statement) => statement switch
     {
         BoundBreak => true,
         BoundBlock block => block.Statements.Any(ContainsBreak),
         BoundIf ifStatement => ContainsBreak(ifStatement.Then) || (ifStatement.Else is { } @else && ContainsBreak(@else)),
-        _ => false,
+        BoundWhile or BoundForRange or BoundForEach => false,
+        _ => CoalesceJumps(statement).Any(j => j is BoundBreak),
+    };
+
+    /// <summary>The statements on the right of <c>??</c> in a statement's expressions: <c>let t = x ?? return</c>.</summary>
+    public static IEnumerable<BoundStatement> CoalesceJumps(BoundStatement statement) => statement switch
+    {
+        BoundBlock or BoundIf or BoundWhile or BoundForRange or BoundForEach => [],
+        _ => statement.GetChildren().OfType<BoundExpression>()
+            .SelectMany(e => e.DescendantsAndSelf())
+            .OfType<BoundCoalesce>()
+            .Select(c => c.Jump)
+            .OfType<BoundStatement>(),
     };
 
     /// <summary>
@@ -44,6 +57,11 @@ internal static class FlowAnalysis
     // The fields set when the statement finishes; null when it never finishes normally. Returns record their set.
     private static HashSet<FieldSymbol>? Assign(BoundStatement statement, HashSet<FieldSymbol> before, List<HashSet<FieldSymbol>> exits)
     {
+        // let t = x ?? return: a way out before the statement finishes.
+        if (CoalesceJumps(statement).Any(j => j is BoundReturn))
+        {
+            exits.Add(before);
+        }
         switch (statement)
         {
             case BoundBlock block:
@@ -75,7 +93,7 @@ internal static class FlowAnalysis
             case BoundReturn:
                 exits.Add(before);
                 return null;
-            case BoundBreak or BoundContinue:
+            case BoundBreak or BoundContinue or BoundThrow:
                 return null;
             default:
                 return before;

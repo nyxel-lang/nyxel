@@ -13,6 +13,12 @@ public enum TypeKind
     Delegate,
     Array,
     TypeParameter,
+
+    /// <summary><c>T?</c>: <see cref="NullableTypeSymbol"/>.</summary>
+    Nullable,
+
+    /// <summary>The type of the literal <c>null</c> before it converts to a <c>T?</c>.</summary>
+    Null,
     Error,
 }
 
@@ -31,9 +37,18 @@ public abstract class TypeSymbol : Symbol
 
     public virtual ImmutableArray<NamedTypeSymbol> Interfaces => [];
 
-    public bool IsValueType => TypeKind is TypeKind.Struct or TypeKind.Enum;
+    /// <summary>A struct or enum, or a <c>T?</c> of one (the .NET <c>Nullable&lt;T&gt;</c>).</summary>
+    public bool IsValueType => TypeKind is TypeKind.Struct or TypeKind.Enum || this is NullableTypeSymbol { UnderlyingType.IsValueType: true };
 
-    public bool IsReferenceType => TypeKind is TypeKind.Class or TypeKind.Interface or TypeKind.Delegate or TypeKind.Array;
+    /// <summary>A class, interface, function type or array, or a <c>T?</c> of one.</summary>
+    public bool IsReferenceType => TypeKind is TypeKind.Class or TypeKind.Interface or TypeKind.Delegate or TypeKind.Array
+        || this is NullableTypeSymbol { UnderlyingType.IsReferenceType: true };
+
+    /// <summary><c>T?</c>: a value of this type may be null (ADR-0009).</summary>
+    public bool IsNullable => TypeKind == TypeKind.Nullable;
+
+    /// <summary><c>T</c> for <c>T?</c>, the type itself otherwise.</summary>
+    public TypeSymbol NonNullable => this is NullableTypeSymbol nullable ? nullable.UnderlyingType : this;
 
     public bool IsError => TypeKind == TypeKind.Error;
 
@@ -273,6 +288,51 @@ public abstract class TypeParameterSymbol : TypeSymbol
     public override TypeKind TypeKind => TypeKind.TypeParameter;
 
     public abstract int Ordinal { get; }
+
+    /// <summary>A <c>struct</c> (or <c>unmanaged</c>) constraint: <c>T?</c> is then <c>Nullable&lt;T&gt;</c> (ADR-0031).</summary>
+    public virtual bool HasValueTypeConstraint => false;
+}
+
+/// <summary>
+/// <c>T?</c>, a value of <c>T</c> or null (ADR-0009). For a value type it is the .NET <c>Nullable&lt;T&gt;</c>; for a
+/// reference type it is the same .NET type marked "may be null". Both follow the same rules: no members until the
+/// value is checked, and only <c>T?</c> takes <c>null</c>. One symbol per underlying type, made by the symbol table.
+/// </summary>
+public sealed class NullableTypeSymbol : TypeSymbol
+{
+    internal NullableTypeSymbol(SymbolTable table, TypeSymbol underlyingType)
+    {
+        Table = table;
+        UnderlyingType = underlyingType;
+    }
+
+    public TypeSymbol UnderlyingType { get; }
+
+    internal SymbolTable Table { get; }
+
+    public override SymbolKind Kind => SymbolKind.NullableType;
+
+    public override TypeKind TypeKind => TypeKind.Nullable;
+
+    public override string Name => UnderlyingType.Name;
+
+    // No members, base type or interfaces: the value has to be checked before anything is used (ADR-0009).
+}
+
+/// <summary>The type of <c>null</c> itself. It converts to every <c>T?</c> and nothing else.</summary>
+public sealed class NullTypeSymbol : TypeSymbol
+{
+    public static NullTypeSymbol Instance { get; } = new();
+
+    private NullTypeSymbol()
+    {
+    }
+
+    public override SymbolKind Kind => SymbolKind.NullType;
+
+    public override TypeKind TypeKind => TypeKind.Null;
+
+    public override string Name => "null";
 }
 
 /// <summary>
@@ -307,6 +367,17 @@ internal sealed class TypeMap(ImmutableArray<TypeParameterSymbol> parameters, Im
             case ArrayTypeSymbol array:
                 var element = Substitute(array.ElementType);
                 return ReferenceEquals(element, array.ElementType) ? array : array.Table.GetArrayType(element, array.Rank);
+            case NullableTypeSymbol nullable:
+                var underlying = Substitute(nullable.UnderlyingType);
+                if (ReferenceEquals(underlying, nullable.UnderlyingType))
+                {
+                    return nullable;
+                }
+                // An unconstrained T? from .NET is T itself when T is a struct, as in C#: FirstOrDefault() on a
+                // List<int> gives an int (ADR-0031).
+                return nullable.UnderlyingType is TypeParameterSymbol { HasValueTypeConstraint: false } && underlying.IsValueType
+                    ? underlying
+                    : nullable.Table.GetNullableType(underlying);
             case NamedTypeSymbol named when named.AllTypeArguments.Length > 0:
                 var substituted = named.AllTypeArguments.Select(Substitute).ToImmutableArray();
                 return Enumerable.SequenceEqual(substituted, named.AllTypeArguments, ReferenceEqualityComparer.Instance)

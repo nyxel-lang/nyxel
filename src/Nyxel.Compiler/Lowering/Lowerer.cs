@@ -127,13 +127,21 @@ internal sealed class Lowerer(BoundProgram program)
                 LowerBlock(block);
                 break;
             case BoundLocalDeclaration declaration:
-                Mapped(statement, $"{TypeName(declaration.Local.Type)} {Escape(declaration.Local.Name)} = {Expression(declaration.Initializer)};");
+                var initializer = LowerCoalesceJump(statement, declaration.Initializer);
+                Mapped(statement, $"{TypeName(declaration.Local.Type)} {Escape(declaration.Local.Name)} = {Expression(initializer)};");
                 break;
             case BoundExpressionStatement expression:
                 Mapped(statement, $"{Expression(expression.Expression)};");
                 break;
             case BoundAssignment assignment:
-                Mapped(statement, $"{Expression(assignment.Target)} = {Expression(assignment.Value)};");
+                var assigned = LowerCoalesceJump(statement, assignment.Value);
+                Mapped(statement, $"{Expression(assignment.Target)} = {Expression(assigned)};");
+                break;
+            case BoundCoalesceAssignment coalesce:
+                Mapped(statement, $"{Expression(coalesce.Target)} ??= {Expression(coalesce.Value)};");
+                break;
+            case BoundThrow throwStatement:
+                Mapped(statement, $"throw {Expression(throwStatement.Exception)};");
                 break;
             case BoundCompoundAssignment compound:
                 Mapped(statement, $"{Expression(compound.Target)} {OperatorText(compound.OperatorKind)}= {Expression(compound.Value)};");
@@ -165,6 +173,57 @@ internal sealed class Lowerer(BoundProgram program)
     }
 
     private void Mapped(BoundStatement statement, string line) => _writer.WriteMapped(_source, statement.Syntax.Span, line);
+
+    /// <summary>
+    /// <c>let t = a ?? return</c> (also <c>break</c>, <c>continue</c>, and <c>a ?? b ?? return</c>): C# can't leave from
+    /// inside an expression, so the check comes first, mapped to the same statement, and the value is a temporary:
+    /// <c>if (!(a is {} v)) return;</c>, then <c>T t = v;</c>. The binder allows these only as the value of a whole
+    /// statement, under conversions at most. A <c>throw</c> stays in place: C# has <c>a ?? throw e</c>.
+    /// </summary>
+    private BoundExpression LowerCoalesceJump(BoundStatement statement, BoundExpression value)
+    {
+        var conversions = new Stack<BoundConversion>();
+        var inner = value;
+        while (inner is BoundConversion conversion)
+        {
+            conversions.Push(conversion);
+            inner = conversion.Operand;
+        }
+        if (inner is not BoundCoalesce coalesce || LastJump(coalesce) is not { } jump || jump is BoundThrow)
+        {
+            return value;
+        }
+
+        // a ?? b ?? return: the values in order, then the jump.
+        var values = new List<BoundExpression>();
+        for (BoundExpression? part = coalesce; part is BoundCoalesce link; part = link.Right)
+        {
+            values.Add(link.Left);
+        }
+        var text = string.Join(" ?? ", values.Select(v => Expression(v, CoalescePrecedence + 1)));
+        var temporary = Temporary("value");
+        var check = values.Count == 1 ? Expression(values[0], UnaryPrecedence) : $"({text})";
+        Mapped(statement, $"if (!({check} is {{}} {temporary})) {JumpText(jump)}");
+
+        BoundExpression result = new BoundTemporary(coalesce.Syntax, temporary, coalesce.Type);
+        while (conversions.TryPop(out var conversion))
+        {
+            result = new BoundConversion(conversion.Syntax, result, conversion.ConversionKind, conversion.Type, conversion.IsExplicit);
+        }
+        return result;
+
+        static BoundStatement? LastJump(BoundCoalesce coalesce) =>
+            coalesce.Jump ?? (coalesce.Right is BoundCoalesce next ? LastJump(next) : null);
+    }
+
+    private string JumpText(BoundStatement jump) => jump switch
+    {
+        BoundReturn { Value: { } returned } => $"return {Expression(returned)};",
+        BoundReturn => "return;",
+        BoundBreak => "break;",
+        BoundContinue => "continue;",
+        _ => throw new InvalidOperationException($"{jump.GetType().Name} after '??' can't be lowered."),
+    };
 
     private static TextSpan Header(SyntaxToken keyword, SyntaxNode last) => TextSpan.FromBounds(keyword.Span.Start, last.Span.End);
 
@@ -236,6 +295,8 @@ internal sealed class Lowerer(BoundProgram program)
 
     private const int PrimaryPrecedence = 16;
     private const int UnaryPrecedence = 15;
+    private const int RelationalPrecedence = 11;
+    private const int CoalescePrecedence = 4;
 
     private string Expression(BoundExpression expression, int parentPrecedence = 0)
     {
@@ -247,12 +308,34 @@ internal sealed class Lowerer(BoundProgram program)
     {
         switch (expression)
         {
+            case BoundLiteral { Value: null }:
+                return ("null", PrimaryPrecedence);
             case BoundLiteral literal:
                 return Literal(literal.Value);
             case BoundLocalAccess local:
-                return (Escape(local.Local.Name), PrimaryPrecedence);
+                return Narrowed(Escape(local.Local.Name), local.Local.Type, local.Type);
             case BoundParameterAccess parameter:
-                return (Escape(parameter.Parameter.Name), PrimaryPrecedence);
+                return Narrowed(Escape(parameter.Parameter.Name), parameter.Parameter.Type, parameter.Type);
+            case BoundTemporary temporary:
+                return (temporary.Name, PrimaryPrecedence);
+            case BoundConditionalReceiver:
+                // Inside the access of 'a?.B': C# writes nothing there ('a?' + '.B').
+                return ("", PrimaryPrecedence);
+            case BoundConditionalAccess conditional:
+                return ($"{Expression(conditional.Receiver, PrimaryPrecedence)}?{Expression(conditional.Access)}", PrimaryPrecedence);
+            case BoundNullCheck check:
+                // Whether the reference is null, never an overloaded == (ADR-0023).
+                return ($"{Expression(check.Operand, RelationalPrecedence + 1)} {(check.IsNull ? "is null" : "is not null")}", RelationalPrecedence);
+            case BoundIsType isType:
+                return ($"{Expression(isType.Operand, RelationalPrecedence + 1)} {(isType.IsNegated ? "is not" : "is")} {TypeName(isType.TestedType)}", RelationalPrecedence);
+            case BoundCoalesce coalesce:
+                var right = coalesce switch
+                {
+                    { Right: { } value } => Expression(value, CoalescePrecedence),
+                    { Jump: BoundThrow thrown } => $"throw {Expression(thrown.Exception)}",
+                    _ => throw new InvalidOperationException("'?? return' inside a larger expression; binding should have reported it."),
+                };
+                return ($"{Expression(coalesce.Left, CoalescePrecedence + 1)} ?? {right}", CoalescePrecedence);
             case BoundSelf:
                 return ("this", PrimaryPrecedence);
             case BoundFieldAccess field:
@@ -285,8 +368,11 @@ internal sealed class Lowerer(BoundProgram program)
                 return ($"{Expression(binary.Left, precedence)} {OperatorText(binary.OperatorKind)} {Expression(binary.Right, precedence + 1)}", precedence);
             case BoundConversion conversion:
                 // Numeric conversions are written as casts even where C# would convert implicitly, so that the C#
-                // operations and overloads are the ones the binder chose; reference conversions need nothing.
-                if (conversion.IsExplicit || conversion.ConversionKind is ConversionKind.ImplicitNumeric or ConversionKind.ExplicitNumeric)
+                // operations and overloads are the ones the binder chose; reference conversions need nothing. A value
+                // to a Nullable<T> and null to a T? are cast for the same reason (null alone has no type in C#).
+                if (conversion.IsExplicit || conversion.ConversionKind is ConversionKind.ImplicitNumeric or ConversionKind.ExplicitNumeric
+                    || (conversion.ConversionKind == ConversionKind.ImplicitNullable && conversion.Type.IsValueType)
+                    || conversion.ConversionKind == ConversionKind.NullLiteral)
                 {
                     var inner = Expression(conversion.Operand, PrimaryPrecedence);
                     return ($"({TypeName(conversion.Type)}){inner}", UnaryPrecedence);
@@ -298,6 +384,15 @@ internal sealed class Lowerer(BoundProgram program)
                 throw new InvalidOperationException($"{expression.GetType().Name} can't be lowered; binding should have reported an error.");
         }
     }
+
+    /// <summary>
+    /// A local or parameter read where a check narrowed it: C# needs a cast to the narrower type, except from a
+    /// reference type's <c>T?</c> to its <c>T</c>, which is the same C# type.
+    /// </summary>
+    private static (string Text, int Precedence) Narrowed(string name, TypeSymbol declared, TypeSymbol type) =>
+        ReferenceEquals(declared, type) || (declared.IsReferenceType && ReferenceEquals(declared.NonNullable, type.NonNullable))
+            ? (name, PrimaryPrecedence)
+            : ($"(({TypeName(type)}){name})", PrimaryPrecedence);
 
     private string Receiver(BoundExpression? receiver, NamedTypeSymbol containingType) =>
         receiver is null ? TypeName(containingType) : Expression(receiver, PrimaryPrecedence);
@@ -429,6 +524,9 @@ internal sealed class Lowerer(BoundProgram program)
                     element = inner.ElementType;
                 }
                 return TypeName(element) + ranks;
+            case NullableTypeSymbol nullable:
+                // A reference type's T? is the same C# type; the generated C# has nullable annotations off.
+                return nullable.UnderlyingType.IsValueType ? TypeName(nullable.UnderlyingType) + "?" : TypeName(nullable.UnderlyingType);
             case NamedTypeSymbol named when SymbolDisplay.Keyword(named.SpecialType) is { } keyword:
                 return keyword;
             case NamedTypeSymbol named:

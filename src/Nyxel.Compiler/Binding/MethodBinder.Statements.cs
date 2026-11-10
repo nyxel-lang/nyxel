@@ -25,8 +25,9 @@ internal sealed partial class MethodBinder
         IfStatementSyntax ifStatement => BindIf(ifStatement),
         WhileStatementSyntax whileStatement => BindWhile(whileStatement),
         ForStatementSyntax forStatement => BindFor(forStatement),
-        ReturnStatementSyntax returnStatement => BindReturn(returnStatement),
+        ReturnStatementSyntax returnStatement => BindReturn(returnStatement, returnStatement.ReturnKeyword, returnStatement.Expression),
         JumpStatementSyntax jump => BindJump(jump),
+        ThrowStatementSyntax throwStatement => BindThrow(throwStatement, throwStatement.Expression),
         _ => new BoundExpressionStatement(syntax, NotSupported(FirstToken(syntax), Describe(syntax))),
     };
 
@@ -43,19 +44,39 @@ internal sealed partial class MethodBinder
             return new BoundExpressionStatement(syntax, missing);
         }
 
-        var value = BindValue(initializer.Value, declaredType);
+        var value = BindStatementValue(initializer.Value, declaredType);
+        var valueType = value.Type;
         if (declaredType is not null)
         {
             value = Convert(value, declaredType, initializer.Value);
         }
+        else if (value.Type is NullTypeSymbol)
+        {
+            Report(DiagnosticDescriptors.NullNeedsType, initializer.Value, syntax.Identifier.Text);
+            value = Bad(initializer.Value, value);
+        }
         var local = DeclareLocal(syntax.Identifier, declaredType ?? value.Type, isReadOnly);
+        if (!value.HasErrors)
+        {
+            NarrowAfterAssignment(local, local.Type, valueType);
+        }
         return new BoundLocalDeclaration(syntax, local, value);
+    }
+
+    /// <summary>The value of a whole statement, where the right of '??' may also be return, break or continue.</summary>
+    private BoundExpression BindStatementValue(ExpressionSyntax syntax, TypeSymbol? expected)
+    {
+        var outer = _statementValue;
+        _statementValue = syntax;
+        var value = BindValue(syntax, expected);
+        _statementValue = outer;
+        return value;
     }
 
     private BoundStatement BindExpressionStatement(SyntaxNode syntax, ExpressionSyntax expression)
     {
         var bound = BindValue(expression, allowVoid: true);
-        if (bound is not (BoundCall or BoundObjectCreation) && !bound.HasErrors)
+        if (bound is not (BoundCall or BoundObjectCreation or BoundConditionalAccess { Access: BoundCall }) && !bound.HasErrors)
         {
             Report(DiagnosticDescriptors.ExpressionNotStatement, expression);
         }
@@ -64,12 +85,27 @@ internal sealed partial class MethodBinder
 
     private BoundStatement BindAssignment(AssignmentStatementSyntax syntax)
     {
-        var target = BindExpression(syntax.Target, null);
+        // A narrowed local is read with its narrowed type; it is assigned with its declared one.
+        var read = BindExpression(syntax.Target, null);
+        var target = read switch
+        {
+            BoundLocalAccess local => new BoundLocalAccess(local.Syntax, local.Local),
+            _ => read,
+        };
         var assignable = CheckAssignable(target, syntax.Target);
         if (syntax.OperatorToken.Kind == SyntaxKind.EqualsToken)
         {
-            var value = BindValue(syntax.Value, target.HasErrors ? null : target.Type);
+            var value = BindStatementValue(syntax.Value, target.HasErrors ? null : target.Type);
+            // A new value: what was known about the old one is gone, and the new one may be known not null (ADR-0041).
+            if (Narrowable(target) is var (variable, declared))
+            {
+                NarrowAfterAssignment(variable, declared, value.HasErrors ? ErrorTypeSymbol.Instance : value.Type);
+            }
             return new BoundAssignment(syntax, target, assignable ? Convert(value, target.Type, syntax.Value) : value);
+        }
+        if (syntax.OperatorToken.Kind == SyntaxKind.QuestionQuestionEqualsToken)
+        {
+            return BindCoalesceAssignment(syntax, target, assignable);
         }
 
         if (CompoundOperator(syntax.OperatorToken.Kind) is not { } operatorKind)
@@ -81,15 +117,19 @@ internal sealed partial class MethodBinder
             Report(DiagnosticDescriptors.PropertyHasNoGetter, syntax.Target, SymbolDisplay.Format(target is BoundPropertyAccess p ? p.Property : ((BoundIndexerAccess)target).Indexer));
         }
         var right = IsLiteralOnly(syntax.Value)
-            ? BindLiteralOperand(syntax.Value, target.Type, target.Type, arithmetic: true)
-            : BindValue(syntax.Value, target.HasErrors ? null : target.Type);
+            ? BindLiteralOperand(syntax.Value, read.Type, read.Type, arithmetic: true)
+            : BindValue(syntax.Value, read.HasErrors ? null : read.Type);
         if (!assignable || target.HasErrors || right.HasErrors)
         {
             return new BoundCompoundAssignment(syntax, target, operatorKind, right);
         }
         // As in C#: x op= y is x = (T)(x op y), allowed when the result converts to T implicitly, or explicitly
         // between numeric types when y itself converts to T (byte b; b += 1).
-        var operation = ResolveBinary(syntax, syntax.OperatorToken, operatorKind, target, right);
+        var operation = ResolveBinary(syntax, syntax.OperatorToken, operatorKind, read, right);
+        if (Narrowable(target) is var (assigned, assignedType))
+        {
+            NarrowAfterAssignment(assigned, assignedType, operation.Type);
+        }
         if (operation is BoundBinary binary)
         {
             var implicitResult = Conversions.ClassifyImplicit(binary.Type, target.Type) is not null;
@@ -102,6 +142,45 @@ internal sealed partial class MethodBinder
             return new BoundCompoundAssignment(syntax, target, operatorKind, binary.Right);
         }
         return new BoundCompoundAssignment(syntax, target, operatorKind, right);
+    }
+
+    /// <summary>
+    /// <c>target ??= value</c> (ADR-0023): the target must be a <c>T?</c>; the value goes in as a <c>T</c> when it is
+    /// one, and then a local target is no longer null.
+    /// </summary>
+    private BoundStatement BindCoalesceAssignment(AssignmentStatementSyntax syntax, BoundExpression target, bool assignable)
+    {
+        if (!target.HasErrors && !CheckCanBeNull(target, syntax.Target, "??="))
+        {
+            assignable = false;
+        }
+        var underlying = target.HasErrors ? null : target.Type.NonNullable;
+        var value = IsLiteralOnly(syntax.Value) && underlying is not null
+            ? BindLiteralOperand(syntax.Value, underlying, null, arithmetic: false)
+            : BindValue(syntax.Value, underlying);
+        if (!assignable || target.HasErrors || value.HasErrors)
+        {
+            return new BoundCoalesceAssignment(syntax, target, value);
+        }
+        if (Conversions.ClassifyImplicit(value.Type, underlying!) is not null)
+        {
+            _flow = Narrow(_flow, target, underlying!);
+            return new BoundCoalesceAssignment(syntax, target, Convert(value, underlying!));
+        }
+        return new BoundCoalesceAssignment(syntax, target, Convert(value, target.Type, syntax.Value));
+    }
+
+    /// <summary>
+    /// After a local gets a value (ADR-0041): what was known about the old value is gone, and a <c>T?</c> local is a
+    /// <c>T</c> when the value can't be null. Only null is tracked: a <c>Weapon?</c> given a <c>Sword</c> is a <c>Weapon</c>.
+    /// </summary>
+    private void NarrowAfterAssignment(Symbol variable, TypeSymbol declared, TypeSymbol valueType)
+    {
+        _flow = _flow.Remove(variable);
+        if (declared.IsNullable && !valueType.IsNullable && !valueType.IsError && valueType is not NullTypeSymbol)
+        {
+            _flow = _flow.SetItem(variable, declared.NonNullable);
+        }
     }
 
     private static BinaryOperatorKind? CompoundOperator(SyntaxKind token) => token switch
@@ -134,6 +213,10 @@ internal sealed partial class MethodBinder
             case BoundParameterAccess parameter:
                 Report(DiagnosticDescriptors.AssignToParameter, syntax, parameter.Parameter.Name);
                 return false;
+            case BoundFieldAccess { Receiver: var receiver } when receiver is not null && Narrowable(receiver) is var (_, declared) && declared.IsNullable && declared.IsValueType:
+                // C# can't set a field of the value inside a Nullable<T> in place.
+                NotSupported(syntax, "Setting a field of a checked 'T?' struct");
+                return false;
             case BoundFieldAccess field:
                 // A let field can be set where it is declared and in an init of its type (ADR-0006).
                 var inInit = _method is { MethodKind: MethodKind.Constructor } && ReferenceEquals(field.Field.ContainingType, _containingType)
@@ -158,22 +241,35 @@ internal sealed partial class MethodBinder
         }
     }
 
+    /// <summary>
+    /// <c>if</c>: each branch starts with what the condition says when it is true or false, and after the <c>if</c>
+    /// holds what holds at the end of every branch that gets there (<c>if x == null { return }</c> leaves <c>x</c>
+    /// checked).
+    /// </summary>
     private BoundStatement BindIf(IfStatementSyntax syntax)
     {
-        var condition = BindCondition(syntax.Condition);
+        var (condition, whenTrue, whenFalse) = BindCondition(syntax.Condition);
+        _flow = whenTrue;
         var then = BindBlock(syntax.Block);
+        var afterThen = FlowAnalysis.CanComplete(then) ? _flow : null;
+        _flow = whenFalse;
         var @else = syntax.ElseClause?.Body is { } elseBody ? BindStatement(elseBody) : null;
+        var afterElse = @else is null || FlowAnalysis.CanComplete(@else) ? _flow : null;
+        _flow = Join(afterThen, afterElse) ?? whenFalse;
         return new BoundIf(syntax, condition, then, @else);
     }
 
-    private BoundExpression BindCondition(ExpressionSyntax syntax) => Convert(BindValue(syntax, _context.Bool), _context.Bool, syntax);
-
     private BoundStatement BindWhile(WhileStatementSyntax syntax)
     {
-        var condition = BindCondition(syntax.Condition);
+        _flow = ForgetAssignedIn(_flow, syntax);
+        var start = _flow;
+        var (condition, whenTrue, whenFalse) = BindCondition(syntax.Condition);
+        _flow = whenTrue;
         _loopDepth++;
         var body = BindBlock(syntax.Body);
         _loopDepth--;
+        // Leaving by the condition, it is false; leaving by 'break', only what held at the start is sure.
+        _flow = FlowAnalysis.ContainsBreak(body) ? start : whenFalse;
         return new BoundWhile(syntax, condition, body);
     }
 
@@ -190,6 +286,8 @@ internal sealed partial class MethodBinder
 
         PushScope();
         BoundStatement result;
+        _flow = ForgetAssignedIn(_flow, syntax);
+        var start = _flow;
         if (syntax.Collection is RangeExpressionSyntax { Left: { } left, Right: { } right } range)
         {
             var (from, to) = BindRangeEnds(left, right);
@@ -202,7 +300,12 @@ internal sealed partial class MethodBinder
         {
             var collection = BindValue(syntax.Collection);
             var elementType = collection.HasErrors ? ErrorTypeSymbol.Instance : ElementType(collection.Type);
-            if (elementType is null)
+            if (collection.Type.IsNullable)
+            {
+                ReportMaybeNull(collection, syntax.Collection, suggestConditional: false);
+                elementType = ErrorTypeSymbol.Instance;
+            }
+            else if (elementType is null)
             {
                 Report(DiagnosticDescriptors.NotIterable, syntax.Collection, SymbolDisplay.FormatType(collection.Type));
                 elementType = ErrorTypeSymbol.Instance;
@@ -212,6 +315,7 @@ internal sealed partial class MethodBinder
             result = new BoundForEach(syntax, variable, collection, body);
         }
         PopScope();
+        _flow = start;
         return result;
     }
 
@@ -271,18 +375,19 @@ internal sealed partial class MethodBinder
         return candidates.Count == 1 ? candidates[0].TypeArguments[0] : null;
     }
 
-    private BoundStatement BindReturn(ReturnStatementSyntax syntax)
+    /// <summary><c>return</c>, as a statement or on the right of <c>??</c>.</summary>
+    private BoundReturn BindReturn(SyntaxNode syntax, SyntaxToken keyword, ExpressionSyntax? value)
     {
         if (_method is null)
         {
             return new BoundReturn(syntax, null);
         }
         var name = _method.MethodKind == MethodKind.Constructor ? "init" : _method.Name;
-        if (syntax.Expression is not { } expression)
+        if (value is not { } expression)
         {
             if (!_method.ReturnsVoid && !_method.ReturnType.IsError)
             {
-                Report(DiagnosticDescriptors.ReturnWithoutValue, syntax.ReturnKeyword, name, SymbolDisplay.FormatType(_method.ReturnType));
+                Report(DiagnosticDescriptors.ReturnWithoutValue, keyword, name, SymbolDisplay.FormatType(_method.ReturnType));
             }
             return new BoundReturn(syntax, null);
         }

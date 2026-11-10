@@ -14,6 +14,7 @@ internal sealed class SymbolTable
 {
     private readonly Dictionary<CodeAnalysis.ISymbol, Symbol?> _metadata = new(CodeAnalysis.SymbolEqualityComparer.Default);
     private readonly Dictionary<(TypeSymbol Element, int Rank), ArrayTypeSymbol> _arrays = [];
+    private readonly Dictionary<TypeSymbol, NullableTypeSymbol> _nullables = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<CodeAnalysis.INamespaceSymbol, NamespaceSymbol> _namespaces = new(CodeAnalysis.SymbolEqualityComparer.Default);
 
     public SymbolTable(CSharpCompilation references)
@@ -43,11 +44,52 @@ internal sealed class SymbolTable
         return array;
     }
 
+    /// <summary><c>T?</c>; already nullable types, <c>null</c> itself and the error type stay as they are.</summary>
+    public TypeSymbol GetNullableType(TypeSymbol underlying)
+    {
+        if (underlying.IsNullable || underlying.IsError || underlying is NullTypeSymbol)
+        {
+            return underlying;
+        }
+        if (!_nullables.TryGetValue(underlying, out var nullable))
+        {
+            nullable = new NullableTypeSymbol(this, underlying);
+            _nullables.Add(underlying, nullable);
+        }
+        return nullable;
+    }
+
     /// <summary>
-    /// The Nyxel symbol for a Roslyn type. Types Nyxel can't use (pointers, function pointers, <c>dynamic</c>) and
-    /// types missing from the references are the error type; members that use them are left out.
+    /// The Nyxel symbol for a Roslyn type, with C#'s nullable annotations: <c>string?</c> and <c>int?</c> are
+    /// <c>T?</c>, a type without an annotation is not. Types Nyxel can't use (pointers, function pointers,
+    /// <c>dynamic</c>) and types missing from the references are the error type; members that use them are left out.
     /// </summary>
-    public TypeSymbol GetType(CodeAnalysis.ITypeSymbol type)
+    public TypeSymbol GetType(CodeAnalysis.ITypeSymbol type) => GetType(type, obliviousIsNullable: false);
+
+    /// <summary>
+    /// The type of a member (a return value, parameter, field or property): as <see cref="GetType(CodeAnalysis.ITypeSymbol)"/>,
+    /// and a reference type from code compiled without nullable annotations is <c>T?</c> (ADR-0009). Only the
+    /// outermost type: the type arguments and array elements of such a type keep what the assembly says.
+    /// </summary>
+    public TypeSymbol GetMemberType(CodeAnalysis.ITypeSymbol type) => GetType(type, obliviousIsNullable: true);
+
+    private TypeSymbol GetType(CodeAnalysis.ITypeSymbol type, bool obliviousIsNullable)
+    {
+        var result = GetTypeIgnoringAnnotation(type);
+        if (result.IsError || result.IsNullable)
+        {
+            return result;
+        }
+        var nullable = type.NullableAnnotation switch
+        {
+            CodeAnalysis.NullableAnnotation.Annotated => type.IsReferenceType || type is CodeAnalysis.ITypeParameterSymbol,
+            CodeAnalysis.NullableAnnotation.None => obliviousIsNullable && type.IsReferenceType,
+            _ => false,
+        };
+        return nullable ? GetNullableType(result) : result;
+    }
+
+    private TypeSymbol GetTypeIgnoringAnnotation(CodeAnalysis.ITypeSymbol type)
     {
         switch (type)
         {
@@ -56,6 +98,9 @@ internal sealed class SymbolTable
                 return element.IsError ? element : GetArrayType(element, array.Rank);
             case CodeAnalysis.ITypeParameterSymbol parameter:
                 return (TypeSymbol)Wrap(parameter, () => new MetadataTypeParameterSymbol(parameter))!;
+            case CodeAnalysis.INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T, IsDefinition: false } nullableValue:
+                // int? is Nullable<int> in .NET; in Nyxel it is the same T? as string? (ADR-0009).
+                return GetNullableType(GetType(nullableValue.TypeArguments[0]));
             case CodeAnalysis.INamedTypeSymbol named when named.TypeKind != CodeAnalysis.TypeKind.Error:
                 var definition = named.OriginalDefinition;
                 var wrapped = (NamedTypeSymbol)Wrap(definition, () => new MetadataNamedTypeSymbol(this, definition))!;
@@ -211,6 +256,8 @@ internal sealed class MetadataTypeParameterSymbol(CodeAnalysis.ITypeParameterSym
     public override string Name => parameter.Name;
 
     public override int Ordinal => parameter.Ordinal;
+
+    public override bool HasValueTypeConstraint => parameter.HasValueTypeConstraint || parameter.HasUnmanagedTypeConstraint;
 }
 
 internal sealed class MetadataMethodSymbol(SymbolTable table, CodeAnalysis.IMethodSymbol method) : MethodSymbol
@@ -235,7 +282,7 @@ internal sealed class MetadataMethodSymbol(SymbolTable table, CodeAnalysis.IMeth
 
     public override bool IsStatic => method.IsStatic;
 
-    public override TypeSymbol ReturnType => table.GetType(method.ReturnType);
+    public override TypeSymbol ReturnType => table.GetMemberType(method.ReturnType);
 
     public override ImmutableArray<ParameterSymbol> Parameters
     {
@@ -269,7 +316,7 @@ internal sealed class MetadataParameterSymbol(SymbolTable table, CodeAnalysis.IP
 
     public override Symbol ContainingSymbol => containingSymbol;
 
-    public override TypeSymbol Type => table.GetType(parameter.Type);
+    public override TypeSymbol Type => table.GetMemberType(parameter.Type);
 
     public override int Ordinal => parameter.Ordinal;
 
@@ -296,7 +343,7 @@ internal sealed class MetadataFieldSymbol(SymbolTable table, CodeAnalysis.IField
 
     public override NamedTypeSymbol ContainingType => (NamedTypeSymbol)table.GetType(source.ContainingType);
 
-    public override TypeSymbol Type => table.GetType(source.Type);
+    public override TypeSymbol Type => table.GetMemberType(source.Type);
 
     public override bool IsStatic => source.IsStatic;
 
@@ -317,7 +364,7 @@ internal sealed class MetadataPropertySymbol(SymbolTable table, CodeAnalysis.IPr
 
     public override NamedTypeSymbol ContainingType => (NamedTypeSymbol)table.GetType(property.ContainingType);
 
-    public override TypeSymbol Type => table.GetType(property.Type);
+    public override TypeSymbol Type => table.GetMemberType(property.Type);
 
     public override bool IsStatic => property.IsStatic;
 

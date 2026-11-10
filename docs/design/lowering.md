@@ -55,6 +55,16 @@ ADR-0004 留下的选择：用列跟踪的文本写出器生成 C#，再 `CSharp
   - 头部三段各占一行、各带指令（规则 2），每段都是自己的序列点。
   - 临时变量以 `__nyxel_` 开头。
 - **`for x in 集合`** 是 C# 的 `foreach`，头部同样分两行。
+- **`T?`**：值类型的是 `int?`（`Nullable<int>`）；引用类型的就是 `T` 本身，生成的 C# 关着可空标注（`#nullable disable`）。值转成 `int?` 和 `null` 转成 `T?` 都写成强制转换 `(int?)x`、`(string)null`，同数值转换：C# 选重载时 `null` 没有类型。
+- **收窄后的读取**：Binder 给读到的局部变量、参数记上收窄后的类型，和声明的类型不同时写成强制转换：`((int)value) + 1`、`((global::Game.Pickup)other).Collect()`。引用类型从 `T?` 收窄成 `T` 是同一个 C# 类型，不写。赋值的左边用声明的类型，不转换。
+- **和 null 有关的写法**：`x == null` / `x != null` 是 `x is null` / `x is not null`（不调用重载的 `==`，ADR-0023）；`x is T` 照写；`??`、`??=`、`a ?? throw e` 照写。
+- **`?.`**：Binder 把 `a?.B.C()` 绑成“接收者 `a`”加“在一个占位的接收者上做 `.B.C()`”，降级时占位的接收者写成空，正好拼成 C# 的 `a?.B.C()`，短路的范围和 C# 一样。
+- **`?? return` / `?? break` / `?? continue`**：C# 不能在表达式中间离开，所以先检查、再取值，两行都映射到这条语句：
+  ```csharp
+  if (!(this.FindTarget() is {} __nyxel_value1)) return;
+  global::Game.Enemy target = __nyxel_value1;
+  ```
+  Binder 只允许它们出现在整条语句的值上（`let` 的初始值、`=` 的右边，外面最多套着隐式转换；`a ?? b ?? return` 也行），其余位置报 NYX2001。`?? throw` 在哪都直接写成 C# 的 `?? throw`。
 
 ## 后端
 

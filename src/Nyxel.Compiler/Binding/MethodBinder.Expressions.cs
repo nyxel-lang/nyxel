@@ -42,7 +42,9 @@ internal sealed partial class MethodBinder
                 return new BoundSelf(self, _containingType);
             case ParenthesizedExpressionSyntax parenthesized:
                 return BindExpression(parenthesized.Expression, expected);
-            case MemberAccessExpressionSyntax { Kind: SyntaxKind.SimpleMemberAccessExpression } memberAccess:
+            case MemberAccessExpressionSyntax or InvocationExpressionSyntax or ElementAccessExpressionSyntax when DeepestConditional(syntax) is { } conditional:
+                return BindConditionalAccess(syntax, conditional);
+            case MemberAccessExpressionSyntax memberAccess:
                 return BindMemberAccess(memberAccess);
             case InvocationExpressionSyntax invocation:
                 return BindInvocation(invocation);
@@ -50,10 +52,20 @@ internal sealed partial class MethodBinder
                 return BindElementAccess(elementAccess);
             case ObjectCreationExpressionSyntax creation:
                 return BindObjectCreation(creation);
-            case UnaryExpressionSyntax { Kind: SyntaxKind.UnaryMinusExpression or SyntaxKind.UnaryPlusExpression or SyntaxKind.BitwiseNotExpression or SyntaxKind.LogicalNotExpression } unary:
+            case UnaryExpressionSyntax { Kind: SyntaxKind.LogicalNotExpression }:
+                return BindLogical(syntax);
+            case UnaryExpressionSyntax { Kind: SyntaxKind.UnaryMinusExpression or SyntaxKind.UnaryPlusExpression or SyntaxKind.BitwiseNotExpression } unary:
                 return BindUnary(unary, expected);
-            case BinaryExpressionSyntax binary when binary.Kind != SyntaxKind.CoalesceExpression:
+            case BinaryExpressionSyntax { Kind: SyntaxKind.LogicalAndExpression or SyntaxKind.LogicalOrExpression }:
+                return BindLogical(syntax);
+            case BinaryExpressionSyntax { Kind: SyntaxKind.CoalesceExpression } coalesce:
+                return BindCoalesce(coalesce);
+            case BinaryExpressionSyntax { Kind: SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression } equality when IsNullLiteral(equality.Left) || IsNullLiteral(equality.Right):
+                return BindNullCheck(equality, IsNullLiteral(equality.Right) ? equality.Left : equality.Right, equality.Kind == SyntaxKind.EqualsExpression);
+            case BinaryExpressionSyntax binary:
                 return BindBinary(binary, expected);
+            case IsExpressionSyntax isExpression:
+                return BindIs(isExpression);
             case AsExpressionSyntax asExpression:
                 return BindAs(asExpression);
             case TypeSyntax type:
@@ -71,6 +83,7 @@ internal sealed partial class MethodBinder
         SyntaxKind.CharacterLiteralExpression => new BoundLiteral(syntax, syntax.Token.Value as char? ?? '\0', _context.GetSpecialType(SpecialType.System_Char)),
         SyntaxKind.TrueLiteralExpression => new BoundLiteral(syntax, true, _context.Bool),
         SyntaxKind.FalseLiteralExpression => new BoundLiteral(syntax, false, _context.Bool),
+        SyntaxKind.NullLiteralExpression => new BoundLiteral(syntax, null, NullTypeSymbol.Instance),
         _ => NotSupported(syntax, Describe(syntax)),
     };
 
@@ -317,6 +330,8 @@ internal sealed partial class MethodBinder
     /// </summary>
     private BoundExpression BindLiteralOperand(ExpressionSyntax literal, TypeSymbol otherType, TypeSymbol? expected, bool arithmetic)
     {
+        // Next to a float?, a literal is a float: 'f == 0.5' compares floats (ADR-0041).
+        otherType = otherType.NonNullable;
         if (otherType.IsError)
         {
             return BindLiteralOnly(literal, null);
@@ -368,9 +383,9 @@ internal sealed partial class MethodBinder
         switch (LookupLocal(name))
         {
             case LocalSymbol local:
-                return new BoundLocalAccess(syntax, local);
+                return new BoundLocalAccess(syntax, local, TypeAtThisPoint(local, local.Type));
             case ParameterSymbol parameter:
-                return new BoundParameterAccess(syntax, parameter);
+                return new BoundParameterAccess(syntax, parameter, TypeAtThisPoint(parameter, parameter.Type));
         }
         switch (_scope.LookupTypeOrNamespace(name, 0, syntax))
         {
@@ -391,7 +406,10 @@ internal sealed partial class MethodBinder
 
     private BoundExpression BindMemberAccess(MemberAccessExpressionSyntax syntax)
     {
-        var receiver = BindExpression(syntax.Expression, null);
+        // The receiver of 'a?.B' is in place already: a placeholder for 'a' without null (BindConditionalAccess).
+        BoundExpression receiver = syntax.Kind == SyntaxKind.ConditionalMemberAccessExpression && _conditionalReceivers.TryGetValue(syntax, out var conditional)
+            ? conditional
+            : BindExpression(syntax.Expression, null);
         if (syntax.Name.Identifier.IsMissing)
         {
             return Bad(syntax, receiver);
@@ -424,6 +442,12 @@ internal sealed partial class MethodBinder
             case BoundPropertyAccess { Property.HasGetter: false } property:
                 Report(DiagnosticDescriptors.PropertyHasNoGetter, syntax.Expression, SymbolDisplay.Format(property.Property));
                 return Bad(syntax);
+            case { Type: NullTypeSymbol }:
+                Report(DiagnosticDescriptors.MemberNotFound, syntax.Name, name, "null");
+                return Bad(syntax, receiver);
+            case { Type.IsNullable: true }:
+                ReportMaybeNull(receiver, syntax.Expression, suggestConditional: true);
+                return Bad(syntax, receiver);
             default:
                 return BindMember(syntax, receiver, name, onType: false);
         }
@@ -581,7 +605,12 @@ internal sealed partial class MethodBinder
             SyntaxKind.BitwiseNotExpression => UnaryOperatorKind.BitwiseNot,
             _ => UnaryOperatorKind.LogicalNot,
         };
-        var operand = BindValue(syntax.Operand, operatorKind == UnaryOperatorKind.LogicalNot ? null : expected);
+        var operand = BindValue(syntax.Operand, expected);
+        return ResolveUnary(syntax, operatorKind, operand);
+    }
+
+    private BoundExpression ResolveUnary(UnaryExpressionSyntax syntax, UnaryOperatorKind operatorKind, BoundExpression operand)
+    {
         if (operand.HasErrors)
         {
             return Bad(syntax, operand);
@@ -598,6 +627,11 @@ internal sealed partial class MethodBinder
         };
         if (result is not { } resultType)
         {
+            if (operand.Type.IsNullable)
+            {
+                ReportMaybeNull(operand, operand.Syntax, suggestConditional: false);
+                return Bad(syntax, operand);
+            }
             Report(DiagnosticDescriptors.UnaryOperatorNotDefined, syntax.OperatorToken, syntax.OperatorToken.Text, SymbolDisplay.FormatType(operand.Type));
             return Bad(syntax, operand);
         }
@@ -677,6 +711,8 @@ internal sealed partial class MethodBinder
                 return new BoundBinary(syntax, operatorKind, left, right, _context.String);
             case BinaryOperatorKind.LogicalAnd or BinaryOperatorKind.LogicalOr when l == SpecialType.System_Boolean && r == SpecialType.System_Boolean:
                 return new BoundBinary(syntax, operatorKind, left, right, boolType);
+            case BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual when IsNullableValue(left.Type) || IsNullableValue(right.Type):
+                return LiftedEquality();
             case BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual:
                 if ((l == r && l is SpecialType.System_Boolean or SpecialType.System_String)
                     || (left.Type.IsReferenceType && right.Type.IsReferenceType
@@ -716,8 +752,32 @@ internal sealed partial class MethodBinder
             return new BoundBinary(syntax, operatorKind, Convert(left, operandType), Convert(right, operandType), resultType ?? operandType);
         }
 
+        // int? == int, int? != long?: C#'s lifted operators (ADR-0041). Both sides go to the T? of the type they would
+        // be compared in without '?'; null equals only null.
+        BoundExpression LiftedEquality()
+        {
+            var (l0, r0) = (left.Type.NonNullable.SpecialType, right.Type.NonNullable.SpecialType);
+            SpecialType? compared = l0 == SpecialType.System_Boolean && r0 == SpecialType.System_Boolean ? SpecialType.System_Boolean : NumericPromotion(l0, r0);
+            if (compared is not { } type)
+            {
+                Report(DiagnosticDescriptors.OperatorNotDefined, operatorToken, operatorToken.Text, SymbolDisplay.FormatType(left.Type), SymbolDisplay.FormatType(right.Type));
+                return Bad(syntax, left, right);
+            }
+            var operandType = _context.Table.GetNullableType(_context.GetSpecialType(type));
+            return new BoundBinary(syntax, operatorKind, Convert(left, operandType), Convert(right, operandType), boolType);
+        }
+
+        static bool IsNullableValue(TypeSymbol type) => type.IsNullable && type.IsValueType;
+
         BoundExpression NotDefined()
         {
+            // int? + 1: C# lifts the operator; Nyxel wants the value checked first, as for its members (ADR-0009).
+            if (left.Type.IsNullable || right.Type.IsNullable)
+            {
+                var nullable = left.Type.IsNullable ? left : right;
+                ReportMaybeNull(nullable, nullable.Syntax, suggestConditional: false);
+                return Bad(syntax, left, right);
+            }
             Report(DiagnosticDescriptors.OperatorNotDefined, operatorToken, operatorToken.Text, SymbolDisplay.FormatType(left.Type), SymbolDisplay.FormatType(right.Type));
             return Bad(syntax, left, right);
         }

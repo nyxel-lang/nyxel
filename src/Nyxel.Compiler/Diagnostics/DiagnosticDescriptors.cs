@@ -591,6 +591,33 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor IntegerLiteralDivisionInDecimal =
         Error("NYX2054", "'{0}' divides whole numbers, which truncates, inside a decimal calculation; write '{1}' to divide as decimals.");
 
+    public static readonly DiagnosticDescriptor MaybeNull =
+        Error("NYX2057", "'{0}' may be null; {1}.");
+
+    public static readonly DiagnosticDescriptor MaybeNullConversion =
+        Error("NYX2058", "A value of type '{0}' may be null and can't be used where '{1}' is expected; {2}.");
+
+    public static readonly DiagnosticDescriptor NotNullable =
+        Error("NYX2059", "'{0}' can't be null; write '{0}?' for a value that may be null.");
+
+    public static readonly DiagnosticDescriptor NullNeedsType =
+        Error("NYX2060", "The type of '{0}' can't come from 'null'; write it, as in '{0}: Enemy? = null'.");
+
+    public static readonly DiagnosticDescriptor IsNeverTrue =
+        Error("NYX2061", "A value of type '{0}' is never a '{1}'.");
+
+    public static readonly DiagnosticDescriptor IsNullableType =
+        Error("NYX2062", "'is' checks for a value that isn't null; write 'is {0}' without the '?'.");
+
+    public static readonly DiagnosticDescriptor NeverNull =
+        Error("NYX2063", "A value of type '{0}' is never null, so '{1}' has nothing to check.");
+
+    public static readonly DiagnosticDescriptor ArrayElementsStartNull =
+        Error("NYX2064", "'new {0}(...)' would start every element as null, which '{1}' doesn't allow; make the elements '{1}?', or give each one with 'element = func(i) = ...'.");
+
+    public static readonly DiagnosticDescriptor NotException =
+        Error("NYX2065", "'throw' needs an exception, and '{0}' isn't an 'Exception'.");
+
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);
 }

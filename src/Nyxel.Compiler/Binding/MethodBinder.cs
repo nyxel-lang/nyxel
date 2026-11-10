@@ -140,8 +140,9 @@ internal sealed partial class MethodBinder
 
     private void ReportNoValue(BoundExpression expression)
     {
-        if (expression is BoundCall call)
+        if (expression is BoundCall or BoundConditionalAccess { Access: BoundCall })
         {
+            var call = expression as BoundCall ?? (BoundCall)((BoundConditionalAccess)expression).Access;
             Report(DiagnosticDescriptors.NoValue, expression.Syntax, SymbolDisplay.Format(call.Method));
         }
     }
@@ -162,8 +163,20 @@ internal sealed partial class MethodBinder
         {
             return new BoundConversion(syntax ?? expression.Syntax, expression, conversion, target, isExplicit: false);
         }
-        Report(DiagnosticDescriptors.CannotConvert, syntax ?? expression.Syntax, SymbolDisplay.FormatType(expression.Type), SymbolDisplay.FormatType(target));
-        return Bad(syntax ?? expression.Syntax, expression);
+        var location = syntax ?? expression.Syntax;
+        if (expression.Type is NullTypeSymbol)
+        {
+            Report(DiagnosticDescriptors.NotNullable, location, SymbolDisplay.FormatType(target));
+        }
+        else if (expression.Type.IsNullable && Conversions.ClassifyImplicit(expression.Type.NonNullable, target) is not null)
+        {
+            ReportMaybeNullConversion(expression, target, location);
+        }
+        else
+        {
+            Report(DiagnosticDescriptors.CannotConvert, location, SymbolDisplay.FormatType(expression.Type), SymbolDisplay.FormatType(target));
+        }
+        return Bad(location, expression);
     }
 
     // Diagnostics ----------------------------------------------------------------------------------------------
