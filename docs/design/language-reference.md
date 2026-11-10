@@ -104,18 +104,18 @@ let level = Pb.LogLevel.Warn        // 协议里的 LogLevel；不带前缀的 L
 - 没有静态导入（C# 的 `using static`）：成员前面总是写类型名，`MathF.Sqrt(x)`。不带接收者的名字只能是局部变量或参数（ADR-0008）。
 - C# 的 `using Pb = ep.protocol`、`import ep.protocol as Pb` 是编译错误，诊断给出 `under` 的写法；`using static` 也是编译错误。
 
-## 程序入口（ADR-0036）
+## 程序入口（ADR-0036、ADR-0039）
 
 ```nyxel
 class Program {
-    func Main() {
+    static func Main() {
         Console.WriteLine("Hello, Nyxel")
     }
 }
 ```
 
-- 输出可执行程序时（`nyxel run`、输出类型是可执行文件的项目），程序从任意一个类型里没有 `self` 的 `Main` 函数开始执行，同 C#。游戏脚本由引擎调用，不需要入口。
-- 写法：`func Main()`、`func Main(args: array<string>)`，各自可以加 `-> int` 返回退出码。可见性随意；不能写在泛型类型里。
+- 输出可执行程序时（`nyxel run`、输出类型是可执行文件的项目），程序从任意一个类型里的 `static func Main` 开始执行，同 C#。游戏脚本由引擎调用，不需要入口。
+- 写法：`static func Main()`、`static func Main(args: array<string>)`，各自可以加 `-> int` 返回退出码。可见性随意；不能写在泛型类型里。
 - 没有 `Main`、有两个以上、签名不对都是编译错误。`async func Main` 暂时是编译错误（协程要靠宿主驱动，M4）。
 - 编译成库时不找入口，叫 `Main` 的函数就是普通的函数。
 
@@ -275,7 +275,7 @@ class Shooter : Behaviour {
 - `array<Item?>` 是元素可能为空，`array<Item>?` 是数组本身可能为空；数组的数组写 `array<array<int>>`。
 - 指定长度创建：`new array<T>(16)`，也可以写 `new array<T>(length = 16)`。下标、`.Length`、`for ... in` 同 C#。
 - 新数组的元素一开始是全零，所以只有全零就是合法值的元素类型能这样创建（ADR-0023）：可空类型（`array<Enemy?>`）、数字、`bool`、`char`、有值为 0 的 case 的简单 enum 和 flags enum（ADR-0024）、第一个 case 不带数据的 `struct enum`（ADR-0024）、C# 定义的 struct（`Vector3`、`RaycastHit`）和 enum。
-  - 其余的（class、接口、带数据的 enum、Nyxel 的 struct、没有值为 0 的 case 的 enum）用第二个参数 `element` 给出每个元素，编译成一个循环：
+  - 其余的（class、接口、`class enum`、Nyxel 的 struct、没有值为 0 的 case 的 enum）用第二个参数 `element` 给出每个元素，编译成一个循环：
     ```nyxel
     let slots = new array<Slot>(16, func(i) = new Slot(index = i))
     let ps = new array<Particle>(length = 100, element = func(i) = new Particle())
@@ -326,7 +326,7 @@ for dir in [Dir.Up, Dir.Down] {                    // 马上被遍历：不用�
 ## 元组（ADR-0021）
 
 ```nyxel
-func MinMax(values: List<int>) -> (Min: int, Max: int) {
+static func MinMax(values: List<int>) -> (Min: int, Max: int) {
     ...
     return (lo, hi)                         // 名字来自返回类型
 }
@@ -395,7 +395,7 @@ class Slime : Behaviour {
   - 并列的块、并列的分支可以重用名字。局部变量从声明的地方开始可见，到所在的块结束，所以块结束以后再声明同名的变量也可以。
   - 字段不受影响（总是写 `self.hp`）；`_` 是丢弃，不算名字。
 
-## 函数与方法（ADR-0006、ADR-0008、ADR-0032）
+## 函数与方法（ADR-0006、ADR-0008、ADR-0032、ADR-0039）
 
 ```nyxel
 class Slime : Behaviour {
@@ -414,7 +414,7 @@ class Slime : Behaviour {
         self.Destroy()
     }
 
-    public func Distance(a: Vector3, b: Vector3) -> float {   // 没有 self：静态函数
+    public static func Distance(a: Vector3, b: Vector3) -> float {   // 没有 self：静态函数，写 static
         return (a - b).Length()
     }
 }
@@ -436,7 +436,7 @@ let d = Slime.Distance(a, b)        // 静态函数通过类型名调用
 ```
 
 - `func Name(参数) -> 返回类型 { ... }`；没有返回值时省略 `->` 和返回类型。参数和返回类型必须写。
-- 第一个参数是 `self`（不写类型）的是实例方法，没有 `self` 的是静态函数。没有 `static func`。
+- 第一个参数是 `self`（不写类型）的是实例方法；没有 `self` 的是静态函数，必须写 `static func`（ADR-0039）。两个标记要一致：`static func F(self)`、不带 `static` 的 `func F()` 都是编译错误，诊断说明加哪个或去掉哪个。`init`、`operator` 不写：`init` 总是实例的，运算符总是静态的。
 - `var self` 只能用在 struct 上，表示方法会修改这个值；只写 `self` 的 struct 方法不能修改字段，也不能调用 `var self` 方法。class 方法的 `self` 是引用，总能修改对象的字段，不需要也不允许写 `var self`。
 - `var self` 方法不能在 `let` 的 struct 上调用，也不能在临时副本上调用（属性、`List` 这类普通索引器、函数调用的结果）：
   ```nyxel
@@ -520,7 +520,7 @@ extension Vector3 {
         get { return self == Vector3.Zero }
     }
 
-    public func FromAngle(radians: float) -> Vector3 {     // 没有 self：静态扩展
+    public static func FromAngle(radians: float) -> Vector3 {     // 静态扩展
         return new Vector3(MathF.Cos(radians), 0, MathF.Sin(radians))
     }
 }
@@ -530,7 +530,7 @@ let ground = self.Position.Flat()
 let dir = Vector3.FromAngle(radians = 0.5)
 ```
 
-- `extension 类型 { }` 写在文件顶层，给不是自己定义的类型（引擎、.NET）加方法和属性。块里的写法和类里一样：有 `self` 是实例方法，没有是静态函数；`static property` 是静态扩展属性。不能有字段和 `init`，暂时也不能有索引器（ADR-0029：C# 14 的 extension 块还不支持）。可以写运算符，不能写转换（ADR-0030：C# 14 不支持）。
+- `extension 类型 { }` 写在文件顶层，给不是自己定义的类型（引擎、.NET）加方法和属性。块里的写法和类里一样：有 `self` 是实例方法，`static func` 是静态函数；`static property` 是静态扩展属性。不能有字段和 `init`，暂时也不能有索引器（ADR-0029：C# 14 的 extension 块还不支持）。可以写运算符，不能写转换（ADR-0030：C# 14 不支持）。
 - 可见性同类成员：默认私有（只在这个块里可见），`public` 才能在块外用。使用方 `import` 扩展所在的命名空间后可见。类型本身的成员优先于扩展。
 - 扩展只能访问类型的公开成员。
 - C# 那边：C# 14 的 `extension` 块，放在 `static partial class Vector3Extensions` 里。
@@ -593,7 +593,7 @@ let nearest = enemies.MinBy(func(e: Enemy) -> float {
 ## 泛型（ADR-0012、ADR-0031）
 
 ```nyxel
-func Max<T: IComparable<T>>(a: T, b: T) -> T {
+static func Max<T: IComparable<T>>(a: T, b: T) -> T {
     return if a.CompareTo(b) >= 0 -> a else -> b
 }
 
@@ -611,7 +611,7 @@ let biggest = Max(a = 3, b = 7)        // T 推断为 int
 ### 泛型和空值（ADR-0031）
 
 ```nyxel
-func Find<T: class>(items: List<T>, pred: func(T) -> bool) -> T? {
+static func Find<T: class>(items: List<T>, pred: func(T) -> bool) -> T? {
     for x in items {
         if pred(x) { return x }
     }
@@ -622,7 +622,7 @@ class Registry<K: notnull, V> {                  // K 当 Dictionary 的键，�
     let entries: Dictionary<K, V> = new Dictionary<K, V>()
 }
 
-func Find<T>(items: List<T>, ...) -> T?          // 错误：T 可能是 int，这时 T? 不表示“可能没有”
+static func Find<T>(items: List<T>, ...) -> T?   // 错误：T 可能是 int，这时 T? 不表示“可能没有”
 ```
 
 - 写 `T?` 时，约束里要看得出 T 是 class 还是 struct：`class` 或基类（`T: Enemy`）时 `T?` 是可能为 null 的引用；`struct` 或 `unmanaged` 时是 `Nullable<T>`。没约束、只有 `notnull` 或只有接口约束时写 `T?` 是编译错误。所以 `T?` 永远表示“可能是 null”，`return null` 照常写；Nyxel 没有 `default`。
@@ -676,7 +676,7 @@ enum Element {
     case Lightning
 }
 
-enum Damage {
+struct enum Damage {                    // 带数据：写明 struct enum 或 class enum
     case Physical(Amount: int)
     case Burn(Amount: int, Seconds: float)
     case Heal(Amount: int)
@@ -687,13 +687,13 @@ let hit = new Damage.Burn(Amount = 12, Seconds = 3)     // 带数据的 case：n
 ```
 
 - 每种情况一行，以 `case` 开头。
-- 全部 case 不带数据时等同 C# 的枚举；有带数据的 case 时，每个值是堆上的对象（`struct enum` 除外，见下）。
+- 全部 case 不带数据时写 `enum`，等同 C# 的枚举。有带数据的 case 时必须写明放在哪（ADR-0039）：`struct enum` 是值类型，`class enum` 在堆上，见“带数据的 enum 放在哪”；光写 `enum` 是编译错误，诊断列出两种写法。文档里“带数据的 enum”泛指两种。
 - case 的数据同元组（ADR-0024）：
   - 每一项都有名字，用 PascalCase。C# 那边是同名的属性（`hit.Amount`）。
   - 创建时按位置写（`new Damage.Burn(12, 3)`）或带名字写，同元组的值。
   - 用 `match` 按位置取出，同元组的解构（见“match”）。数据创建以后不能改。
 - 判断是不是某个 case 写 `x is Damage.Burn`，得到 bool，不取数据（ADR-0024，见“类型检查与收窄”）。
-- 带数据的 enum 用 `==` 比内容（ADR-0024）：同一个 case、数据逐个相等就相等，能当字典的键。不带数据的 case 只有一个值，`state == SlimeState.Idle` 就是判断是不是 Idle。
+- 带数据的 enum（两种都是）用 `==` 比内容（ADR-0024）：同一个 case、数据逐个相等就相等，能当字典的键。不带数据的 case 只有一个值，`state == SlimeState.Idle` 就是判断是不是 Idle。
 
 ### enum 的成员与接口（ADR-0029）
 
@@ -711,10 +711,10 @@ enum Element {
 
     public property IsHot: bool { get = self == Element.Fire }
 
-    public func Parse(text: string) -> Element? { ... }     // 没有 self：静态函数
+    public static func Parse(text: string) -> Element? { ... }
 }
 
-enum Damage : IDescribable {                // 带数据的 enum：冒号后面是接口
+struct enum Damage : IDescribable {         // 带数据的 enum：冒号后面是接口
     case Physical(Amount: int)
     case Heal(Amount: int)
 
@@ -731,10 +731,10 @@ let e = Element.Parse("ice")
 - case 后面可以写实例方法、静态函数、计算属性（含 `static property`）。先写全部 case，再写成员。
 - 不能写字段、`init`、自动属性、事件、索引器：enum 的值就是它的 case（加上 case 的数据），没有别的存储。
 - 不能写 `var self`（值创建以后不能改），不能写 `protected`、`virtual`、`abstract`、`sealed`、`override`（enum 不能被继承）。
-- 普通、flags、带数据、`struct enum` 四种都一样。不是自己定义的 enum（C# 和引擎的）照旧用扩展加方法。
-- 带数据的 enum 和 `struct enum` 能实现接口，接口的成员写在 enum 里；只能实现接口，不能继承类。
-- 不带数据的 `enum` 不能实现接口：它是 C# 的 enum，C# 的 enum 不能实现接口。要实现就写成 `struct enum`（见“struct enum”）。
-- C# 那边：不带数据的 enum 的成员在同一命名空间里生成的 `名字Extensions` 类的 extension 块里，C# 照样写 `element.Weakness()`、`Element.Parse("ice")`；带数据的 enum 的成员在抽象基类上，`struct enum` 的在 struct 上。
+- 普通、flags、`struct enum`、`class enum` 四种都一样。不是自己定义的 enum（C# 和引擎的）照旧用扩展加方法。
+- `struct enum` 和 `class enum` 能实现接口，接口的成员写在 enum 里；只能实现接口，不能继承类。
+- 不带数据的 `enum` 不能实现接口：它是 C# 的 enum，C# 的 enum 不能实现接口。要实现就写成 `struct enum`（见“带数据的 enum 放在哪”）。
+- C# 那边：不带数据的 enum 的成员在同一命名空间里生成的 `名字Extensions` 类的 extension 块里，C# 照样写 `element.Weakness()`、`Element.Parse("ice")`；`class enum` 的成员在抽象基类上，`struct enum` 的在 struct 上。
 - 待定：带数据 enum 的 `ToString`。
 
 ### enum 的值与 flags（ADR-0024）
@@ -758,7 +758,7 @@ let mask = Layer.Ground | Layer.Air
 if mask.HasFlag(Layer.Air) { ... }
 ```
 
-- 只有不带数据的 `enum` 能写值、底层类型和 `flags`；`struct enum` 不能（ADR-0029）。
+- 只有不带数据的 `enum` 能写值、底层类型和 `flags`；`struct enum`、`class enum` 不能（ADR-0029）。
 - 值：
   - 要么每个 case 都写，要么都不写。都不写时按声明顺序 0、1、2，同 C#。
   - 值是整数常量，可以用运算组合（`1 << 3`、`Layer.Ground | Layer.Water`）；引用别的 case 也写类型名。
@@ -771,10 +771,10 @@ if mask.HasFlag(Layer.Air) { ... }
   - C# 那边是 `[Flags] enum`。`flags` 只在 `enum` 前面是关键字，别处照样能当名字。
 - 没有值为 0 的 case 时，数组不能直接创建，要用 `element`（见“数组”）。flags enum 的 0 是“一个都没有”，总能直接创建。
 
-### struct enum（ADR-0024）
+### 带数据的 enum 放在哪：struct enum 与 class enum（ADR-0024、ADR-0039）
 
 ```nyxel
-struct enum AiState {
+struct enum AiState {                   // 值类型：赋值时复制，不分配
     case Idle
     case Chasing(Target: Entity)
     case Fleeing(From: Entity, Until: float)
@@ -783,13 +783,22 @@ struct enum AiState {
 struct Brain {                          // ECS 组件：引擎要求 unmanaged
     var state: AiState = AiState.Idle
 }
+
+class enum Condition {                  // 引用类型：堆上的对象，可以递归
+    case Leaf(Check: func() -> bool)
+    case Not(Inner: Condition)
+    case All(Items: List<Condition>)
+}
 ```
 
-- 带数据的 enum 的值类型版本，同 class 和 struct 的关系：不在堆上分配，赋值时复制。写法和用法（创建、`match`、`is`、`==`）同 `enum`。
-- 一个值里留着所有 case 的数据的位置（同类型的可以共用），大小约等于各 case 加起来。case 不能直接包含同一个 struct enum。
-- 数据全是 unmanaged 类型时，整个 enum 也是，能放进要求 `T : unmanaged` 的 ECS 组件。
-- 全零的值是第一个 case，前提是它不带数据（上例是 `Idle`）；否则数组要用 `element` 创建，同 Nyxel 的 struct。
-- 冒号后面是接口（ADR-0029），没有底层类型、case 的值和 `flags`。当接口用时会装箱，同 struct。
+- 带数据的 enum 必须写明放在哪，同 class 和 struct 之间没有默认：`struct enum` 是值类型，不在堆上分配，赋值时复制；`class enum` 的每个值是堆上的对象，赋值时共用。两种的写法和用法（创建、`match`、`is`、`==`）完全一样，只差在怎么存放。不带数据却写 `class enum` 是编译错误。
+- `class enum` 用于递归的 case（行为树、表达式树）和数据很大的 case；其余用 `struct enum`。每次 `new 类型.Case(...)` 创建 `class enum` 的值都分配一次，状态机每帧切换的状态不要用它。
+- `struct enum`：
+  - 一个值里留着所有 case 的数据的位置（同类型的可以共用），大小约等于各 case 加起来。case 不能直接包含同一个 struct enum（要递归就用 `class enum`）。
+  - 数据全是 unmanaged 类型时，整个 enum 也是，能放进要求 `T : unmanaged` 的 ECS 组件。
+  - 全零的值是第一个 case，前提是它不带数据（上例是 `Idle`）；否则数组要用 `element` 创建，同 Nyxel 的 struct。
+  - 当接口用时会装箱，同 struct。
+- 两种冒号后面都是接口（ADR-0029），没有底层类型、case 的值和 `flags`。
 - 不带数据的 enum 本来就是值类型，只有要实现接口时才写 `struct enum`（ADR-0029）；不带数据、也没写接口时写 `struct enum` 是编译错误。
   ```nyxel
   struct enum Element : IDescribable {
@@ -1447,10 +1456,10 @@ slime.Died -= self.OnSlimeDied              // 提前取消
 
 ## 状态机（ADR-0017）
 
-没有专门语法：状态用 enum 写，每种状态需要的数据放在 case 里，在 `Update` 里 `match` 当前状态；按顺序推进的流程用协程。
+没有专门语法：状态用 `struct enum` 写，每种状态需要的数据放在 case 里，在 `Update` 里 `match` 当前状态；按顺序推进的流程用协程。
 
 ```nyxel
-enum SlimeState {
+struct enum SlimeState {
     case Idle
     case Chasing(Target: Player)
     case Fleeing(From: Player)
@@ -1465,7 +1474,7 @@ match self.state {
 
 - 追击时才有 `target`，不会出现“处于 Idle 却拿着一个过期的 target”。
 - 新加一个状态，所有没处理它的 `match` 都会编译报错。
-- 状态要放进 ECS 组件（只能是 unmanaged）、或者每帧都在切换时，用 `struct enum`（ADR-0024），不在堆上分配。
+- 状态写成 `struct enum`（ADR-0024、ADR-0039）：切换状态不在堆上分配，数据全是 unmanaged 时还能放进 ECS 组件。
 
 ## 可见性（ADR-0006、ADR-0008）
 
@@ -1473,7 +1482,7 @@ match self.state {
 - 类型默认只在本程序集可见；给其他程序集用写 `public`。
 - 重写时可见性必须和基类一致：基类是 `protected virtual` 就写 `protected override`。
 - 没有 `internal`，也没有 C# 的 `protected internal`、`private protected`。
-- 修饰符的顺序固定（ADR-0019）：可见性（`public` / `protected`；访问器上还有 `private`）→ `static` → `abstract` / `sealed` / `virtual` → `override` → `async`。顺序不对、重复都是编译错误，诊断给出正确的写法：`public static var`、`protected override func`、`public override async func`、`sealed override`。
+- 修饰符的顺序固定（ADR-0019）：可见性（`public` / `protected`；访问器上还有 `private`）→ `static` → `abstract` / `sealed` / `virtual` → `override` → `async`。顺序不对、重复都是编译错误，诊断给出正确的写法：`public static var`、`public static func`、`protected override func`、`public override async func`、`sealed override`。
 
 ## 命名（ADR-0006、ADR-0035）
 

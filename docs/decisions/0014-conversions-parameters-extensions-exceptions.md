@@ -21,7 +21,7 @@
    ```nyxel
    extension Vector3 {
        public func Flat(self) -> Vector3 = new Vector3(self.X, 0, self.Z)
-       public func FromAngle(radians: float) -> Vector3 { ... }   // 没有 self：Vector3.FromAngle(...)
+       public static func FromAngle(radians: float) -> Vector3 { ... }   // 静态扩展：Vector3.FromAngle(...)
    }
    ```
    - 写在文件顶层，块里的写法和类里一样：有 `self` 是实例方法，没有是静态函数，也可以写属性（`static property` 是静态扩展属性）。不能有字段和 `init`。

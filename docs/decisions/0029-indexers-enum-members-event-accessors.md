@@ -116,7 +116,7 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
 
        public property IsHot: bool { get = self == Element.Fire }
 
-       public func Parse(text: string) -> Element? { ... }     // 没有 self：静态函数
+       public static func Parse(text: string) -> Element? { ... }
    }
 
    let w = element.Weakness()
@@ -131,13 +131,13 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
    - 扩展照样能给 enum 加方法，用于不是自己定义的 enum（C# 和引擎的）。
    - 翻译：
      - 不带数据的 enum 是 C# 的 enum，里面不能有方法。成员放进同一命名空间里生成的 `static class 名字Extensions` 的 extension 块，C# 代码照样写 `element.Weakness()`、`Element.Parse("ice")`。
-     - 带数据的 enum：放在抽象基类上（ADR-0008）。
+     - `class enum`：放在抽象基类上（ADR-0008、ADR-0039）。
      - `struct enum`：放在生成的 struct 上。
 
-5. **带数据的 enum 和 `struct enum` 能实现接口；不带数据的 enum 要实现接口，就写成 `struct enum`。** 修改 ADR-0024 决策 6 的“不带数据的 enum 写 `struct enum` 是编译错误”。
+5. **`struct enum` 和 `class enum` 能实现接口；不带数据的 enum 要实现接口，就写成 `struct enum`。** 修改 ADR-0024 决策 6 的“不带数据的 enum 写 `struct enum` 是编译错误”。
 
    ```nyxel
-   enum Damage : IDescribable {
+   class enum Damage : IDescribable {
        case Physical(Amount: int)
        case Burn(Amount: int, Seconds: float)
        case Heal(Amount: int)
@@ -162,7 +162,7 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
    - 不带数据的 `enum` 写接口是编译错误（NYX1209），诊断给出 `struct enum`。它翻译成 C# 的 enum，而 C# 的 enum 不能实现接口。
    - 不带数据的 `struct enum` 只用来实现接口：不带数据、也没写接口时仍是编译错误（NYX1179），诊断给出 `enum`。
    - `struct enum` 不能写底层类型、case 的值和 `flags`，带不带数据都一样（NYX1176）。
-   - 带数据的 enum 只能实现接口，不能继承类：它的基类是编译器生成的。
+   - `class enum` 只能实现接口，不能继承类：它的基类是编译器生成的。
    - `struct enum` 当接口用时会装箱（复制一份到堆上），同 struct。
    - 不带数据的 `struct enum` 在 Nyxel 里的用法和 enum 一样（`Element.Fire`、`match`、`is`、`==`），大小也一样，全零的值是第一个 case。代价在 C# 那边和常量上：
      - 手写的 C# 看到的是 struct，不是 enum：不能把 `Element.Fire` 写在 `switch` 的 case 标签里，不能用 `Enum.GetValues` / `Enum.Parse`，不能 `(int)e`。引擎编辑器、序列化器靠反射认 enum（下拉框、存成名字或数字），也认不出它。

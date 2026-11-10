@@ -7,7 +7,7 @@ namespace Programs
     internal class Primes
     {
         private static void Main()
-#line (7, 17) - (7, 17) 9 "Primes.nyxel"
+#line (7, 24) - (7, 24) 9 "Primes.nyxel"
         {
 #line (8, 9) - (8, 22) 13 "Primes.nyxel"
             int limit = 50;

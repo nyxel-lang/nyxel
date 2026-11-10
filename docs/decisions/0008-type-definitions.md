@@ -1,6 +1,6 @@
 # ADR-0008: 类型定义：class / struct / enum、命名构造、new、self
 
-- 状态：已接受（2026-10-30 修订）
+- 状态：已接受（2026-11-04 修订）
 - 日期：2026-10-02
 
 ## 背景
@@ -16,12 +16,12 @@
        case Fire
        case Ice
    }
-   enum Damage {
+   struct enum Damage {
        case Physical(Amount: int)
        case Burn(Amount: int, Seconds: float)
    }
    ```
-   所有 case 都不带数据时翻译成 C# 的普通枚举；只要有一个 case 带数据，就翻译成抽象基类 + 每个 case 一个密封子类。带数据的 case 的值是堆上的对象。
+   所有 case 都不带数据时翻译成 C# 的普通枚举。有 case 带数据时必须写明放在哪（ADR-0039）：`struct enum` 翻译成一个 struct（ADR-0024），`class enum` 翻译成抽象基类 + 每个 case 一个密封子类，值是堆上的对象。
 3. **构造函数是 `init`**：
    - 最多一个不带名字的 `init`；其余必须有名字：`init FromPolar(radius: float, angle: float)`。构造函数不靠参数类型重载区分。
    - **确定初始化检查**：没有默认值的字段，在每个 `init` 结束前都必须赋过值，否则编译错误。`let` 字段只能在声明处或 `init` 里赋值。
@@ -31,13 +31,13 @@
 4. **创建值一律写 `new`**：`new Slime(maxHP = 30)`、`new Point.FromPolar(radius = 1, angle = 0.5)`、`new Damage.Burn(Amount = 12, Seconds = 3)`（命名实参的写法见 ADR-0011）、`new List<Enemy>()`。不带数据的 case 是常量，不写 `new`：`Element.Fire`。不带 `new` 的 `名字(...)` 一定是函数调用。
 5. **成员一律通过接收者访问**：实例成员写 `self.hp`、`self.Die()`；静态成员写 `Slime.AliveCount`、`Slime.Count()`。不带接收者的名字只能是局部变量或参数。私有字段不加前缀。直接写字段名是编译错误，诊断给出 `self.` 或 `类型名.` 的写法。
 6. **实例方法和静态函数靠参数列表区分**：
-   - 第一个参数是 `self`（不写类型）的是实例方法，没有 `self` 的是静态函数，不需要 `static` 关键字。
+   - 第一个参数是 `self`（不写类型）的是实例方法；没有 `self` 的是静态函数，必须写 `static func`，两个标记不一致是编译错误（ADR-0039）。
    - struct 的方法要修改自己时写 `var self`；只写 `self` 的 struct 方法不能修改自己的字段，也不能调用自己的 `var self` 方法。
    - `var self` 只能用在 struct 上。class 方法的 `self` 是引用：通过它总能修改对象的字段，而 `self` 本身不会指向别的对象，“方法改不改自己”对 class 没有意义。class 方法写 `var self` 是编译错误，诊断要说明这个原因。
    - **`let` 的 struct 整个不可变**：struct 变量存的是数据本身，所以 `let` 的 struct 局部变量或字段，既不能给它的字段赋值，也不能调用它的 `var self` 方法。
    - **不能在临时副本上调用 `var self` 方法**：属性、普通索引器（`list[i]`、`dict[key]`）、普通函数调用取出来的 struct 是一份副本，修改会随副本丢失（C# 允许这样写，Unity 的 `transform.position.Normalize()` 就是这样悄悄失效的）。这是编译错误，诊断建议先存进 `var` 局部变量，改完再写回。数组元素、`Span<T>` 的元素、返回 `ref` 的函数（`world.Get<T>(e)`）指向原来的存储，不是副本，可以直接改；完整的表见 ADR-0032 决策 1。
    - 调用时不传 `self`：`slime.TakeDamage(5)`；静态函数只能通过类型名调用：`Slime.Count()`。不能写成 `Slime.TakeDamage(slime, 5)`。
-   - 字段和属性没有参数列表，仍用 `static` 标记静态的。
+   - 字段、属性和函数都用 `static` 标记静态的；函数另外还靠有没有 `self`，两者互相印证。
    - 翻译：没有 `self` 是 C# 的 static 方法；class 的 `self` 方法是实例方法；struct 的 `self` 方法是 C# 的 `readonly` 实例方法（顺带避免防御性复制），`var self` 方法是普通实例方法。
 
 ## 备选方案
@@ -49,6 +49,8 @@
 - **创建对象不写 `new`**（Swift、Kotlin）：更简洁，但它们的方法名小写开头，`Vector3(...)` 一看就是类型；Nyxel 沿用 .NET 命名，方法名也是大写开头，`Spawner(...)` 和 `Spawn(...)` 写法相同。
 - **不写 `self`，私有字段加 `_` 前缀**（.NET 运行时代码的约定）：靠前缀区分字段和局部变量，但方法调用和静态成员仍然分不清来源。**都不要**（C# 默认）：最简洁，但 `hp` 是字段还是局部变量要往上找，同名时容易写出 `hp = hp`。用 `this` 代替 `self`：含义相同，选 `self` 是为了和 Swift 一致，并和显式 `self` 参数配合。
 - **Swift / C# 式隐式 `self` + `static func`**：大家熟悉，但声明那一行看不出是不是实例方法，struct 修改自己还要另加 `mutating` 关键字；显式 `self` 参数用 `var self` 就表达了，复用了 `let` / `var` 的含义。
+- **没有 `self` 就是静态，不写 `static`**（原来的决定）：少一个词，但静态字段和属性靠关键字、函数靠缺 `self`，一件事两种表达，声明行的第一个词看不出。2026-11-04 改成必须写 `static func`（ADR-0039）。
+- **带数据的 enum 默认在堆上，`struct enum` 选值类型**（原来的决定）：短的写法是分配的那个。2026-11-04 改成必须写明 `struct enum` / `class enum`（ADR-0039）。
 - struct 修改自己的其他表达方式：
   - **class 方法修改字段也写 `var self`**：形式上统一，但 class 的对象可能被多个变量共享，这个标记挡不住通过别的变量修改，实际只是注释；C# 和引擎的 class 没有这种标记，无法检查；还会像 C++ 的 `const` 一样层层传染（重写引擎的 `Update` 几乎都要写，不带 `var` 的方法也不能调用带 `var` 的）。
   - **编译器看函数体自动推断**：写起来省事，但签名上看不出来，读者和 Agent 必须读函数体；改了函数体，别处的调用可能突然编译不过。违反 ADR-0003 的“边界处显式”。
@@ -71,3 +73,4 @@
 - 2026-10-06：case 数据的名字改用 PascalCase（决策 2、4 的例子），见 ADR-0024。
 - 2026-10-15：命名 init 背后的构造函数改为对子类可见，子类才能用 `init super.名字(...)` 调用它（决策 3），见 ADR-0027。
 - 2026-10-30：数组元素、`Span<T>` 的元素、返回 `ref` 的函数不算临时副本（决策 6），见 ADR-0032。
+- 2026-11-04：带数据的 enum 必须写明 `struct enum` / `class enum`（决策 2）；没有 `self` 的函数必须写 `static func`（决策 6），见 ADR-0039。

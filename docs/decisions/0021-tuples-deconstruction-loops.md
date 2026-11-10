@@ -28,7 +28,7 @@ C# 的下标遍历和字典遍历都靠元组解构：`foreach (var (i, x) in li
    - `==`、`!=` 同 C#，逐个比较元素。
    - 元素名写进程序集的元数据，C# 调用方看到同样的名字。
    ```nyxel
-   func MinMax(values: List<int>) -> (Min: int, Max: int) {
+   static func MinMax(values: List<int>) -> (Min: int, Max: int) {
        ...
        return (lo, hi)
    }

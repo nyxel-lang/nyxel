@@ -72,6 +72,18 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor InterpolationSpansLines =
         Error("NYX1234", "Close the interpolation on the line where it starts; put a longer expression in a 'let' first and write its name between the braces.");
 
+    public static readonly DiagnosticDescriptor EnumWithDataNeedsStorage =
+        Error("NYX1235", "'{0}' has cases with data; say where its values live: 'struct enum {0}' (a value, copied on assignment, no allocation) or 'class enum {0}' (an object on the heap, which can be recursive).");
+
+    public static readonly DiagnosticDescriptor ClassEnumWithoutData =
+        Error("NYX1236", "'class enum' is for cases with data; '{0}' has none, so it's already a value: write 'enum {0}' ('struct enum {0}' to implement interfaces).");
+
+    public static readonly DiagnosticDescriptor StaticWithSelf =
+        Error("NYX1237", "'{0}' has 'self', so it's an instance method; remove 'static'.");
+
+    public static readonly DiagnosticDescriptor FunctionWithoutSelfOrStatic =
+        Error("NYX1238", "'{0}' has no 'self'; write 'static func {0}' for a static function, or add 'self' as the first parameter for an instance method.");
+
     // Syntax.
 
     public static readonly DiagnosticDescriptor Expected =
@@ -550,13 +562,13 @@ public static class DiagnosticDescriptors
         Error("NYX2044", "'{0}' is {1} and can't be used here.");
 
     public static readonly DiagnosticDescriptor NoEntryPoint =
-        Error("NYX2045", "The program has no entry point; add 'func Main()' without 'self' to a type.");
+        Error("NYX2045", "The program has no entry point; add 'static func Main()' to a type.");
 
     public static readonly DiagnosticDescriptor MultipleEntryPoints =
         Error("NYX2046", "The program has more than one 'Main': '{0}' and '{1}'.");
 
     public static readonly DiagnosticDescriptor BadEntryPointSignature =
-        Error("NYX2047", "Write 'Main' as 'func Main()' or 'func Main(args: array<string>)', with '-> int' to return an exit code.");
+        Error("NYX2047", "Write 'Main' as 'static func Main()' or 'static func Main(args: array<string>)', with '-> int' to return an exit code.");
 
     public static readonly DiagnosticDescriptor AsyncEntryPoint =
         Error("NYX2048", "'Main' can't be 'async' yet: coroutines need a host to drive them.");

@@ -7,7 +7,7 @@ namespace Programs
     internal class FizzBuzz
     {
         private static string Say(int n)
-#line (6, 32) - (6, 32) 9 "FizzBuzz.nyxel"
+#line (6, 39) - (6, 39) 9 "FizzBuzz.nyxel"
         {
 #line (7, 9) - (7, 22) 13 "FizzBuzz.nyxel"
             if (n % 15 == 0)
@@ -41,7 +41,7 @@ namespace Programs
         }
 #line hidden
         private static void Main()
-#line (17, 17) - (17, 17) 9 "FizzBuzz.nyxel"
+#line (17, 24) - (17, 24) 9 "FizzBuzz.nyxel"
         {
 #line (18, 9) - (18, 23) 13 "FizzBuzz.nyxel"
             for (int __nyxel_i1 = 1, __nyxel_end2 = 15;

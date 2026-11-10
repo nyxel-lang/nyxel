@@ -78,8 +78,8 @@ public class Slime : Behaviour, IDamageable {
     }
 }
 
-/// 每种状态带着它需要的数据：追谁、躲谁。
-enum SlimeState {
+/// 每种状态带着它需要的数据：追谁、躲谁。struct enum：切换状态不在堆上分配。
+struct enum SlimeState {
     case Idle
     case Chasing(Target: Player)
     case Fleeing(From: Player)

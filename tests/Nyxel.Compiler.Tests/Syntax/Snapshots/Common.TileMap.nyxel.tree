@@ -443,21 +443,22 @@ CompilationUnit 1:1-131:1
         CloseBraceToken "}"
     FunctionDeclaration 52:5-68:6
       PublicKeyword "public"
+      StaticKeyword "static"
       FuncKeyword "func"
       IdentifierToken "Parse"
-      ParameterList 52:22-52:36
+      ParameterList 52:29-52:43
         OpenParenToken "("
-        Parameter 52:23-52:35
+        Parameter 52:30-52:42
           IdentifierToken "text"
           ColonToken ":"
-          PredefinedType 52:29-52:35
+          PredefinedType 52:36-52:42
             StringKeyword "string"
         CloseParenToken ")"
-      ReturnTypeClause 52:37-52:47
+      ReturnTypeClause 52:44-52:54
         MinusGreaterThanToken "->"
-        IdentifierName 52:40-52:47
+        IdentifierName 52:47-52:54
           IdentifierToken "TileMap"
-      Block 52:48-68:6
+      Block 52:55-68:6
         OpenBraceToken "{"
         LocalDeclarationStatement 53:9-53:37
           LetKeyword "let"

@@ -36,6 +36,8 @@ SyntaxTreePrinter.Print(tree.Root, tree.Text)   // 缩进文本
 - `x is SlimeState.Idle` 和 `x is Enemy` 是同一种 `IsExpressionSyntax`，`is` 后面是类型还是 enum case 由语义分析判断（ADR-0024）。
 - enum（ADR-0024）：`EnumDeclarationSyntax.KindKeyword` 是 `enum` 前面的 `flags` 或 `struct`；底层类型复用 `BaseListSyntax`（同 Roslyn）；case 的值是 `EqualsValueClauseSyntax`。只看声明就能查的规则（底层类型、值、flags 只用于不带数据的 enum，值要么都写要么都不写等）在声明读完后检查。
 - enum 的成员（ADR-0029）：`EnumDeclarationSyntax.Members` 在 `Cases` 后面，按类里的成员读（`MemberContext.Enum`），读完一个就查 enum 不能有的（字段、`init`、事件、索引器、自动属性、`var self`、`override` 等）。写在成员后面的 case 报 NYX1205 后挪进 trivia，所以树里永远是先 case 后成员。冒号后面：普通 enum 是底层类型，带数据的 enum 和 `struct enum` 是接口；Parser 只能按“是不是 `byte` 这类关键字”区分，是不是接口由语义分析查。
+- `class enum`（ADR-0039）和 `struct enum` 一样读，`KindKeyword` 是 `class`。带数据却光写 `enum` 报 NYX1235，不带数据写 `class enum` 报 NYX1236，都在 `CheckEnum` 里。
+- `static func`（ADR-0039）：函数读完参数后查 `self` 和 `static` 是否一致，有 `self` 又写 `static` 报 NYX1237，两个都没有报 NYX1238。lambda 不查。
 - 索引器（ADR-0029）：`property` 后面是 `self` 时读成 `IndexerDeclarationSyntax`，参数列表是 `BracketedParameterListSyntax`（同 Roslyn），访问器列表同属性。
 - 导入（ADR-0033）：`ImportDirectiveSyntax.UnderKeyword` 和 `Alias` 是 `import ep.protocol under Pb` 的后半；`under` 是标识符记号（上下文关键字，同 `get` / `set` / `flags`）。C# 的 `using System` 报错后 `using` 留在 `ImportKeyword`，`import x as y` 报错后 `as` 留在 `UnderKeyword`；别名写在前面的 `using Pb = ...` 和静态导入没法按源码顺序读成同一种节点，报错后整行挪进 trivia。代码在 Parser.Imports.cs。
 - 泛型扩展（ADR-0031）：`ExtensionDeclarationSyntax.TypeParameterList` 是 `extension` 后面的 `<T>`，读完被扩展的类型后查每个类型参数在里面出现过（按名字找标识符记号，类型里有缺失记号时不查）。类型参数前面的 `in` / `out`（C# 的协变逆变）在 `ParseTypeParameterList` 里报错后挪进 trivia，按没写读下去。`notnull` 和 `unmanaged` 一样是 `TypeConstraint` 里的类型名。

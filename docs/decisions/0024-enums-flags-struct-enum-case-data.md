@@ -1,6 +1,6 @@
 # ADR-0024: 枚举的值和 flags、`x is` 某个 case、`struct enum`、case 的数据同元组
 
-- 状态：已接受（2026-10-16 修订）
+- 状态：已接受（2026-11-04 修订）
 - 日期：2026-10-06
 
 ## 背景
@@ -72,7 +72,7 @@
    - 要写类型名。match 以外的地方本来都写类型名（`self.state = SlimeState.Idle`），C# 里同样的写法也合法。
    - 只判断，不取数据，也不收窄；要数据写 `match`。C# 的 `x is Damage.Burn(var a, var s)` 是编译错误，诊断给出 match 的写法。
    - 简单 enum 写 `element == Element.Fire` 也可以，意思一样。
-6. **带数据的 enum 有值类型版本 `struct enum`**。
+6. **带数据的 enum 写明放在哪：`struct enum` 是值类型，`class enum` 在堆上**（ADR-0039）。
    ```nyxel
    struct enum AiState {
        case Idle
@@ -80,7 +80,7 @@
        case Fleeing(From: Entity, Until: float)
    }
    ```
-   - `enum` 的值在堆上（ADR-0008：抽象基类加每个 case 一个子类），`struct enum` 的值是值类型，同 class 和 struct 的关系。写法和用法（创建、`match`、`is`、`==`）都一样，只差在怎么存放。
+   - `class enum` 的值在堆上（ADR-0008：抽象基类加每个 case 一个子类），`struct enum` 的值是值类型，同 class 和 struct 的关系。带数据却光写 `enum` 是编译错误，诊断列出两种写法。写法和用法（创建、`match`、`is`、`==`）都一样，只差在怎么存放。
    - 一个值里留着所有 case 的数据的位置，同类型的位置可以共用。大小约等于各 case 加起来，赋值时整个复制。
    - case 不能直接包含同一个 struct enum，否则大小是无穷的。struct 也是这样。
    - 数据全是 unmanaged 类型时，整个 struct enum 也是 unmanaged，能放进要求 `T : unmanaged` 的 ECS 组件。
@@ -90,12 +90,12 @@
    - 不带数据的 enum 本来就是值类型，只有要实现接口时才写 `struct enum`（ADR-0029）：它翻译成 C# 的 enum，而 C# 的 enum 不能实现接口。不带数据、也没写接口时写 `struct enum` 是编译错误。
 7. **带数据的 enum，`==` 比内容**：同一个 case、数据逐个相等，就相等。
    - `GetHashCode` 也按内容算，能当字典的键。
-   - `enum` 和 `struct enum` 一样。数据创建以后不能改，所以两者只差在性能上，意思相同。
+   - `class enum` 和 `struct enum` 一样。数据创建以后不能改，所以两者只差在性能上，意思相同。
    - 不带数据的 case 只有一个值，`self.state == SlimeState.Idle` 就是判断是不是 Idle。
    - 和 `null` 比较仍然只看引用（ADR-0023）。
 8. **case 的数据按元组的规则**，取代 ADR-0009 决策 6 的“按字段名取出”。
    ```nyxel
-   enum Damage {
+   struct enum Damage {
        case Physical(Amount: int)
        case Burn(Amount: int, Seconds: float)
    }
@@ -135,6 +135,7 @@
   - 好处：比 match 少两行。
   - 坏处：取出的名字在 `or` 连起来时、`is not` 之后、`while` 里能不能用，要另定一套规则，C# 这部分就很绕。以后在现在的基础上加不影响已有代码。
 - **`is`：不加**。坏处：问“是不是某个 case”要写四行 match。
+- **值类型：`enum` 默认在堆上，`struct enum` 选值类型**（原来的决定，F# 的做法）。坏处：短的写法是分配的那个，违反 ADR-0003 准则四“不为语法便利引入隐藏的分配”；samples 里状态机一个写 `enum` 一个写 `struct enum`，Agent 会随手写短的。2026-11-04 改成必须写明（ADR-0039），和 class / struct 之间没有默认一样。
 - **值类型：暂不支持**。坏处：带数据的 enum 放不进 ECS 组件，ADR-0017 的状态机写法在 ECS 里用不了。
 - **值类型：全都是值类型（Swift、Rust）**。坏处有三个：
   - 大的 case 每次赋值都要整个复制。
@@ -181,3 +182,4 @@
 
 - 2026-10-09：默认分支由 `else` 改为 `case _`：flags enum 的 `match` 要有 `case _`（决策 3），决策 8 的例子同样改了，见 ADR-0026。
 - 2026-10-16：不带数据的 enum 实现接口时可以写 `struct enum`（决策 6，原来一律是编译错误）；不能写值和底层类型的规则扩大到 `struct enum`（决策 1、2），见 ADR-0029。
+- 2026-11-04：带数据的 enum 必须写明 `struct enum` 或 `class enum`，不再默认在堆上（决策 6、7、8 的例子），见 ADR-0039。

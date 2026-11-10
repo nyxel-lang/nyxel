@@ -31,16 +31,16 @@
 1. **写 `T?` 时，约束里要看得出 T 是 class 还是 struct。**
 
    ```nyxel
-   func Find<T: class>(items: List<T>, pred: func(T) -> bool) -> T? {
+   static func Find<T: class>(items: List<T>, pred: func(T) -> bool) -> T? {
        for x in items {
            if pred(x) { return x }
        }
        return null
    }
 
-   func FindValue<T: struct>(items: List<T>, pred: func(T) -> bool) -> T? { ... }   // T? 是 Nullable<T>
+   static func FindValue<T: struct>(items: List<T>, pred: func(T) -> bool) -> T? { ... }   // T? 是 Nullable<T>
 
-   func Find<T>(items: List<T>, ...) -> T?     // 错误：T 可能是 int，这时 T? 不表示“可能没有”
+   static func Find<T>(items: List<T>, ...) -> T?     // 错误：T 可能是 int，这时 T? 不表示“可能没有”
    ```
 
    - 能写 `T?` 的约束：`class`、基类（`T: Enemy`）是 class 那一种；`struct`、`unmanaged` 是 struct 那一种（`Nullable<T>`）。没约束、只有 `notnull` 或只有接口约束时写 `T?` 是编译错误，诊断建议加 `class` 或 `struct`。

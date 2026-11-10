@@ -3,7 +3,7 @@ namespace Programs
 import System
 
 class FizzBuzz {
-    func Say(n: int) -> string {
+    static func Say(n: int) -> string {
         if n % 15 == 0 {
             return "FizzBuzz"
         } else if n % 3 == 0 {
@@ -14,7 +14,7 @@ class FizzBuzz {
         return n.ToString()
     }
 
-    func Main() {
+    static func Main() {
         for n in 1...15 {
             Console.WriteLine(FizzBuzz.Say(n))
         }

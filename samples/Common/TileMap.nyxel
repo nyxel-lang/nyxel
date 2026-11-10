@@ -49,7 +49,7 @@ public class TileMap {
     /// - Parameter text: 整个地图文件的内容。
     /// - Returns: 读出来的地图，宽度按第一排格子定。
     /// - Throws ArgumentOutOfRangeException: 第一行比 `map: ` 还短时。
-    public func Parse(text: string) -> TileMap {
+    public static func Parse(text: string) -> TileMap {
         let lines = text.Split('\n')
         let name = lines[0][5...].Trim()                // 切片：去掉开头的 "map: "
         let rows = lines[1...]                          // 第 1 行到最后

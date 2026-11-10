@@ -85,7 +85,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1128` | `for` 里的区间后面接了 `Reversed()` / `StepBy(n)` 以外的成员 | `(0..<n).Reverse()` |
 | `NYX1129` | 切片以外的区间省略了一边，或切片两边都省略 | `for i in 2...`、`case ..<10`、`items[...]` |
 | `NYX1175` | enum 的底层类型不是一个整数类型（ADR-0024） | `enum E : float`、`enum E : byte, int` |
-| `NYX1176` | 带数据的 enum 或 `struct enum` 写了底层类型、case 的值或 `flags`（ADR-0029：它们冒号后面是接口） | `enum E : int { case A(X: int) }`、`struct enum E : IFoo { case A = 1 }` |
+| `NYX1176` | `struct enum`、`class enum` 写了底层类型、case 的值或 `flags`（ADR-0029：它们冒号后面是接口） | `enum E : int { case A(X: int) }`、`struct enum E : IFoo { case A = 1 }` |
 | `NYX1177` | 有的 case 写了值、有的没写，每个没写的报一次 | `case A = 1` 之后的 `case B` |
 | `NYX1178` | flags enum 的 case 没写值，每个报一次 | `flags enum E { case A }` |
 | `NYX1179` | `struct enum` 既没有带数据的 case，也没写接口（ADR-0029） | `struct enum E { case A }` 写成 `enum E` |
@@ -175,6 +175,10 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1226` | 静态导入 `using static System.MathF`（C#）、`import static`（Java），整行跳过 | 成员前面写类型名：`MathF.Sqrt(x)`（ADR-0033） |
 | `NYX1222` | C# 的转换 `public static explicit operator float(Fixed f)`、`implicit operator`，整个声明跳过 | `public operator as(f: Fixed) -> float = ...`，用 `x as float` 转换；`implicit` 的消息说明 Nyxel 没有隐式转换（ADR-0030） |
 | `NYX1233` | `for await e in xs`（JS / TS、Swift），按 `await for` 读 | `await for e in xs`（ADR-0034） |
+| `NYX1235` | 带数据的 enum 没写明放在哪（ADR-0039） | `enum E { case A(X: int) }` 写成 `struct enum E`（值类型）或 `class enum E`（堆上，可递归） |
+| `NYX1236` | 不带数据的 enum 写了 `class enum`（ADR-0039） | `class enum E { case A }` 写成 `enum E` |
+| `NYX1237` | 有 `self` 的函数写了 `static`（ADR-0039） | 去掉 `static` |
+| `NYX1238` | 没有 `self` 的函数没写 `static`（ADR-0039） | `func F()` 写成 `static func F()`，或者加 `self` |
 
 ### 语义
 
@@ -226,9 +230,9 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2042` | `as` 不能做这种转换（ADR-0014） | `"3" as int` |
 | `NYX2043` | 可能失败的向下转换写了 `as`（ADR-0014） | `other as Projectile` 写成 `if other is Projectile` |
 | `NYX2044` | 成员是私有或受保护的 |  |
-| `NYX2045` | 输出可执行程序，但没有 `Main`（ADR-0036） | 加 `func Main()` |
+| `NYX2045` | 输出可执行程序，但没有 `Main`（ADR-0036） | 加 `static func Main()` |
 | `NYX2046` | 有两个以上 `Main`（ADR-0036） |  |
-| `NYX2047` | `Main` 的参数或返回类型不对（ADR-0036） | `func Main(args: array<string>) -> int` |
+| `NYX2047` | `Main` 的参数或返回类型不对（ADR-0036） | `static func Main(args: array<string>) -> int` |
 | `NYX2048` | `async func Main`（ADR-0036） |  |
 | `NYX2049` | 没有初始值的字段，类却没有 `init`（ADR-0013） | 给字段初始值，或者写 `init` |
 | `NYX2050` | `init` 不是每条路径都给没有初始值的字段赋了值 |  |
@@ -239,4 +243,4 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 
 ## 不在语法阶段报的
 
-语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、没有 `self` 的函数写了 `static`、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）、运算符的参数至少一个是所在的类型、转换的源和目标有一个是所在的类型且不是基类或接口、`<` 返回 bool、同一个运算符按操作数类型有没有重复（ADR-0030）、写 `T?` 的约束够不够、没约束的 T 的值用成员前有没有检查、可空类型能不能代入有约束的 T、元素是 T 的数组能不能直接创建（ADR-0031）、表达式是存储还是副本（在副本和只读的值上赋值、调用 `var self` 方法）、没标 `readonly` 的 C# 方法的返回值有没有用上、`var self` 扩展的被扩展类型是不是 struct（ADR-0032）、同名类型的查找和冲突、`under` 前面是不是命名空间、别名和看得见的名字重名（ADR-0033）、`await all` / `await any` / `await using` / `await for` 写在 `async` 函数里、每一项能等待、当值用时每一项都有值且 `any` 各项类型一致、`all` 的元组被解构或有期望的类型、`await using` 的类型实现 `IAsyncDisposable`（只实现了它的写成 `using` 时提示 `await using`）、`await for` 的集合能异步遍历、`+= async func` 的类型不匹配（ADR-0034）等。命名检查（ADR-0006，含缩略词的规则）和文档注释的检查（参数名、链接、`- Throws` 的类型，ADR-0035）是警告，也在语义分析里。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。
+语法分析只管“写法对不对”。下面这些要知道上下文或类型，留给语义分析（M2）：修饰符能不能用在某种声明上（`async` 只能用在函数上、struct 成员不能 `protected`）、访问器有的带函数体有的不带、接口成员带了函数体、表达式能不能当语句、`match` 是否穷尽、集合字面量有没有期望的类型、数组元素类型全零是否合法（ADR-0023）、enum case 的值是不是常量、位运算是不是用在 flags enum 上、`is` 后面是类型还是 case、取 case 数据时名字的个数（ADR-0024）、`eval` 块的每条路径是否都以 `give` / `throw` 结束（ADR-0025）、`init super` / `init self` 是不是 `init` 的第一句、`with` 里的成员能不能设、`required` 成员是否都设了、命名 init 不继承（ADR-0027）、索引器的访问器带不带体、一个类型最多一个索引器、带数据的 enum 和 `struct enum` 冒号后面是不是接口、实现接口的事件参数和委托是否一致（ADR-0029）、运算符的参数至少一个是所在的类型、转换的源和目标有一个是所在的类型且不是基类或接口、`<` 返回 bool、同一个运算符按操作数类型有没有重复（ADR-0030）、写 `T?` 的约束够不够、没约束的 T 的值用成员前有没有检查、可空类型能不能代入有约束的 T、元素是 T 的数组能不能直接创建（ADR-0031）、表达式是存储还是副本（在副本和只读的值上赋值、调用 `var self` 方法）、没标 `readonly` 的 C# 方法的返回值有没有用上、`var self` 扩展的被扩展类型是不是 struct（ADR-0032）、同名类型的查找和冲突、`under` 前面是不是命名空间、别名和看得见的名字重名（ADR-0033）、`await all` / `await any` / `await using` / `await for` 写在 `async` 函数里、每一项能等待、当值用时每一项都有值且 `any` 各项类型一致、`all` 的元组被解构或有期望的类型、`await using` 的类型实现 `IAsyncDisposable`（只实现了它的写成 `using` 时提示 `await using`）、`await for` 的集合能异步遍历、`+= async func` 的类型不匹配（ADR-0034）等。命名检查（ADR-0006，含缩略词的规则）和文档注释的检查（参数名、链接、`- Throws` 的类型，ADR-0035）是警告，也在语义分析里。区间能写在哪里（`NYX1127`–`NYX1129`）、`give` / `return` / `break` / `continue` 和 `eval` 块的关系（`NYX1183`–`NYX1186`）虽然要看所在的位置，但只看语法树，在整棵树建好以后由 Parser 检查。

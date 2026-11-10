@@ -79,7 +79,7 @@ namespace Programs
         }
 #line hidden
         private static void Main()
-#line (37, 17) - (37, 17) 9 "Sort.nyxel"
+#line (37, 24) - (37, 24) 9 "Sort.nyxel"
         {
 #line (38, 9) - (38, 37) 13 "Sort.nyxel"
             global::System.Collections.Generic.List<int> numbers = new global::System.Collections.Generic.List<int>();

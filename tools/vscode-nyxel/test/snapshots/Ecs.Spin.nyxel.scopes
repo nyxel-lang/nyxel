@@ -36,8 +36,8 @@
   "/// 每帧让有 Spin 的实体转起来。"=comment.line.documentation
 > public class SpinSystem {
   "public"=storage.modifier  |  "class"=storage.type
-> public func Run(world: World, dt: float) {
-  "public"=storage.modifier  |  "func"=storage.type  |  "float"=storage.type.primitive
+> public static func Run(world: World, dt: float) {
+  "public"=storage.modifier  |  "static"=storage.modifier  |  "func"=storage.type  |  "float"=storage.type.primitive
 > // Read 没标 readonly（改自己再返回自己），返回值都用上了，所以能在临时值上连着调用。
   "// Read 没标 readonly（改自己再返回自己），返回值都用上了，所以能在临时值上连着调用。"=comment.line.double-slash
 > for chunk in world.Query<Transform>().Read<Spin>() {
@@ -52,8 +52,8 @@
   "// Span 的元素不是副本：var self 方法改的是引擎里的组件，不复制。"=comment.line.double-slash
 > /// 把一个实体往前推一段。world.Get 返回 ref：改的是组件本身。
   "/// 把一个实体往前推一段。world.Get 返回 ref：改的是组件本身。"=comment.line.documentation
-> public func Push(world: World, entity: Entity, distance: float) {
-  "public"=storage.modifier  |  "func"=storage.type  |  "float"=storage.type.primitive
+> public static func Push(world: World, entity: Entity, distance: float) {
+  "public"=storage.modifier  |  "static"=storage.modifier  |  "func"=storage.type  |  "float"=storage.type.primitive
 > let forward = world.Get<Transform>(entity).Forward()
   "let"=storage.type
 > // var t = world.Get<Transform>(entity) 是复制一份：t.MoveBy(...) 改的只是 t。

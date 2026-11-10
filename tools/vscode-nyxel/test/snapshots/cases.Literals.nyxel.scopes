@@ -102,3 +102,13 @@
   "_"=variable.language.discard
 > super.Contextual()
   "super"=variable.language.super
+> /// class enum（ADR-0039）：递归的 case 要放在堆上。
+  "/// class enum（ADR-0039）：递归的 case 要放在堆上。"=comment.line.documentation
+> class enum Tree {
+  "class"=storage.type  |  "enum"=storage.type
+> case Leaf(Value: int)
+  "case"=storage.type  |  "int"=storage.type.primitive
+> case Node(Left: Tree, Right: Tree)
+  "case"=storage.type
+> public static func Single(value: int) -> Tree = new Tree.Leaf(Value = value)
+  "public"=storage.modifier  |  "static"=storage.modifier  |  "func"=storage.type  |  "int"=storage.type.primitive  |  "->"=keyword.operator.arrow  |  "new"=keyword.other.new

@@ -13,7 +13,7 @@ extension Vector3 {
         (self - other).Flat().Length()
 
     /// 水平面上指向某个角度的单位向量。没有 self：通过 Vector3.FromAngle(...) 调用。
-    public func FromAngle(radians: float) -> Vector3 {
+    public static func FromAngle(radians: float) -> Vector3 {
         return new Vector3(MathF.Cos(radians), 0, MathF.Sin(radians))
     }
 }

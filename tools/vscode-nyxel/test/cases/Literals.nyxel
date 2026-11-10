@@ -69,3 +69,11 @@ class Literals {
         super.Contextual()
     }
 }
+
+/// class enum（ADR-0039）：递归的 case 要放在堆上。
+class enum Tree {
+    case Leaf(Value: int)
+    case Node(Left: Tree, Right: Tree)
+
+    public static func Single(value: int) -> Tree = new Tree.Leaf(Value = value)
+}

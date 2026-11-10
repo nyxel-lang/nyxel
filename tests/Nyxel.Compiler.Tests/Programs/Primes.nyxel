@@ -4,7 +4,7 @@ import System
 
 /// The sieve of Eratosthenes on an array<bool>.
 class Primes {
-    func Main() {
+    static func Main() {
         let limit = 50
         let composite = new array<bool>(limit)
         var found = 0

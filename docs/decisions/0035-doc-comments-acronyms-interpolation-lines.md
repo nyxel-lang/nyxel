@@ -29,7 +29,7 @@ C# 项目引用 Nyxel 程序集时，IntelliSense 显示的是 XML 文档：补�
    /// - Parameter text: 整个地图文件的内容。
    /// - Returns: 读出来的地图，宽度按第一排格子定。
    /// - Throws ArgumentOutOfRangeException: 第一行比 `map: ` 还短时。
-   public func Parse(text: string) -> TileMap {
+   public static func Parse(text: string) -> TileMap {
    ```
 
    - 写法：

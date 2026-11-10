@@ -66,7 +66,7 @@ public class ProgramTests
         var path = Path.Combine(ProgramsDirectory, "Crash.nyxel");
         var source = """
             class Crash {
-                func Main() {
+                static func Main() {
                     let zero = 0
                     let x = 10 / zero
                 }

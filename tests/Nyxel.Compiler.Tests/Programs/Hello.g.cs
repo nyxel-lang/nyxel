@@ -7,7 +7,7 @@ namespace Programs
     internal class Hello
     {
         private static void Main()
-#line (6, 17) - (6, 17) 9 "Hello.nyxel"
+#line (6, 24) - (6, 24) 9 "Hello.nyxel"
         {
 #line (7, 9) - (7, 41) 13 "Hello.nyxel"
             global::System.Console.WriteLine("Hello, Nyxel");

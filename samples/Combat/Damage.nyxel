@@ -1,7 +1,8 @@
 namespace Samples.Combat
 
 /// 一次伤害。每种情况带的数据不同，处理时用 `match` 按位置取出，同元组的解构。
-public enum Damage : IDescribable {
+/// struct enum：每次受击创建一个值，不在堆上分配。
+public struct enum Damage : IDescribable {
     case Physical(Amount: int)
     case Burn(Amount: int, Seconds: float)
     case Heal(Amount: int)

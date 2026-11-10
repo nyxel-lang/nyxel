@@ -486,10 +486,10 @@ public class ParserTests
     [InlineData("public func Apply(var self, damage: Damage) -> int = 0", "(FunctionDeclaration public func Apply (ParameterList ( (SelfParameter var self) , (Parameter damage : Damage) )) (ReturnTypeClause -> int) (ExpressionBody = 0))")]
     [InlineData("func TryLoad(self, key: string, data: out SaveData) -> bool", "(FunctionDeclaration func TryLoad (ParameterList ( (SelfParameter self) , (Parameter key : string) , (Parameter data : out SaveData) )) (ReturnTypeClause -> bool))")]
     [InlineData("func Spawn(self, count: int = 1) { }", "(FunctionDeclaration func Spawn (ParameterList ( (SelfParameter self) , (Parameter count : int (EqualsValueClause = 1)) )) (Block { }))")]
-    [InlineData("func Max<T: IComparable<T>>(a: T, b: T) -> T = a", "(FunctionDeclaration func Max (TypeParameterList < (TypeParameter T (TypeParameterConstraintClause : (TypeConstraint (GenericName IComparable (TypeArgumentList < T >))))) >) (ParameterList ( (Parameter a : T) , (Parameter b : T) )) (ReturnTypeClause -> T) (ExpressionBody = a))")]
+    [InlineData("static func Max<T: IComparable<T>>(a: T, b: T) -> T = a", "(FunctionDeclaration static func Max (TypeParameterList < (TypeParameter T (TypeParameterConstraintClause : (TypeConstraint (GenericName IComparable (TypeArgumentList < T >))))) >) (ParameterList ( (Parameter a : T) , (Parameter b : T) )) (ReturnTypeClause -> T) (ExpressionBody = a))")]
     [InlineData("public init FromPolar(radius: float) { }", "(InitDeclaration public init FromPolar (ParameterList ( (Parameter radius : float) )) (Block { }))")]
     [InlineData("public event Died(slime: Slime)", "(EventDeclaration public event Died (ParameterList ( (Parameter slime : Slime) )))")]
-    [InlineData("func MinMax(values: List<int>) -> (Min: int, Max: int) = (0, 0)", "(FunctionDeclaration func MinMax (ParameterList ( (Parameter values : (GenericName List (TypeArgumentList < int >))) )) (ReturnTypeClause -> (TupleType ( (TupleElement Min : int) , (TupleElement Max : int) ))) (ExpressionBody = (TupleExpression ( (Argument 0) , (Argument 0) ))))")]
+    [InlineData("static func MinMax(values: List<int>) -> (Min: int, Max: int) = (0, 0)", "(FunctionDeclaration static func MinMax (ParameterList ( (Parameter values : (GenericName List (TypeArgumentList < int >))) )) (ReturnTypeClause -> (TupleType ( (TupleElement Min : int) , (TupleElement Max : int) ))) (ExpressionBody = (TupleExpression ( (Argument 0) , (Argument 0) ))))")]
     [InlineData("protected override async func OnEnable(self) { }", "(FunctionDeclaration protected override async func OnEnable (ParameterList ( (SelfParameter self) )) (Block { }))")]
     public void Members(string member, string expected) => Assert.Equal(expected, Compact(ParseMember(member)));
 
@@ -523,7 +523,7 @@ public class ParserTests
             public class Pool<T: class and IPoolable and new()> : Base, IDisposable {
             }
 
-            public enum Damage {
+            public struct enum Damage {
                 case Physical(Amount: int)
                 case Burn(Amount: int, Seconds: float)
                 case Heal
@@ -564,8 +564,8 @@ public class ParserTests
     // Members of enums, interfaces of enums, indexers (ADR-0029) ----------------------------------------------------
 
     [Theory]
-    [InlineData("enum Element {\n    case Fire\n\n    public func Weakness(self) -> Element = Element.Fire\n    public property IsHot: bool { get = true }\n    func Parse(text: string) -> Element? = null\n}", "(EnumDeclaration enum Element { (EnumCaseDeclaration case Fire) (FunctionDeclaration public func Weakness (ParameterList ( (SelfParameter self) )) (ReturnTypeClause -> Element) (ExpressionBody = (SimpleMemberAccessExpression Element . Fire))) (PropertyDeclaration public property IsHot (TypeAnnotation : bool) (AccessorList { (GetAccessorDeclaration get (ExpressionBody = true)) })) (FunctionDeclaration func Parse (ParameterList ( (Parameter text : string) )) (ReturnTypeClause -> (NullableType Element ?)) (ExpressionBody = null)) })")]
-    [InlineData("enum Damage : IDescribable {\n    case Heal(Amount: int)\n}", "(EnumDeclaration enum Damage (BaseList : IDescribable) { (EnumCaseDeclaration case Heal (ParameterList ( (Parameter Amount : int) ))) })")]
+    [InlineData("enum Element {\n    case Fire\n\n    public func Weakness(self) -> Element = Element.Fire\n    public property IsHot: bool { get = true }\n    static func Parse(text: string) -> Element? = null\n}", "(EnumDeclaration enum Element { (EnumCaseDeclaration case Fire) (FunctionDeclaration public func Weakness (ParameterList ( (SelfParameter self) )) (ReturnTypeClause -> Element) (ExpressionBody = (SimpleMemberAccessExpression Element . Fire))) (PropertyDeclaration public property IsHot (TypeAnnotation : bool) (AccessorList { (GetAccessorDeclaration get (ExpressionBody = true)) })) (FunctionDeclaration static func Parse (ParameterList ( (Parameter text : string) )) (ReturnTypeClause -> (NullableType Element ?)) (ExpressionBody = null)) })")]
+    [InlineData("class enum Damage : IDescribable {\n    case Heal(Amount: int)\n}", "(EnumDeclaration class enum Damage (BaseList : IDescribable) { (EnumCaseDeclaration case Heal (ParameterList ( (Parameter Amount : int) ))) })")]
     [InlineData("struct enum Element : IDescribable, IComparable<Element> {\n    case Fire\n}", "(EnumDeclaration struct enum Element (BaseList : IDescribable , (GenericName IComparable (TypeArgumentList < Element >))) { (EnumCaseDeclaration case Fire) })")]
     public void EnumMembersAndInterfaces(string source, string expected) => Assert.Equal(expected, Compact(ParseClean(source).Root.Members[0]));
 

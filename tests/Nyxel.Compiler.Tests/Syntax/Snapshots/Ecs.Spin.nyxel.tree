@@ -222,23 +222,24 @@ CompilationUnit 1:1-49:1
     OpenBraceToken "{"
     FunctionDeclaration 30:5-40:6
       PublicKeyword "public"
+      StaticKeyword "static"
       FuncKeyword "func"
       IdentifierToken "Run"
-      ParameterList 30:20-30:45
+      ParameterList 30:27-30:52
         OpenParenToken "("
-        Parameter 30:21-30:33
+        Parameter 30:28-30:40
           IdentifierToken "world"
           ColonToken ":"
-          IdentifierName 30:28-30:33
+          IdentifierName 30:35-30:40
             IdentifierToken "World"
         CommaToken ","
-        Parameter 30:35-30:44
+        Parameter 30:42-30:51
           IdentifierToken "dt"
           ColonToken ":"
-          PredefinedType 30:39-30:44
+          PredefinedType 30:46-30:51
             FloatKeyword "float"
         CloseParenToken ")"
-      Block 30:46-40:6
+      Block 30:53-40:6
         OpenBraceToken "{"
         ForStatement 32:9-39:10
           ForKeyword "for"
@@ -394,29 +395,30 @@ CompilationUnit 1:1-49:1
         CloseBraceToken "}"
     FunctionDeclaration 43:5-47:6
       PublicKeyword "public"
+      StaticKeyword "static"
       FuncKeyword "func"
       IdentifierToken "Push"
-      ParameterList 43:21-43:68
+      ParameterList 43:28-43:75
         OpenParenToken "("
-        Parameter 43:22-43:34
+        Parameter 43:29-43:41
           IdentifierToken "world"
           ColonToken ":"
-          IdentifierName 43:29-43:34
+          IdentifierName 43:36-43:41
             IdentifierToken "World"
         CommaToken ","
-        Parameter 43:36-43:50
+        Parameter 43:43-43:57
           IdentifierToken "entity"
           ColonToken ":"
-          IdentifierName 43:44-43:50
+          IdentifierName 43:51-43:57
             IdentifierToken "Entity"
         CommaToken ","
-        Parameter 43:52-43:67
+        Parameter 43:59-43:74
           IdentifierToken "distance"
           ColonToken ":"
-          PredefinedType 43:62-43:67
+          PredefinedType 43:69-43:74
             FloatKeyword "float"
         CloseParenToken ")"
-      Block 43:69-47:6
+      Block 43:76-47:6
         OpenBraceToken "{"
         LocalDeclarationStatement 44:9-44:61
           LetKeyword "let"

@@ -194,10 +194,10 @@ internal sealed partial class Parser
         }
     }
 
-    /// <summary><c>enum</c>, or <c>flags</c> / <c>struct</c> followed by <c>enum</c> on the same line.</summary>
+    /// <summary><c>enum</c>, or <c>flags</c> / <c>struct</c> / <c>class</c> followed by <c>enum</c> on the same line.</summary>
     private bool AtEnumDeclaration()
     {
-        var kindWord = Current.Kind == SyntaxKind.StructKeyword
+        var kindWord = Current.Kind is SyntaxKind.StructKeyword or SyntaxKind.ClassKeyword
             || (Current.Kind == SyntaxKind.IdentifierToken && Current.Text == SyntaxFacts.FlagsContextualKeyword);
         return Current.Kind == SyntaxKind.EnumKeyword
             || (kindWord && Peek(1).Kind == SyntaxKind.EnumKeyword && !Peek(1).HasLeadingLineBreak);
@@ -422,9 +422,10 @@ internal sealed partial class Parser
     }
 
     /// <summary>
-    /// The rules of ADR-0024 and ADR-0029 that the declaration alone shows. A plain enum without data is a C# enum:
-    /// only it has an underlying type, case values or 'flags', and it implements no interfaces. Its values are all
-    /// given or none (a flags enum gives all). A 'struct enum' has data or implements interfaces.
+    /// The rules of ADR-0024, ADR-0029 and ADR-0039 that the declaration alone shows. A plain enum without data is
+    /// a C# enum: only it has an underlying type, case values or 'flags', and it implements no interfaces. Its values
+    /// are all given or none (a flags enum gives all). An enum with data says where its values live, 'struct enum'
+    /// or 'class enum'; a 'struct enum' without data implements interfaces, a 'class enum' always has data.
     /// </summary>
     private void CheckEnum(EnumDeclarationSyntax declaration)
     {
@@ -432,11 +433,20 @@ internal sealed partial class Parser
         var baseTypes = declaration.BaseList?.Types ?? SeparatedSyntaxList<TypeSyntax>.Empty;
         // A named type after the colon is an interface; an underlying type is a keyword such as 'byte'.
         var hasInterfaces = baseTypes.Any(t => t is not PredefinedTypeSyntax);
-        var isCSharpEnum = !hasData && !declaration.IsStruct;
+        var isCSharpEnum = !hasData && !declaration.IsStruct && !declaration.IsClass;
+        if (hasData && !declaration.IsStruct && !declaration.IsClass && !declaration.IsFlags)
+        {
+            Report(DiagnosticDescriptors.EnumWithDataNeedsStorage, declaration.EnumKeyword.Span, declaration.Identifier.Text);
+        }
         if (declaration.IsStruct && !hasData && !hasInterfaces)
         {
             Report(DiagnosticDescriptors.StructEnumWithoutData, declaration.KindKeyword!.Span);
             isCSharpEnum = true;    // check the rest as the 'enum' it should be
+        }
+        if (declaration.IsClass && !hasData)
+        {
+            Report(DiagnosticDescriptors.ClassEnumWithoutData, declaration.KindKeyword!.Span, declaration.Identifier.Text);
+            isCSharpEnum = !hasInterfaces;
         }
         for (var i = 0; i < baseTypes.Count; i++)
         {
@@ -502,6 +512,18 @@ internal sealed partial class Parser
         var parameters = ParseParameterList(ParameterContext.Function);
         var returnType = TryParseReturnType();
         var (body, expressionBody) = ParseFunctionBody(required: false);
+        // A function with 'self' is an instance method, one with 'static' is a static function; the two must agree
+        // (ADR-0039), so that leaving one out is an error rather than a different meaning.
+        var hasSelf = parameters.Parameters.Any(p => p is SelfParameterSyntax);
+        var staticKeyword = modifiers.FirstOrDefault(m => m.Kind == SyntaxKind.StaticKeyword);
+        if (hasSelf && staticKeyword is not null)
+        {
+            Report(DiagnosticDescriptors.StaticWithSelf, staticKeyword.Span, identifier.Text);
+        }
+        else if (!hasSelf && staticKeyword is null && !identifier.IsMissing)
+        {
+            Report(DiagnosticDescriptors.FunctionWithoutSelfOrStatic, identifier.Span, identifier.Text);
+        }
         return new FunctionDeclarationSyntax(modifiers, funcKeyword, identifier, typeParameters, parameters, returnType, body, expressionBody);
     }
 

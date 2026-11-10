@@ -7,7 +7,7 @@ namespace Programs
     internal class Fibonacci
     {
         private static int Fib(int n)
-#line (6, 29) - (6, 29) 9 "Fibonacci.nyxel"
+#line (6, 36) - (6, 36) 9 "Fibonacci.nyxel"
         {
 #line (7, 9) - (7, 16) 13 "Fibonacci.nyxel"
             if (n < 2)
@@ -23,7 +23,7 @@ namespace Programs
         }
 #line hidden
         private static void Main()
-#line (13, 17) - (13, 17) 9 "Fibonacci.nyxel"
+#line (13, 24) - (13, 24) 9 "Fibonacci.nyxel"
         {
 #line (14, 9) - (14, 23) 13 "Fibonacci.nyxel"
             for (int __nyxel_i1 = 0, __nyxel_end2 = 10;

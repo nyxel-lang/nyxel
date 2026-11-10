@@ -104,10 +104,10 @@
   "emit"=keyword.control  |  "self"=variable.language.self  |  "self"=variable.language.self
 > self.Destroy()
   "self"=variable.language.self
-> /// 每种状态带着它需要的数据：追谁、躲谁。
-  "/// 每种状态带着它需要的数据：追谁、躲谁。"=comment.line.documentation
-> enum SlimeState {
-  "enum"=storage.type
+> /// 每种状态带着它需要的数据：追谁、躲谁。struct enum：切换状态不在堆上分配。
+  "/// 每种状态带着它需要的数据：追谁、躲谁。struct enum：切换状态不在堆上分配。"=comment.line.documentation
+> struct enum SlimeState {
+  "struct"=storage.type  |  "enum"=storage.type
 > case Idle
   "case"=storage.type
 > case Chasing(Target: Player)

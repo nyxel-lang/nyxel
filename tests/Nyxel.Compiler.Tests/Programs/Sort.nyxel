@@ -34,7 +34,7 @@ class Sorter {
         return total as float / self.numbers.Count
     }
 
-    func Main() {
+    static func Main() {
         let numbers = new List<int>()
         numbers.Add(5)
         numbers.Add(3)

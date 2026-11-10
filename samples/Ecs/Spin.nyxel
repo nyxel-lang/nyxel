@@ -27,7 +27,7 @@ extension Transform {
 
 /// 每帧让有 Spin 的实体转起来。
 public class SpinSystem {
-    public func Run(world: World, dt: float) {
+    public static func Run(world: World, dt: float) {
         // Read 没标 readonly（改自己再返回自己），返回值都用上了，所以能在临时值上连着调用。
         for chunk in world.Query<Transform>().Read<Spin>() {
             let transforms = chunk.Get<Transform>()     // Span<Transform>：直接指向引擎的内存
@@ -40,7 +40,7 @@ public class SpinSystem {
     }
 
     /// 把一个实体往前推一段。world.Get 返回 ref：改的是组件本身。
-    public func Push(world: World, entity: Entity, distance: float) {
+    public static func Push(world: World, entity: Entity, distance: float) {
         let forward = world.Get<Transform>(entity).Forward()
         world.Get<Transform>(entity).MoveBy(delta = forward * distance)
         // var t = world.Get<Transform>(entity) 是复制一份：t.MoveBy(...) 改的只是 t。

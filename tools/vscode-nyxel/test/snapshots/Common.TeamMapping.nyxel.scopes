@@ -18,16 +18,16 @@
   "/// 协议的类型和自己的类型互相转换：Wire.Team 是协议里的，Team 是自己的。"=comment.line.documentation
 > public class TeamMapping {
   "public"=storage.modifier  |  "class"=storage.type
-> public func FromWire(team: Wire.Team) -> Team = match team {
-  "public"=storage.modifier  |  "func"=storage.type  |  "->"=keyword.operator.arrow  |  "match"=keyword.control
+> public static func FromWire(team: Wire.Team) -> Team = match team {
+  "public"=storage.modifier  |  "static"=storage.modifier  |  "func"=storage.type  |  "->"=keyword.operator.arrow  |  "match"=keyword.control
 > case Red -> Team.Red
   "case"=storage.type  |  "->"=keyword.operator.arrow
 > case Blue -> Team.Blue
   "case"=storage.type  |  "->"=keyword.operator.arrow
 > case _ -> Team.Neutral                  // 协议以后加的阵营先当中立
   "case"=storage.type  |  "_"=variable.language.discard  |  "->"=keyword.operator.arrow  |  "// 协议以后加的阵营先当中立"=comment.line.double-slash
-> public func ToWire(team: Team) -> Wire.Team = match team {
-  "public"=storage.modifier  |  "func"=storage.type  |  "->"=keyword.operator.arrow  |  "match"=keyword.control
+> public static func ToWire(team: Team) -> Wire.Team = match team {
+  "public"=storage.modifier  |  "static"=storage.modifier  |  "func"=storage.type  |  "->"=keyword.operator.arrow  |  "match"=keyword.control
 > case Red -> Wire.Team.Red
   "case"=storage.type  |  "->"=keyword.operator.arrow
 > case Blue -> Wire.Team.Blue

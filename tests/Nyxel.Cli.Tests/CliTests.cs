@@ -79,7 +79,7 @@ public class CliTests
         import System
 
         class Hello {
-            func Main(args: array<string>) -> int {
+            static func Main(args: array<string>) -> int {
                 Console.WriteLine($"Hello, {args.Length} args")
                 return 3
             }
@@ -105,7 +105,7 @@ public class CliTests
         {
             ["bad.nyxel"] = """
                 class C {
-                    func F() {
+                    static func F() {
                         let a = cuont
                     }
                 }

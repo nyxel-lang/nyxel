@@ -1,4 +1,4 @@
-CompilationUnit 1:1-34:1
+CompilationUnit 1:1-35:1
   NamespaceDeclaration 1:1-1:25
     NamespaceKeyword "namespace"
     QualifiedName 1:11-1:25
@@ -7,245 +7,246 @@ CompilationUnit 1:1-34:1
       DotToken "."
       IdentifierName 1:19-1:25
         IdentifierToken "Combat"
-  EnumDeclaration 4:1-23:2
+  EnumDeclaration 5:1-24:2
     PublicKeyword "public"
+    StructKeyword "struct"
     EnumKeyword "enum"
     IdentifierToken "Damage"
-    BaseList 4:20-4:34
+    BaseList 5:27-5:41
       ColonToken ":"
-      IdentifierName 4:22-4:34
+      IdentifierName 5:29-5:41
         IdentifierToken "IDescribable"
     OpenBraceToken "{"
-    EnumCaseDeclaration 5:5-5:31
+    EnumCaseDeclaration 6:5-6:31
       CaseKeyword "case"
       IdentifierToken "Physical"
-      ParameterList 5:18-5:31
+      ParameterList 6:18-6:31
         OpenParenToken "("
-        Parameter 5:19-5:30
+        Parameter 6:19-6:30
           IdentifierToken "Amount"
           ColonToken ":"
-          PredefinedType 5:27-5:30
+          PredefinedType 6:27-6:30
             IntKeyword "int"
         CloseParenToken ")"
-    EnumCaseDeclaration 6:5-6:43
+    EnumCaseDeclaration 7:5-7:43
       CaseKeyword "case"
       IdentifierToken "Burn"
-      ParameterList 6:14-6:43
-        OpenParenToken "("
-        Parameter 6:15-6:26
-          IdentifierToken "Amount"
-          ColonToken ":"
-          PredefinedType 6:23-6:26
-            IntKeyword "int"
-        CommaToken ","
-        Parameter 6:28-6:42
-          IdentifierToken "Seconds"
-          ColonToken ":"
-          PredefinedType 6:37-6:42
-            FloatKeyword "float"
-        CloseParenToken ")"
-    EnumCaseDeclaration 7:5-7:27
-      CaseKeyword "case"
-      IdentifierToken "Heal"
-      ParameterList 7:14-7:27
+      ParameterList 7:14-7:43
         OpenParenToken "("
         Parameter 7:15-7:26
           IdentifierToken "Amount"
           ColonToken ":"
           PredefinedType 7:23-7:26
             IntKeyword "int"
+        CommaToken ","
+        Parameter 7:28-7:42
+          IdentifierToken "Seconds"
+          ColonToken ":"
+          PredefinedType 7:37-7:42
+            FloatKeyword "float"
         CloseParenToken ")"
-    PropertyDeclaration 10:5-16:6
+    EnumCaseDeclaration 8:5-8:27
+      CaseKeyword "case"
+      IdentifierToken "Heal"
+      ParameterList 8:14-8:27
+        OpenParenToken "("
+        Parameter 8:15-8:26
+          IdentifierToken "Amount"
+          ColonToken ":"
+          PredefinedType 8:23-8:26
+            IntKeyword "int"
+        CloseParenToken ")"
+    PropertyDeclaration 11:5-17:6
       PublicKeyword "public"
       PropertyKeyword "property"
       IdentifierToken "Change"
-      TypeAnnotation 10:27-10:32
+      TypeAnnotation 11:27-11:32
         ColonToken ":"
-        PredefinedType 10:29-10:32
+        PredefinedType 11:29-11:32
           IntKeyword "int"
-      AccessorList 10:33-16:6
+      AccessorList 11:33-17:6
         OpenBraceToken "{"
-        GetAccessorDeclaration 11:9-15:10
+        GetAccessorDeclaration 12:9-16:10
           IdentifierToken "get"
-          ExpressionBody 11:13-15:10
+          ExpressionBody 12:13-16:10
             EqualsToken "="
-            MatchExpression 11:15-15:10
+            MatchExpression 12:15-16:10
               MatchKeyword "match"
-              SelfExpression 11:21-11:25
+              SelfExpression 12:21-12:25
                 SelfKeyword "self"
               OpenBraceToken "{"
-              MatchArm 12:13-12:45
+              MatchArm 13:13-13:45
                 CaseKeyword "case"
-                CasePattern 12:18-12:34
+                CasePattern 13:18-13:34
                   IdentifierToken "Physical"
-                  CaseFieldList 12:26-12:34
+                  CaseFieldList 13:26-13:34
                     OpenParenToken "("
-                    IdentifierName 12:27-12:33
+                    IdentifierName 13:27-13:33
                       IdentifierToken "amount"
                     CloseParenToken ")"
                 MinusGreaterThanToken "->"
-                UnaryMinusExpression 12:38-12:45
+                UnaryMinusExpression 13:38-13:45
                   MinusToken "-"
-                  IdentifierName 12:39-12:45
+                  IdentifierName 13:39-13:45
                     IdentifierToken "amount"
-              MatchArm 13:13-13:44
+              MatchArm 14:13-14:44
                 CaseKeyword "case"
-                CasePattern 13:18-13:33
+                CasePattern 14:18-14:33
                   IdentifierToken "Burn"
-                  CaseFieldList 13:22-13:33
-                    OpenParenToken "("
-                    IdentifierName 13:23-13:29
-                      IdentifierToken "amount"
-                    CommaToken ","
-                    IdentifierName 13:31-13:32
-                      UnderscoreToken "_"
-                    CloseParenToken ")"
-                MinusGreaterThanToken "->"
-                UnaryMinusExpression 13:37-13:44
-                  MinusToken "-"
-                  IdentifierName 13:38-13:44
-                    IdentifierToken "amount"
-              MatchArm 14:13-14:40
-                CaseKeyword "case"
-                CasePattern 14:18-14:30
-                  IdentifierToken "Heal"
-                  CaseFieldList 14:22-14:30
+                  CaseFieldList 14:22-14:33
                     OpenParenToken "("
                     IdentifierName 14:23-14:29
                       IdentifierToken "amount"
+                    CommaToken ","
+                    IdentifierName 14:31-14:32
+                      UnderscoreToken "_"
                     CloseParenToken ")"
                 MinusGreaterThanToken "->"
-                IdentifierName 14:34-14:40
+                UnaryMinusExpression 14:37-14:44
+                  MinusToken "-"
+                  IdentifierName 14:38-14:44
+                    IdentifierToken "amount"
+              MatchArm 15:13-15:40
+                CaseKeyword "case"
+                CasePattern 15:18-15:30
+                  IdentifierToken "Heal"
+                  CaseFieldList 15:22-15:30
+                    OpenParenToken "("
+                    IdentifierName 15:23-15:29
+                      IdentifierToken "amount"
+                    CloseParenToken ")"
+                MinusGreaterThanToken "->"
+                IdentifierName 15:34-15:40
                   IdentifierToken "amount"
               CloseBraceToken "}"
         CloseBraceToken "}"
-    FunctionDeclaration 18:5-22:6
+    FunctionDeclaration 19:5-23:6
       PublicKeyword "public"
       FuncKeyword "func"
       IdentifierToken "Describe"
-      ParameterList 18:25-18:31
+      ParameterList 19:25-19:31
         OpenParenToken "("
-        SelfParameter 18:26-18:30
+        SelfParameter 19:26-19:30
           SelfKeyword "self"
         CloseParenToken ")"
-      ReturnTypeClause 18:32-18:41
+      ReturnTypeClause 19:32-19:41
         MinusGreaterThanToken "->"
-        PredefinedType 18:35-18:41
+        PredefinedType 19:35-19:41
           StringKeyword "string"
-      ExpressionBody 18:42-22:6
+      ExpressionBody 19:42-23:6
         EqualsToken "="
-        MatchExpression 18:44-22:6
+        MatchExpression 19:44-23:6
           MatchKeyword "match"
-          SelfExpression 18:50-18:54
+          SelfExpression 19:50-19:54
             SelfKeyword "self"
           OpenBraceToken "{"
-          MatchArm 19:9-19:51
+          MatchArm 20:9-20:51
             CaseKeyword "case"
-            CasePattern 19:14-19:30
+            CasePattern 20:14-20:30
               IdentifierToken "Physical"
-              CaseFieldList 19:22-19:30
+              CaseFieldList 20:22-20:30
                 OpenParenToken "("
-                IdentifierName 19:23-19:29
+                IdentifierName 20:23-20:29
                   IdentifierToken "amount"
                 CloseParenToken ")"
             MinusGreaterThanToken "->"
-            InterpolatedStringExpression 19:34-19:51
+            InterpolatedStringExpression 20:34-20:51
               InterpolatedStringStartToken "$\""
-              Interpolation 19:36-19:44
+              Interpolation 20:36-20:44
                 OpenBraceToken "{"
-                IdentifierName 19:37-19:43
+                IdentifierName 20:37-20:43
                   IdentifierToken "amount"
                 CloseBraceToken "}"
-              InterpolatedStringText 19:44-19:50
+              InterpolatedStringText 20:44-20:50
                 InterpolatedStringTextToken " 点物理伤害"
               InterpolatedStringEndToken "\""
-          MatchArm 20:9-20:67
+          MatchArm 21:9-21:67
             CaseKeyword "case"
-            CasePattern 20:14-20:35
+            CasePattern 21:14-21:35
               IdentifierToken "Burn"
-              CaseFieldList 20:18-20:35
-                OpenParenToken "("
-                IdentifierName 20:19-20:25
-                  IdentifierToken "amount"
-                CommaToken ","
-                IdentifierName 20:27-20:34
-                  IdentifierToken "seconds"
-                CloseParenToken ")"
-            MinusGreaterThanToken "->"
-            InterpolatedStringExpression 20:39-20:67
-              InterpolatedStringStartToken "$\""
-              Interpolation 20:41-20:50
-                OpenBraceToken "{"
-                IdentifierName 20:42-20:49
-                  IdentifierToken "seconds"
-                CloseBraceToken "}"
-              InterpolatedStringText 20:50-20:54
-                InterpolatedStringTextToken " 秒内 "
-              Interpolation 20:54-20:62
-                OpenBraceToken "{"
-                IdentifierName 20:55-20:61
-                  IdentifierToken "amount"
-                CloseBraceToken "}"
-              InterpolatedStringText 20:62-20:66
-                InterpolatedStringTextToken " 点灼烧"
-              InterpolatedStringEndToken "\""
-          MatchArm 21:9-21:44
-            CaseKeyword "case"
-            CasePattern 21:14-21:26
-              IdentifierToken "Heal"
-              CaseFieldList 21:18-21:26
+              CaseFieldList 21:18-21:35
                 OpenParenToken "("
                 IdentifierName 21:19-21:25
                   IdentifierToken "amount"
+                CommaToken ","
+                IdentifierName 21:27-21:34
+                  IdentifierToken "seconds"
                 CloseParenToken ")"
             MinusGreaterThanToken "->"
-            InterpolatedStringExpression 21:30-21:44
+            InterpolatedStringExpression 21:39-21:67
               InterpolatedStringStartToken "$\""
-              InterpolatedStringText 21:32-21:35
-                InterpolatedStringTextToken "治疗 "
-              Interpolation 21:35-21:43
+              Interpolation 21:41-21:50
                 OpenBraceToken "{"
-                IdentifierName 21:36-21:42
+                IdentifierName 21:42-21:49
+                  IdentifierToken "seconds"
+                CloseBraceToken "}"
+              InterpolatedStringText 21:50-21:54
+                InterpolatedStringTextToken " 秒内 "
+              Interpolation 21:54-21:62
+                OpenBraceToken "{"
+                IdentifierName 21:55-21:61
+                  IdentifierToken "amount"
+                CloseBraceToken "}"
+              InterpolatedStringText 21:62-21:66
+                InterpolatedStringTextToken " 点灼烧"
+              InterpolatedStringEndToken "\""
+          MatchArm 22:9-22:44
+            CaseKeyword "case"
+            CasePattern 22:14-22:26
+              IdentifierToken "Heal"
+              CaseFieldList 22:18-22:26
+                OpenParenToken "("
+                IdentifierName 22:19-22:25
+                  IdentifierToken "amount"
+                CloseParenToken ")"
+            MinusGreaterThanToken "->"
+            InterpolatedStringExpression 22:30-22:44
+              InterpolatedStringStartToken "$\""
+              InterpolatedStringText 22:32-22:35
+                InterpolatedStringTextToken "治疗 "
+              Interpolation 22:35-22:43
+                OpenBraceToken "{"
+                IdentifierName 22:36-22:42
                   IdentifierToken "amount"
                 CloseBraceToken "}"
               InterpolatedStringEndToken "\""
           CloseBraceToken "}"
     CloseBraceToken "}"
-  InterfaceDeclaration 26:1-28:2
+  InterfaceDeclaration 27:1-29:2
     PublicKeyword "public"
     InterfaceKeyword "interface"
     IdentifierToken "IDescribable"
     OpenBraceToken "{"
-    FunctionDeclaration 27:5-27:34
+    FunctionDeclaration 28:5-28:34
       FuncKeyword "func"
       IdentifierToken "Describe"
-      ParameterList 27:18-27:24
+      ParameterList 28:18-28:24
         OpenParenToken "("
-        SelfParameter 27:19-27:23
+        SelfParameter 28:19-28:23
           SelfKeyword "self"
         CloseParenToken ")"
-      ReturnTypeClause 27:25-27:34
+      ReturnTypeClause 28:25-28:34
         MinusGreaterThanToken "->"
-        PredefinedType 27:28-27:34
+        PredefinedType 28:28-28:34
           StringKeyword "string"
     CloseBraceToken "}"
-  InterfaceDeclaration 31:1-33:2
+  InterfaceDeclaration 32:1-34:2
     PublicKeyword "public"
     InterfaceKeyword "interface"
     IdentifierToken "IDamageable"
     OpenBraceToken "{"
-    FunctionDeclaration 32:5-32:42
+    FunctionDeclaration 33:5-33:42
       FuncKeyword "func"
       IdentifierToken "TakeDamage"
-      ParameterList 32:20-32:42
+      ParameterList 33:20-33:42
         OpenParenToken "("
-        SelfParameter 32:21-32:25
+        SelfParameter 33:21-33:25
           SelfKeyword "self"
         CommaToken ","
-        Parameter 32:27-32:41
+        Parameter 33:27-33:41
           IdentifierToken "damage"
           ColonToken ":"
-          IdentifierName 32:35-32:41
+          IdentifierName 33:35-33:41
             IdentifierToken "Damage"
         CloseParenToken ")"
     CloseBraceToken "}"

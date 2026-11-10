@@ -68,8 +68,8 @@
   "/// - Returns: 读出来的地图，宽度按第一排格子定。"=comment.line.documentation
 > /// - Throws ArgumentOutOfRangeException: 第一行比 `map: ` 还短时。
   "/// - Throws ArgumentOutOfRangeException: 第一行比 `map: ` 还短时。"=comment.line.documentation
-> public func Parse(text: string) -> TileMap {
-  "public"=storage.modifier  |  "func"=storage.type  |  "string"=storage.type.primitive  |  "->"=keyword.operator.arrow
+> public static func Parse(text: string) -> TileMap {
+  "public"=storage.modifier  |  "static"=storage.modifier  |  "func"=storage.type  |  "string"=storage.type.primitive  |  "->"=keyword.operator.arrow
 > let lines = text.Split('\n')
   "let"=storage.type  |  "'"=string.quoted.single  |  "\\n"=string.quoted.single constant.character.escape  |  "'"=string.quoted.single
 > let name = lines[0][5...].Trim()                // 切片：去掉开头的 "map: "

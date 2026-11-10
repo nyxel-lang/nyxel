@@ -39,29 +39,30 @@ CompilationUnit 1:1-27:1
     OpenBraceToken "{"
     FunctionDeclaration 15:5-19:6
       PublicKeyword "public"
+      StaticKeyword "static"
       FuncKeyword "func"
       IdentifierToken "FromWire"
-      ParameterList 15:25-15:42
+      ParameterList 15:32-15:49
         OpenParenToken "("
-        Parameter 15:26-15:41
+        Parameter 15:33-15:48
           IdentifierToken "team"
           ColonToken ":"
-          QualifiedName 15:32-15:41
-            IdentifierName 15:32-15:36
+          QualifiedName 15:39-15:48
+            IdentifierName 15:39-15:43
               IdentifierToken "Wire"
             DotToken "."
-            IdentifierName 15:37-15:41
+            IdentifierName 15:44-15:48
               IdentifierToken "Team"
         CloseParenToken ")"
-      ReturnTypeClause 15:43-15:50
+      ReturnTypeClause 15:50-15:57
         MinusGreaterThanToken "->"
-        IdentifierName 15:46-15:50
+        IdentifierName 15:53-15:57
           IdentifierToken "Team"
-      ExpressionBody 15:51-19:6
+      ExpressionBody 15:58-19:6
         EqualsToken "="
-        MatchExpression 15:53-19:6
+        MatchExpression 15:60-19:6
           MatchKeyword "match"
-          IdentifierName 15:59-15:63
+          IdentifierName 15:66-15:70
             IdentifierToken "team"
           OpenBraceToken "{"
           MatchArm 16:9-16:29
@@ -100,29 +101,30 @@ CompilationUnit 1:1-27:1
           CloseBraceToken "}"
     FunctionDeclaration 21:5-25:6
       PublicKeyword "public"
+      StaticKeyword "static"
       FuncKeyword "func"
       IdentifierToken "ToWire"
-      ParameterList 21:23-21:35
+      ParameterList 21:30-21:42
         OpenParenToken "("
-        Parameter 21:24-21:34
+        Parameter 21:31-21:41
           IdentifierToken "team"
           ColonToken ":"
-          IdentifierName 21:30-21:34
+          IdentifierName 21:37-21:41
             IdentifierToken "Team"
         CloseParenToken ")"
-      ReturnTypeClause 21:36-21:48
+      ReturnTypeClause 21:43-21:55
         MinusGreaterThanToken "->"
-        QualifiedName 21:39-21:48
-          IdentifierName 21:39-21:43
+        QualifiedName 21:46-21:55
+          IdentifierName 21:46-21:50
             IdentifierToken "Wire"
           DotToken "."
-          IdentifierName 21:44-21:48
+          IdentifierName 21:51-21:55
             IdentifierToken "Team"
-      ExpressionBody 21:49-25:6
+      ExpressionBody 21:56-25:6
         EqualsToken "="
-        MatchExpression 21:51-25:6
+        MatchExpression 21:58-25:6
           MatchKeyword "match"
-          IdentifierName 21:57-21:61
+          IdentifierName 21:64-21:68
             IdentifierToken "team"
           OpenBraceToken "{"
           MatchArm 22:9-22:34

@@ -20,7 +20,7 @@
   "self"=variable.language.self
 > /// 水平面上指向某个角度的单位向量。没有 self：通过 Vector3.FromAngle(...) 调用。
   "/// 水平面上指向某个角度的单位向量。没有 self：通过 Vector3.FromAngle(...) 调用。"=comment.line.documentation
-> public func FromAngle(radians: float) -> Vector3 {
-  "public"=storage.modifier  |  "func"=storage.type  |  "float"=storage.type.primitive  |  "->"=keyword.operator.arrow
+> public static func FromAngle(radians: float) -> Vector3 {
+  "public"=storage.modifier  |  "static"=storage.modifier  |  "func"=storage.type  |  "float"=storage.type.primitive  |  "->"=keyword.operator.arrow
 > return new Vector3(MathF.Cos(radians), 0, MathF.Sin(radians))
   "return"=keyword.control  |  "new"=keyword.other.new  |  "0"=constant.numeric.decimal

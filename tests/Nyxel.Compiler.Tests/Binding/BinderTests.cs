@@ -16,7 +16,7 @@ public class BinderTests
             import System
 
             class Program {
-                func Main() {
+                static func Main() {
                     Console.WriteLine("Hello, Nyxel")
                 }
             }
@@ -104,11 +104,11 @@ public class BinderTests
                     return self.count
                 }
 
-                public func Twice(value: int) -> int = value * 2
+                public static func Twice(value: int) -> int = value * 2
             }
 
             class User {
-                func Run() -> int {
+                static func Run() -> int {
                     let counter = new Counter(step = 2)
                     counter.Add()
                     return Counter.Twice(counter.Add())

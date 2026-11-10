@@ -157,12 +157,14 @@ public sealed class EnumDeclarationSyntax : MemberDeclarationSyntax
         AdoptChildren();
     }
 
-    /// <summary>The <c>flags</c> (a contextual keyword) or <c>struct</c> before <c>enum</c>, if any.</summary>
+    /// <summary>The <c>flags</c> (a contextual keyword), <c>struct</c> or <c>class</c> before <c>enum</c>, if any.</summary>
     public SyntaxToken? KindKeyword { get; }
 
     public bool IsFlags => KindKeyword?.Kind == SyntaxKind.IdentifierToken;
 
     public bool IsStruct => KindKeyword?.Kind == SyntaxKind.StructKeyword;
+
+    public bool IsClass => KindKeyword?.Kind == SyntaxKind.ClassKeyword;
 
     public SyntaxToken EnumKeyword { get; }
 

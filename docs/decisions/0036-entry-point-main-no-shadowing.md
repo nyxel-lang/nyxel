@@ -1,6 +1,6 @@
-# ADR-0036: 程序入口是没有 `self` 的 `Main`，局部变量不和外层同名
+# ADR-0036: 程序入口是 `static func Main`，局部变量不和外层同名
 
-- 状态：已接受
+- 状态：已接受（2026-11-04 修订）
 - 日期：2026-10-31
 
 ## 背景
@@ -16,7 +16,7 @@
 
 ## 决策
 
-1. **程序入口是任意一个类型里没有 `self` 的 `Main` 函数**，同 C#：
+1. **程序入口是任意一个类型里的 `static func Main`**，同 C#：
 
    ```nyxel
    namespace Hello
@@ -24,14 +24,14 @@
    import System
 
    class Program {
-       func Main() {
+       static func Main() {
            Console.WriteLine("Hello, Nyxel")
        }
    }
    ```
 
-   - 没有 `self` 的函数本来就是静态函数（ADR-0008），不加新语法。
-   - 写法有四种：`func Main()`、`func Main(args: array<string>)`，各自可以加 `-> int` 返回退出码。别的参数或返回类型是编译错误。
+   - 静态函数写 `static func`（ADR-0039；定这条时是“没有 `self` 就是静态”），不加新语法。
+   - 写法有四种：`static func Main()`、`static func Main(args: array<string>)`，各自可以加 `-> int` 返回退出码。别的参数或返回类型是编译错误。
    - 可见性随意（默认私有也行），同 C#。不能写在泛型类型里。
    - 只在输出可执行程序时找入口（`nyxel run`、输出类型是可执行文件的项目）。程序里没有 `Main`、或者有两个以上，是编译错误，诊断列出找到的每一个。编译成给引擎用的库时不找入口，叫 `Main` 的函数就是普通的函数。
    - `async func Main` 暂时是编译错误：协程要靠宿主每帧驱动（ADR-0016、M4）。
@@ -76,3 +76,7 @@
 - design/semantic-analysis.md 的“待讨论”两条定了。
 - 语义检查（NYX2xxx，随第一条线实现）：没有 `Main`、两个以上 `Main`、`Main` 的签名不对、`async func Main`；局部变量、参数和外层同名，同一个作用域里重名。
 - `nyxel run` 编译成可执行程序后执行 `Main`。
+
+## 修订记录
+
+- 2026-11-04：措辞由“没有 `self` 的 `Main`”改为 `static func Main`，规则不变，见 ADR-0039。
