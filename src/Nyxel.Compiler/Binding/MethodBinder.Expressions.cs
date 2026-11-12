@@ -234,7 +234,7 @@ internal sealed partial class MethodBinder
                 Report(DiagnosticDescriptors.ConstantOutOfRange, syntax, integer.ToString(CultureInfo.InvariantCulture), SymbolDisplay.Keyword(type)!);
                 return null;
             }
-            return ToIntegral(integer, type);
+            return ConstantFolder.ToIntegral(integer, type);
         }
         if (type == SpecialType.System_Decimal)
         {
@@ -350,30 +350,8 @@ internal sealed partial class MethodBinder
 
     private static string LiteralText(LiteralExpressionSyntax literal) => literal.Token.Text.Replace("_", "", StringComparison.Ordinal);
 
-    private static bool FitsIntegral(BigInteger value, SpecialType type) => type switch
-    {
-        SpecialType.System_SByte => value >= sbyte.MinValue && value <= sbyte.MaxValue,
-        SpecialType.System_Byte => value >= byte.MinValue && value <= byte.MaxValue,
-        SpecialType.System_Int16 => value >= short.MinValue && value <= short.MaxValue,
-        SpecialType.System_UInt16 => value >= ushort.MinValue && value <= ushort.MaxValue,
-        SpecialType.System_Int32 => value >= int.MinValue && value <= int.MaxValue,
-        SpecialType.System_UInt32 => value >= uint.MinValue && value <= uint.MaxValue,
-        SpecialType.System_Int64 => value >= long.MinValue && value <= long.MaxValue,
-        SpecialType.System_UInt64 => value >= ulong.MinValue && value <= ulong.MaxValue,
-        _ => false,
-    };
-
-    private static object ToIntegral(BigInteger value, SpecialType type) => type switch
-    {
-        SpecialType.System_SByte => (sbyte)value,
-        SpecialType.System_Byte => (byte)value,
-        SpecialType.System_Int16 => (short)value,
-        SpecialType.System_UInt16 => (ushort)value,
-        SpecialType.System_Int32 => (int)value,
-        SpecialType.System_UInt32 => (uint)value,
-        SpecialType.System_Int64 => (long)value,
-        _ => (ulong)value,
-    };
+    /// <summary>Whether a whole-number literal's value fits an integer type; never <c>char</c>, which a number literal can't be.</summary>
+    private static bool FitsIntegral(BigInteger value, SpecialType type) => Conversions.IsWholeNumber(type) && ConstantFolder.Fits(value, type);
 
     /// <summary>
     /// A literal-only operand next to a value of <paramref name="otherType"/> (ADR-0013): it takes the other
@@ -673,6 +651,10 @@ internal sealed partial class MethodBinder
         {
             return Bad(syntax, operand);
         }
+        if (operatorKind == UnaryOperatorKind.BitwiseNot && operand.Type.TypeKind == TypeKind.Enum)
+        {
+            return ReportPlainEnumBits(syntax.OperatorToken, operand.Type) ? Bad(syntax, operand) : MakeUnary(syntax, operatorKind, operand, operand.Type);
+        }
         var type = operand.Type.SpecialType;
         SpecialType? result = operatorKind switch
         {
@@ -698,7 +680,7 @@ internal sealed partial class MethodBinder
             return Bad(syntax, operand);
         }
         var typeSymbol = _context.GetSpecialType(resultType);
-        return new BoundUnary(syntax, operatorKind, Convert(operand, typeSymbol), typeSymbol);
+        return MakeUnary(syntax, operatorKind, Convert(operand, typeSymbol), typeSymbol);
     }
 
     /// <summary>
@@ -806,7 +788,7 @@ internal sealed partial class MethodBinder
             left = BindValue(syntax.Left, inward);
             right = BindValue(syntax.Right, inward);
         }
-        if (left.HasErrors || right.HasErrors)
+        if (left.HasErrors || right.HasErrors || ReportCaseComparedWithEquals(syntax, left, right))
         {
             return Bad(syntax, left, right);
         }
@@ -841,12 +823,18 @@ internal sealed partial class MethodBinder
         var l = left.Type.SpecialType;
         var r = right.Type.SpecialType;
         var boolType = _context.Bool;
+        // "state: " + e is string concatenation, as for any value.
+        var concatenation = operatorKind == BinaryOperatorKind.Add && (l == SpecialType.System_String || r == SpecialType.System_String);
+        if (!concatenation && (left.Type.NonNullable.TypeKind == TypeKind.Enum || right.Type.NonNullable.TypeKind == TypeKind.Enum))
+        {
+            return ResolveEnumBinary(syntax, operatorToken, operatorKind, left, right) ?? NotDefined();
+        }
         switch (operatorKind)
         {
             case BinaryOperatorKind.Add when l == SpecialType.System_String || r == SpecialType.System_String:
-                return new BoundBinary(syntax, operatorKind, left, right, _context.String);
+                return MakeBinary(syntax, operatorKind, left, right, _context.String);
             case BinaryOperatorKind.LogicalAnd or BinaryOperatorKind.LogicalOr when l == SpecialType.System_Boolean && r == SpecialType.System_Boolean:
-                return new BoundBinary(syntax, operatorKind, left, right, boolType);
+                return MakeBinary(syntax, operatorKind, left, right, boolType);
             case BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual when IsNullableValue(left.Type) || IsNullableValue(right.Type):
                 return LiftedEquality();
             case BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual:
@@ -854,7 +842,7 @@ internal sealed partial class MethodBinder
                     || (left.Type.IsReferenceType && right.Type.IsReferenceType
                         && (Conversions.ClassifyImplicit(left.Type, right.Type) is not null || Conversions.ClassifyImplicit(right.Type, left.Type) is not null)))
                 {
-                    return new BoundBinary(syntax, operatorKind, left, right, boolType);
+                    return MakeBinary(syntax, operatorKind, left, right, boolType);
                 }
                 return Numeric(boolType);
             case BinaryOperatorKind.Less or BinaryOperatorKind.LessOrEqual or BinaryOperatorKind.Greater or BinaryOperatorKind.GreaterOrEqual:
@@ -864,7 +852,7 @@ internal sealed partial class MethodBinder
             case BinaryOperatorKind.BitwiseAnd or BinaryOperatorKind.BitwiseOr or BinaryOperatorKind.ExclusiveOr:
                 if (l == SpecialType.System_Boolean && r == SpecialType.System_Boolean)
                 {
-                    return new BoundBinary(syntax, operatorKind, left, right, boolType);
+                    return MakeBinary(syntax, operatorKind, left, right, boolType);
                 }
                 if (Conversions.IsIntegral(l) && Conversions.IsIntegral(r))
                 {
@@ -875,7 +863,7 @@ internal sealed partial class MethodBinder
                 if (Conversions.IsIntegral(l) && Conversions.ClassifyImplicit(right.Type, _context.Int) is not null)
                 {
                     var shifted = _context.GetSpecialType(UnaryPromotion(l));
-                    return new BoundBinary(syntax, operatorKind, Convert(left, shifted), Convert(right, _context.Int), shifted);
+                    return MakeBinary(syntax, operatorKind, Convert(left, shifted), Convert(right, _context.Int), shifted);
                 }
                 return NotDefined();
             default:
@@ -889,7 +877,7 @@ internal sealed partial class MethodBinder
                 return NotDefined();
             }
             var operandType = _context.GetSpecialType(promoted);
-            return new BoundBinary(syntax, operatorKind, Convert(left, operandType), Convert(right, operandType), resultType ?? operandType);
+            return MakeBinary(syntax, operatorKind, Convert(left, operandType), Convert(right, operandType), resultType ?? operandType);
         }
 
         // int? == int, int? != long?: C#'s lifted operators (ADR-0041). Both sides go to the T? of the type they would
@@ -904,7 +892,7 @@ internal sealed partial class MethodBinder
                 return Bad(syntax, left, right);
             }
             var operandType = _context.Table.GetNullableType(_context.GetSpecialType(type));
-            return new BoundBinary(syntax, operatorKind, Convert(left, operandType), Convert(right, operandType), boolType);
+            return MakeBinary(syntax, operatorKind, Convert(left, operandType), Convert(right, operandType), boolType);
         }
 
         static bool IsNullableValue(TypeSymbol type) => type.IsNullable && type.IsValueType;
@@ -977,14 +965,7 @@ internal sealed partial class MethodBinder
         {
             return operand;
         }
-        // A constant whole number must fit (ADR-0014: a constant out of range is an error, as in C#).
-        if (operand.ConstantValue is sbyte or byte or short or ushort or int or uint or long or ulong
-            && Conversions.IsIntegral(type.SpecialType) && type.SpecialType != SpecialType.System_Char
-            && !FitsIntegral(new BigInteger(System.Convert.ToDecimal(operand.ConstantValue, CultureInfo.InvariantCulture)), type.SpecialType))
-        {
-            Report(DiagnosticDescriptors.ConstantOutOfRange, syntax, operand.ConstantValue, SymbolDisplay.FormatType(type));
-            return Bad(syntax, operand);
-        }
-        return new BoundConversion(syntax, operand, kind.Value, type, isExplicit: true);
+        // A constant must fit (ADR-0014: a constant out of range is an error, as in C#).
+        return MakeConversion(syntax, operand, kind.Value, type, isExplicit: true);
     }
 }

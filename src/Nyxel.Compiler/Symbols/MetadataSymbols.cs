@@ -235,6 +235,9 @@ internal sealed class MetadataNamedTypeSymbol(SymbolTable table, CodeAnalysis.IN
 
     public override bool IsSealed => type.IsSealed;
 
+    public override NamedTypeSymbol? EnumUnderlyingType =>
+        type.EnumUnderlyingType is { } underlying ? table.GetType(underlying) as NamedTypeSymbol : null;
+
     public override NamedTypeSymbol? BaseType => type.BaseType is { } baseType ? table.GetType(baseType) as NamedTypeSymbol : null;
 
     public override ImmutableArray<NamedTypeSymbol> Interfaces => [.. type.Interfaces.Select(table.GetType).OfType<NamedTypeSymbol>()];

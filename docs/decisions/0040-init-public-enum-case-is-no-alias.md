@@ -1,6 +1,6 @@
 # ADR-0040: `init` 默认公开、判断 enum case 一律 `is`、case 的值不能重复
 
-- 状态：已接受
+- 状态：已接受（2026-11-12 修订）
 - 日期：2026-11-04
 
 ## 背景
@@ -30,19 +30,20 @@
    - 这是 ADR-0006“成员默认私有”和 ADR-0026“成员上不写 `private`”各开的一个口子：只有 `init`。别的成员上写 `private` 仍然是 NYX1196。
    - 命名 `init` 同样默认公开。
    - `init` 上写 `public` 是编译错误（ADR-0042）：和默认一样、没有信息，理由同成员上的 `private`。
-2. **判断是不是某个 enum case 一律写 `is`；`x == 类型.Case`、`x != 类型.Case` 是编译错误**，诊断给出 `is` / `is not`。
+2. **判断是不是某个 enum case 一律写 `is`；`==` / `!=` 的一边直接写 case 名（`x == 类型.Case`、`类型.Case != x`）是编译错误**，诊断给出 `is` / `is not`。
    ```nyxel
    if self.state is SlimeState.Idle { }    // 判断 case
    if key is not Key.Escape { }            // .NET 的枚举一样
    if state == self.previous { }           // 两个值比较：照旧 ==
    match state { case Idle -> ... }        // 不变
    ```
-   - 只挡“右边直接写 case 名”这一种形式：两个 enum **值**之间的 `==` 不受影响。规则一句话说完，不用看声明。
+   - 只挡“一边直接写 case 名”这种形式，左边右边都算（ADR-0045）；enum 里的别名（决策 3）也算 case 名。两个 enum **值**之间的 `==` 不受影响。规则一句话说完，不用看声明。
    - .NET 的枚举同样适用：`key is Key.Escape` 在 C# 里本来就合法（常量模式）、意思相同，不是“似是而非”。
    - flags enum：整体相等同样写 `is`；包含判断照 ADR-0024 用 `HasFlag`。
    - 取代 ADR-0024 决策 5 的“简单 enum 写 `==` 也可以”和决策 7 的“`state == SlimeState.Idle` 就是判断是不是 Idle”。
 3. **Nyxel 声明的 enum 里两个 case 不能是同一个值**（含 flags enum），是编译错误，诊断建议把后一个写成 `static let Old: E = E.New`。
    - case 的含义是“几选一”，两个 case 同一个值就不是两个选项。
+   - 别名写在 enum 里，跟在 case 后面；它是所指 case 的另一个名字，能写在 `is` 后面（ADR-0045）。
    - .NET 的枚举有别名照收：`match` 里两个别名 case 都列出来时报“和 `case Enter` 是同一个值”；穷尽检查按不同的值算。
 4. **四项不改**，理由记在这里：
    - `case` 三种用处的共同点是“几选一，一项一行”，Swift 前两处也用 `case`；块头（`enum`、`match`、`await any`）已经说明块里是什么，`case` 不会在读者不知情时改变含义。给 `await` 的项另起关键字反而要多记一个词。
@@ -58,6 +59,7 @@
   - **保持默认私有**（原来的决定，ADR-0006 的“成员默认私有”不开口子）：就是上面的陷阱。
 - 判断 case：
   - **两种都留**（原来的决定）：`== Tile.Wall` 读起来自然，但同一个问题两种写法，其中一种还只对不带数据的 case 成立。
+  - **只挡右边**（本 ADR 原来的写法）：`Tile.Wall == tile` 问的是同一件事，规则反而要多一句“只看右边”。2026-11-12 实现时发现，改成两边都挡，见 ADR-0045。
   - **不带数据的只准 `==`，带数据的只准 `is`**：规则跟着声明走，读者负担最重。
 - 别名 case：
   - **允许**（原来没有规则，同 C#）：`match` 列不全，第二个别名分支走不到。需要别名时 `static let` 一样能用，读者还能看出它不是一个选项。
@@ -72,7 +74,11 @@
 - language-reference：构造、可见性、enum、类型检查与收窄各节改写；`_`、`??` 右边、`->` 分支里能写什么原来在 `if`、`match`、空值、`await` 四节各写一遍，抽成一节“分支与离开语句”。
 - 分工：
   - Parser：`init` 上的 `private` 不再报 NYX1196（别的成员照报）。
-  - 语义分析（M2）：`init` 的可见性默认公开（已随本 ADR 实现）；`x == 类型.Case` 报 NYX2055、两个 case 同一个值报 NYX2056（enum 还没进 Binder，随“属性、struct、enum”一步实现，semantic-analysis.md“实现状态”）。
+  - 语义分析（M2）：`init` 的可见性默认公开（已随本 ADR 实现）；`x == 类型.Case` 报 NYX2055、两个 case 同一个值报 NYX2056（2026-11-12 随不带数据的 enum 实现，semantic-analysis.md“实现状态”）。
 - samples：`TileMap.IsWall`、`BossIntro` 的 `key == Key.Escape` 改成 `is`；`Fixed.FromRaw` 写成 `private init`，`RecentList`、`TileMap` 的 `init` 不写修饰符就是公开。
 - roadmap M4 加一条：项目文件里按程序集的“当作非空”开关。
 - 错误码见 design/diagnostics.md。
+
+## 修订记录
+
+- 2026-11-12：决策 2 的 NYX2055 由“只挡右边”改成两边都挡、别名也算 case 名；决策 3 写明别名写在 enum 里，见 ADR-0045。

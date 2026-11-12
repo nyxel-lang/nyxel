@@ -1,23 +1,25 @@
 # 当前状态
 
 > 每次收工**覆盖**本文件，保持一屏以内。历史在 [progress/](progress/)，计划在 [roadmap.md](roadmap.md)。
-> 最后更新：2026-11-11
+> 最后更新：2026-11-12
 
 ## 在哪
 
 - 里程碑：**M2 语义分析与代码生成**，日志在 [progress/M2.md](progress/M2.md)。M1 只剩“待定的逐轮讨论”没勾，和 M2 交错进行。开发在 `dev` 分支上做，每轮提交一次 wip；用户说"整理合并"时再整理进 main 并推到 GitHub（AGENTS.md "提交"）。
 - GitHub：https://github.com/nyxel-lang/nyxel，只推 `main`。上次整理合并 2026-11-10（f76e631 到 9a49b48），之后的 wip 都还在 dev 上。
-- 语言设计：ADR-0004 到 0027、0029 到 0044，汇总在 design/language-reference.md。
+- 语言设计：ADR-0004 到 0027、0029 到 0045，汇总在 design/language-reference.md。
 - **M2 验收通过**（第一条线 2026-10-31，断点 2026-11-02）。M2 还没勾的：Binder 和降级逐步加宽、警告（命名、文档注释、多余的 null 检查）。
-- **属性和 struct 进了 Binder**（2026-11-11，ADR-0044）：自动属性和计算属性（`private set`、只读的自动属性在 `init` 里赋值、`static property`）、struct（`self` / `var self` 函数降级成 C# 的 `readonly` / 普通方法）、ADR-0032 的“存储、只读、副本”检查（NYX2080、2081）。实现时和用户定了三条（ADR-0044）：自动属性的值同字段、属性必须有 `get`、struct 上给属性赋值算“改”。新程序 Programs/Structs。
-- 错误码：下一个是 NYX1243 / NYX2082（design/diagnostics.md；2055、2056 已分配给 ADR-0040，还没实现）。编译器还没有警告。
-- 最近一次全绿：2026-11-11，`tools\build.cmd --test`，11 + 1153 个测试，高亮快照 19 项；`dotnet format --verify-no-changes` 通过。
+- **不带数据的 enum 和常量进了 Binder**（2026-11-12）：enum、`flags enum`、底层类型、case 的值、enum 里的函数和计算属性（降级成 `名字Extensions` 的 extension 块）、`x is 类型.Case`、enum 和整数之间的 `as`、NYX2055 / 2056；常量折叠同 C#（和 Roslyn 对照测试），`static let` 常量生成 C# 的 `const`，默认参数值。新程序 Programs/Enums。设计记在 semantic-analysis.md“enum 和常量”。实现时碰到的三处和用户定在 ADR-0045：case 名写在 `==` 哪边都报错、enum 能比大小不能做算术（NYX2087）、enum 里能写 `static let`（case 的别名能写在 `is` 后面）。
+- 错误码：下一个是 NYX1243 / NYX2088（design/diagnostics.md）。编译器还没有警告。
+- 最近一次全绿：2026-11-12，`tools\build.cmd --test`，11 + 1258 个测试，高亮快照 19 项；`dotnet format --verify-no-changes` 通过。
 
 ## 下一步
 
-1. 接着加宽 Binder（semantic-analysis.md“实现状态”）：enum（含 `class enum` / `struct enum`、NYX2055 / 2056）和 `static let` 常量（ADR-0038，enum case 的值要用到常量求值）→ `match`（含 `case null`、`case is T` 的收窄）→ lambda 和泛型推断（LINQ；带上 ADR-0042 的“被捕获的 `var` 不收窄”）→ 继承和接口、扩展 → `try`、`using`、`eval`、`with` → 运算符（含 struct 的 `==`，ADR-0030）、索引器、事件 → 协程。
-2. 让 samples/ 能完整地绑定：给假想的 `Engine` API 写一个只有签名的 C# 桩程序集。
-3. 警告：命名检查（ADR-0006、0035）、文档注释的检查（ADR-0035）、对不会是 null 的引用类型做 null 检查（ADR-0041）。
+1. **和用户讨论带数据的 enum 在 C# 那边的样子**（ADR-0024、0029 留下的）：`class enum` 的基类和子类、`struct enum` 的布局，C# 怎么判断是哪个 case、怎么取数据（ADR-0029 后果里的候选：内嵌一个 `Kind` 枚举加属性）。定了以后实现 `struct enum` / `class enum`。
+2. 接着加宽 Binder（semantic-analysis.md“实现状态”）：`match`（含 `case null`、`case is T` 的收窄、`case` 标签引用常量、flags enum 要 `case _`、.NET 枚举的别名 case）→ lambda 和泛型推断（LINQ；带上 ADR-0042 的“被捕获的 `var` 不收窄”）→ 继承和接口、扩展 → `try`、`using`、`eval`、`with` → 运算符（含 struct 的 `==`，ADR-0030）、索引器、事件 → 协程。
+3. 公开成员用了 `internal` 的类型（C# 的 CS0051）现在漏到 Roslyn，按内部错误报出：补一条 Nyxel 自己的检查。
+4. 让 samples/ 能完整地绑定：给假想的 `Engine` API 写一个只有签名的 C# 桩程序集。
+5. 警告：命名检查（ADR-0006、0035）、文档注释的检查（ADR-0035）、对不会是 null 的引用类型做 null 检查（ADR-0041）。
 
 ## 悬而未决
 

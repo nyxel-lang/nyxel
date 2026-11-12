@@ -5,12 +5,22 @@ using SpecialType = Microsoft.CodeAnalysis.SpecialType;
 
 namespace Nyxel.Compiler.Binding;
 
-/// <summary>What every part of binding shares: the symbols of the compilation and where diagnostics go.</summary>
+/// <summary>
+/// What every part of binding shares: the symbols of the compilation, where diagnostics go, the scope of each file
+/// and the values of constants.
+/// </summary>
 internal sealed class BinderContext(SymbolTable table, DiagnosticBag diagnostics)
 {
+    private ConstantEvaluator? _constants;
+
     public SymbolTable Table => table;
 
     public DiagnosticBag Diagnostics => diagnostics;
+
+    /// <summary>The scope of each file, filled in by the import pass.</summary>
+    public Dictionary<SyntaxTree, ImportScope> Scopes { get; } = new(ReferenceEqualityComparer.Instance);
+
+    public ConstantEvaluator Constants => _constants ??= new ConstantEvaluator(this);
 
     public NamedTypeSymbol GetSpecialType(SpecialType type) => table.GetSpecialType(type);
 

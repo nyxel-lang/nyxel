@@ -82,7 +82,8 @@ public sealed class NyxelCompilation
         var result = Symbols.References.AddSyntaxTrees(tree).Emit(
             peStream,
             pdbStream,
-            embeddedTexts: embedded,
+            // The sources go into the PDB, so there is nowhere to put them without one.
+            embeddedTexts: pdbStream is null ? null : embedded,
             options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb));
         if (result.Success)
         {
@@ -115,29 +116,33 @@ public sealed class NyxelCompilation
             var declared = new Declarer(context).Declare(SyntaxTrees, OutputKind != CodeAnalysis.OutputKind.DynamicallyLinkedLibrary);
             var bodies = new Dictionary<SourceMethodSymbol, BoundBlock>(ReferenceEqualityComparer.Instance);
             var initializers = new Dictionary<Symbol, BoundExpression>(ReferenceEqualityComparer.Instance);
+            var defaultValues = new Dictionary<ParameterSymbol, BoundExpression>(ReferenceEqualityComparer.Instance);
             foreach (var type in declared.Types)
             {
                 var scope = declared.Scopes[type.SyntaxTree];
+                // Initial values that constants needed are bound already (ADR-0038); the rest are bound now.
                 foreach (var member in type.GetMembers())
                 {
-                    switch (member)
+                    if (member is SourceFieldSymbol or SourcePropertySymbol { IsAuto: true } && context.Constants.Initializer(member) is { } initializer)
                     {
-                        case SourceFieldSymbol { Syntax.Initializer: { } initializer } field:
-                            initializers.Add(field, new MethodBinder(context, scope, type, null).BindInitializer(initializer, field.Type));
-                            break;
-                        case SourcePropertySymbol { IsAuto: true, Syntax.Initializer: { } initializer } property:
-                            initializers.Add(property, new MethodBinder(context, scope, type, null).BindInitializer(initializer, property.Type));
-                            break;
+                        initializers.Add(member, initializer);
                     }
                 }
                 foreach (var method in MethodsWithBodies(type))
                 {
+                    foreach (var parameter in method.Parameters.OfType<SourceParameterSymbol>())
+                    {
+                        if (parameter.Syntax is ParameterSyntax { Default: { } defaultValue })
+                        {
+                            defaultValues.Add(parameter, new MethodBinder(context, scope, type, null).BindDefaultValue(defaultValue, parameter.Type));
+                        }
+                    }
                     var body = new MethodBinder(context, scope, type, method).BindBody();
                     bodies.Add(method, body);
                     CheckFlow(context, type, method, body);
                 }
             }
-            _program = new BoundProgram(declared, bodies, initializers, diagnostics.ToImmutable());
+            _program = new BoundProgram(declared, bodies, initializers, defaultValues, diagnostics.ToImmutable());
         }
         return _program;
     }
@@ -186,6 +191,7 @@ internal sealed class BoundProgram(
     DeclaredProgram declared,
     IReadOnlyDictionary<SourceMethodSymbol, BoundBlock> bodies,
     IReadOnlyDictionary<Symbol, BoundExpression> initializers,
+    IReadOnlyDictionary<ParameterSymbol, BoundExpression> defaultValues,
     ImmutableArray<Diagnostic> diagnostics)
 {
     public ImmutableArray<SourceNamedTypeSymbol> Types => declared.Types;
@@ -196,6 +202,9 @@ internal sealed class BoundProgram(
 
     /// <summary>The initial values of fields and auto properties.</summary>
     public IReadOnlyDictionary<Symbol, BoundExpression> Initializers => initializers;
+
+    /// <summary>The default values of parameters (<c>count: int = 1</c>), converted to their types.</summary>
+    public IReadOnlyDictionary<ParameterSymbol, BoundExpression> DefaultValues => defaultValues;
 
     public ImmutableArray<Diagnostic> Diagnostics => diagnostics;
 }

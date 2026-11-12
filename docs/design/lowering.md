@@ -42,8 +42,16 @@ ADR-0004 留下的选择：用列跟踪的文本写出器生成 C#，再 `CSharp
   - 访问器上的可见性只在比属性窄时写（`private set`）。
   - struct 的 `get` 是 `readonly`：只有 `get` 时 C# 要求写在属性上（`public readonly bool IsDead`，CS8664），有 `set` 时写在 `get` 上（`readonly get`）。
   - `set(v)` 的新值在 C# 里叫 `value`：名字不是 `value` 时，setter 开头加一行隐藏的 `int v = value;`。这个 setter 里叫 `value` 的局部变量和 C# 的撞名（CS0136），改写成 `value_1` 这类 setter 里没有的名字。
+- **不带数据的 enum**（ADR-0024、ADR-0029）：C# 的 `enum`，flags enum 加 `[global::System.Flags]`，底层类型不是 `int` 时写出来。每个 case 一行、映射到 case 的声明，值总是写成算好的数（`Solid = 3,`），C# 不用再按自己的规则算一遍。
+  - enum 里的函数和属性放进同一命名空间、同样可见性的 `static class 名字Extensions`：实例成员在 `extension(global::Game.Element self)` 块里，静态成员在 `extension(global::Game.Element)` 块里。C# 代码照样写 `element.Weakness()`、`Element.Parse("ice")`。
+  - 这些成员里的 `self` 写成接收者 `self`（Nyxel 的名字不会是 `self`，撞不了名）。
+  - Nyxel 代码调用它们一律经过这个类，写成 C# 为 extension 成员生成的静态方法：`global::Game.ElementExtensions.Weakness(e)`、`ElementExtensions.get_IsHot(e)`、`ElementExtensions.Parse("ice")`。因为生成的 C# 不写 `using`，extension 不在作用域里；而且 C# 查 `Element.Parse` 时先找到 `System.Enum.Parse`，轮不到扩展。
+  - enum 里的 `static let`（ADR-0045）是这个类的字段，值是常量时是 `const`；非私有的再在静态的 extension 块里加一个同名属性（`public static Tile Gate => global::Game.TileExtensions.Gate;`），C# 代码 `using` 了命名空间后写 `Tile.Gate`，`switch` 标签这种要常量的地方写 `TileExtensions.Gate`。Nyxel 代码读它写 `global::Game.TileExtensions.Gate`。
+  - `x is Element.Fire` 是 C# 的常量模式 `x is global::Game.Element.Fire`，对 `Element?` 和 `object` 的值也是同样的意思；别名写成 `x is global::Game.TileExtensions.Gate`。
+- **常量**（ADR-0038）：值是常量的 `static let` 写成 `const`（不写 `static`、`readonly`），初始值照原来的表达式写，C# 折叠出的值和 Binder 的相同。
+- **默认参数值**：照表达式写在参数后面（`int count = global::Game.Spawner.DefaultCount`）。`null` 写成 `null`，放进 `int?` 的常量写成常量本身（`int? n = 3`）：C# 在这里只认常量、`null` 和 `new S()`，`(int?)3` 不算常量。
 - **调用**：实参按源码顺序写，源码里带名字的照样带名字（`point: x`），省略的可选参数交给 C# 填。C# 也按源码顺序求值，和 Nyxel 一致。
-- **转换**：数值转换（包括隐式的，比如 `int` 到 `float`）一律写成强制转换 `(float)x`，这样 C# 选的运算和重载一定是 Binder 选的那个；引用转换、装箱不写。`as` 是 `(T)x`。
+- **转换**：数值转换（包括隐式的，比如 `int` 到 `float`）一律写成强制转换 `(float)x`，这样 C# 选的运算和重载一定是 Binder 选的那个；引用转换、装箱不写。`as` 是 `(T)x`，enum 和整数之间也是（`(int)e`、`(global::Game.Element)2`）。
 - **字面量**：按绑定后的类型写后缀：`1u`、`1L`、`0.5f`（`R` 格式，往返精确）、`0.5d`、`0.5m`，`byte` 等写成 `(byte)200`；负数加括号。字面量算式在绑定时已经折叠成一个值，`let x: float = 1.5 * 2` 生成 `3f`。
 - **运算符**按 C# 的优先级只在需要时加括号；`- -x` 写成 `-(-x)`，不会变成 `--x`。`and` / `or` 是 `&&` / `||`。
 - **插值字符串**是 C# 的 `$"..."`；每个洞的表达式外面加括号，避免 `global::` 里的 `:` 被当成格式的开头。

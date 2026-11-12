@@ -209,6 +209,7 @@ public class ParserErrorTests
     [InlineData("enum E {\n    func F(self) { }\n    case A\n}\n", "NYX1205 3:5")]
     [InlineData("enum E {\n    case A\n    Fire\n}\n", "NYX1101 3:5")]
     [InlineData("enum E {\n    case A\n    var x: int = 0\n}\n", "NYX1206 3:5")]
+    [InlineData("enum E {\n    case A\n    static var x: int = 0\n}\n", "NYX1206 3:5")]
     [InlineData("enum E {\n    case A\n    init() { }\n}\n", "NYX1206 3:5")]
     [InlineData("enum E {\n    case A\n    event Changed()\n}\n", "NYX1206 3:5")]
     [InlineData("enum E {\n    case A\n    property P: int { get }\n}\n", "NYX1206 3:5")]

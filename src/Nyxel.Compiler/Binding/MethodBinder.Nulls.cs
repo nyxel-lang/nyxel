@@ -202,7 +202,21 @@ internal sealed partial class MethodBinder
             Report(DiagnosticDescriptors.IsNullableType, syntax.Type, nullable.ElementType.ToString());
             return Bad(syntax, operand);
         }
-        var type = _scope.BindType(syntax.Type);
+        var isNegated = syntax.NotKeyword is { IsMissing: false };
+        if (CaseNamedBy(syntax.Type, out var hadErrors) is { } enumCase)
+        {
+            if (operand.HasErrors)
+            {
+                return Bad(syntax, operand);
+            }
+            if (operand.Type is NullTypeSymbol || !Conversions.CanBe(operand.Type, enumCase.ContainingType))
+            {
+                Report(DiagnosticDescriptors.IsNeverTrue, syntax, SymbolDisplay.FormatType(operand.Type), SymbolDisplay.Format(enumCase));
+                return Bad(syntax, operand);
+            }
+            return new BoundIsCase(syntax, operand, enumCase, isNegated, _context.Bool);
+        }
+        var type = hadErrors ? ErrorTypeSymbol.Instance : _scope.BindType(syntax.Type);
         if (operand.HasErrors || type.IsError)
         {
             return Bad(syntax, operand);
@@ -212,7 +226,7 @@ internal sealed partial class MethodBinder
             Report(DiagnosticDescriptors.IsNeverTrue, syntax, SymbolDisplay.FormatType(operand.Type), SymbolDisplay.FormatType(type));
             return Bad(syntax, operand);
         }
-        return new BoundIsType(syntax, operand, type, syntax.NotKeyword is { IsMissing: false }, _context.Bool);
+        return new BoundIsType(syntax, operand, type, isNegated, _context.Bool);
     }
 
     // ?. ---------------------------------------------------------------------------------------------------------

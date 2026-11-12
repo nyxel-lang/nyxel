@@ -105,6 +105,11 @@ internal sealed partial class MethodBinder
                 Report(DiagnosticDescriptors.IndexCount, syntax.ArgumentList, SymbolDisplay.FormatType(array), array.Rank, arguments.Length);
                 return Bad(syntax);
             }
+            if (EnumLacksZero(array.ElementType))
+            {
+                Report(DiagnosticDescriptors.ArrayOfEnumWithoutZero, syntax.Type, SymbolDisplay.FormatType(array), SymbolDisplay.FormatType(array.ElementType));
+                return Bad(syntax);
+            }
             if (!ZeroIsValid(array.ElementType))
             {
                 Report(DiagnosticDescriptors.ArrayElementsStartNull, syntax.Type, SymbolDisplay.FormatType(array), SymbolDisplay.FormatType(array.ElementType));

@@ -1,6 +1,6 @@
 # ADR-0029: 索引器 `property self[...]`、enum 里写成员和实现接口、不加 `field` 和事件访问器
 
-- 状态：已接受（2026-11-10 修订）
+- 状态：已接受（2026-11-12 修订）
 - 日期：2026-10-16
 
 ## 背景
@@ -124,7 +124,7 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
    ```
 
    - 先写全部 case，再写成员。case 写在成员后面是编译错误（NYX1205）。
-   - 能写：实例方法、静态函数、计算属性（含 `static property`）。不能写：字段、`init`、自动属性、事件、索引器（NYX1206）。enum 的值就是它的 case（加上 case 的数据），没有别的存储。
+   - 能写：实例方法、静态函数、计算属性（含 `static property`）、`static let`（ADR-0045：case 的别名、和 enum 有关的常量）。不能写：实例字段、`static var`、`init`、自动属性、事件、索引器（NYX1206）。enum 的值就是它的 case（加上 case 的数据），没有别的存储；`static let` 不是值的一部分。
    - 不能写 `var self`（NYX1208）：enum 的值创建以后不能改（ADR-0024）。
    - 不能写 `protected`、`virtual`、`abstract`、`sealed`、`override`（NYX1207）：enum 不能被继承。
    - 四种 enum（普通、flags、带数据、`struct enum`）都一样。
@@ -182,6 +182,7 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
   - C# 14 才有，资料少，Agent 容易写错；局部变量叫 `field` 很常见（EnginePlayground 里就有 `var field = FindField(...)`），当关键字会冲突。
 - **事件访问器：同 C#，`event Clicked() { add(handler) { ... } remove(handler) { ... } }`**。和 ADR-0017 的自动绑定冲突：`+=` 交给 `add` 的是编译器生成的包装函数（检查绑定对象是否还活着），再转手 `+=` 给别的事件时，绑定和热重载清理登记在哪一层都要另外定义。用途少，转发用决策 3 的写法，`emit` 和自动绑定照常。
 - **enum 的方法：保持现状，只用扩展**。规则不变，但 enum 的定义和行为分在两处，读的人要另外去找。Swift、Kotlin、Java、Rust（`impl`）都能在 enum 上写方法，Agent 也会这么写。
+- **enum 里一律不能写字段，`static let` 也不行**（原来的决定）：enum 的值没有别的存储，规则简单。2026-11-12 改成能写 `static let`：ADR-0040 要求两个值相同的 case 改写成 `static let` 别名，可这个别名照原来的规则写不进 enum，和 enum 有关的常量也只能放到别处，见 ADR-0045。
 - 实现接口：
   - **不带数据的 enum 不能实现接口**（原推荐）：C# 那边永远是真正的 enum，但要实现接口只能包一层别的类型。用户提出换成 struct 来实现。
   - **普通 `enum` 写了接口就自动翻译成 struct**（用户提的另一种）：不用改关键字。但只加一个接口，C# 那边的类型就从 enum 变成 struct，手写的 C# 里的 `switch`、`(int)e` 全部编译不过，读 Nyxel 代码看不出来，违背 ADR-0003 的第 1 条。
@@ -209,3 +210,4 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
 
 - 2026-11-04：例子里的 `self == Element.Fire` 改成 `self is Element.Fire`（判断 case 一律 `is`），见 ADR-0040。
 - 2026-11-10：例子里的 `public init` 去掉 `public`，见 ADR-0042。
+- 2026-11-12：决策 4 的 enum 里能写 `static let`（原来一律不能写字段），见 ADR-0045。

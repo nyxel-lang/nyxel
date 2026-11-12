@@ -36,7 +36,7 @@ Symbol（Name、Kind、ContainingSymbol、Accessibility、Locations）
 │   ├─ TupleTypeSymbol、FunctionTypeSymbol（func(A) -> R）
 │   └─ ErrorTypeSymbol      出过错的地方，见“诊断”
 ├─ MethodSymbol             func、init、运算符、访问器、lambda
-├─ FieldSymbol、PropertySymbol、EventSymbol、EnumCaseSymbol
+├─ FieldSymbol、PropertySymbol、EventSymbol   不带数据的 enum case 是 enum 的常量字段，同 C#
 └─ ParameterSymbol、LocalSymbol
 ```
 
@@ -196,8 +196,8 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - `Symbols/`：`Symbol` 和各种类型、成员；`SymbolTable` 包装 Roslyn 读出的元数据，管数组类型；源码符号在 `SourceSymbols.cs`；`SymbolDisplay` 用 Nyxel 的写法显示名字。
 - `Binding/`：`Declarer`（第 1 到 4 遍）、`ImportScope`、`MethodBinder`（第 5 遍，按语句、表达式、调用分文件）、`Conversions`、`FlowAnalysis`、绑定树的节点和打印。
 - `NyxelCompilation`：`Create`、`GetDiagnostics`、`EmitCSharp`、`Emit`。
-- 语义诊断 NYX2001 到 NYX2081（diagnostics.md“语义”；NYX2055、2056 已分配给 ADR-0040，还没实现）。
-- 测试：`BinderTests`、`SemanticErrorTests`、`NullSafetyTests`、`PropertyAndStructTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
+- 语义诊断 NYX2001 到 NYX2086（diagnostics.md“语义”）。
+- 测试：`BinderTests`、`SemanticErrorTests`、`NullSafetyTests`、`PropertyAndStructTests`、`EnumAndConstantTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
 
 ### 空值和收窄（2026-11-06）
 
@@ -240,15 +240,36 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
   - 检查过的 `S?` 局部变量读出来是 `Nullable<S>` 里那个值的副本，改它报 NYX2080（原来给它的字段赋值报“还不支持”）。
   - C# 里没标 `readonly` 的 struct 方法（`MethodSymbol.IsReadOnly` 读 Roslyn 的同名属性）只在单独成一条语句、值没用上时查（`BindExpressionStatement` 里的 `CheckUnusedCall`，ADR-0032 决策 3）。
 
+### enum 和常量（2026-11-12，ADR-0024、ADR-0029、ADR-0038、ADR-0040、ADR-0045）
+
+- **不带数据的 enum**：第 1 遍和 class 一起声明（`SourceNamedTypeSymbol` 的语法也可以是 `EnumDeclarationSyntax`），`TypeKind.Enum`，基类是 `System.Enum`（`HasFlag`、`ToString` 由此而来）；第 3 遍定底层类型，冒号后面的整数类型，没写是 `int`。`struct enum` / `class enum` 还报 NYX2001。
+  - case 是 enum 类型的常量字段（`SourceEnumCaseSymbol`），和 Roslyn 读出的 .NET 枚举成员一个样子：`Element.Fire`、`ConsoleColor.Red` 都绑定成 `BoundFieldAccess`，`ConstantValue` 是底层类型的值。
+  - case 的值第一次被问到时才算（见下面的 `ConstantEvaluator`）：写了值的，按底层类型作期望的类型绑定那个表达式，结果是整数常量或者本 enum 的常量（`Layer.Ground | Layer.Water`），值放得进底层类型就行。这同 C#：`byte` 的 enum 里 `case A = 1 << 3` 可以，虽然 `1 << 3` 是 `int`。没写值的按位置从 0 数。第 4 遍之后（所有成员的签名都有了）`Declarer.CheckCaseValues` 把每个 case 的值算一遍，同时查 NYX2056。
+  - 成员：函数、静态函数、计算属性同 class，`self` 的类型是 enum 本身。带 `set` 的属性还报 NYX2001（C# 那边是 extension 属性，给它赋值要另外降级）。enum 里的 `Main` 不算程序入口：extension 成员当不了入口。
+  - `static let`（ADR-0045）同 class 里的，别的字段 Parser 已经报了（NYX1206）。类型是这个 enum、值是常量的是**别名**（`IsCaseName`）：和 case 一样能写在 `is` 后面、写在 `==` 一边报 NYX2055；它不是 case（`Cases` 里没有它），不参与 NYX2056。值不是常量的写在 `is` 后面报 NYX2082。
+- **运算**（`MethodBinder.Constants.cs` 的 `ResolveEnumBinary`）：同一个 enum 的两个值 `==` / `!=`，`E?` 同 `int?` 提升（ADR-0041）；`<` `>` `<=` `>=` 按底层的值比，`E?` 不能比（ADR-0045）；`&`、`|`、`^`、`~` 只给 flags enum 和 .NET 的枚举，Nyxel 的普通 enum 报 NYX2084。enum 和整数或 enum 之间的算术、移位报 NYX2087（`ReportEnumArithmetic`，.NET 的枚举也算），消息给出 `as int` 的写法。`"e: " + e` 是字符串拼接，在 enum 的分支之前处理。
+- **`x is 类型.Case`**：`BindIs` 先看 `is` 后面的限定名，左边是 enum、右边是它的常量时（`CaseNamedBy`），绑定成 `BoundIsCase`，降级成 C# 的常量模式。它不收窄（ADR-0024）。`==` / `!=` 的一边在语法上是成员访问、绑定出来是 case 或别名时报 NYX2055（`ReportCaseComparedWithEquals`，ADR-0045 起两边都查）。
+- **`as`**：enum 和整数类型（不含 `char`）之间是 `ExplicitEnum` 转换，两边都是 `T?` 时也行（ADR-0014）。
+- **数组**：Nyxel 的非 flags enum 没有值为 0 的 case 时，`new array<E>(n)` 报 NYX2085；有 case 的值本身出了错时不报，免得连带。
+- **常量折叠**（ADR-0038）：`BoundExpression.ConstantValue` 同 Roslyn，字面量、常量字段、enum case，以及它们的一元、二元运算和数值 / enum 转换都有值。`MakeUnary`、`MakeBinary`、`MakeConversion` 建节点时调 `ConstantFolder`：
+  - 规则同 C# 的常量表达式，默认 checked：整数溢出（含 `int.MinValue / -1`、`-int.MinValue`）、`decimal` 溢出、显式转换放不下（`300 as byte`、`1e20 as int`、NaN）报 NYX2024；整数和 `decimal` 除以常量零报 NYX2025，左边不是常量也报（C# 的 CS0020）。移位的位数按宽度取低 5 / 6 位，左移溢出不报；浮点按 IEEE 算，得到无穷不报。
+  - 只有 `string + string` 和字符串的 `==` / `!=` 是常量，`"a" + 1` 不是；`T?`、装箱、引用转换不是常量。都同 C#。
+  - `EnumAndConstantTests.ConstantsFoldAsInCSharp` 把同一个表达式写成 Nyxel 和 C#，和 Roslyn 的 `GetConstantValue`、有没有错误逐个对照。
+  - 降级仍然写原来的表达式，C# 自己再折叠一遍，结果相同。只有 enum case 的值写成算好的数。
+- **`static let` 常量**：`SourceFieldSymbol.IsConst` 是静态、`let`、有初始值、类型能 `const`（数字、`bool`、`char`、`string`、`decimal`、enum），而且初始值折叠出了值。`ConstantEvaluator`（`BinderContext.Constants`）第一次被问到时绑定这个初始值并留下，第 5 遍直接用留下的结果，诊断只报一次。
+  - 被问到的时机：读这个字段的 `BoundFieldAccess.ConstantValue`，也就是别的常量运算、case 的值、默认参数值用到它的时候。符号经 `IConstantValues` 接口问，`Symbols/` 不依赖 `Binding/`。
+  - 初始值经过别的常量又用到自己时，再次进入的那一次得到“不是常量”，整个环于是都是 `static readonly`，按 C# 的规则依次初始化，不报错（C# 的 `static readonly` 同样允许）。只有 enum case 成环报 NYX2083：case 的值必须是常量。
+- **默认参数值**：第 4 遍只查顺序（NYX2086），值在第 5 遍和函数体一起绑定（`BindDefaultValue`，存进 `BoundProgram.DefaultValues`）。同 C#，可以是常量、`T?` 的 `null`、放进 `T?` 的常量、C# struct 的全零 `new S()`；最后一种要选中的构造函数是 Roslyn 给元数据里的 struct 补的那个（`IsImplicitlyDeclared`），struct 自己声明的无参构造函数会执行代码，当不了默认值。其余报 NYX2082，引用了不是常量的 `static let` 时说出是哪一个。
+
 和设计不同、或者还没做到的：
 
 - 被 lambda 捕获的 `var` 不收窄（ADR-0042 决策 2）还没实现：Binder 还不支持 lambda，随“lambda 和泛型推断”一步做，做法见“流分析”。
 - 元数据的类型只看 public 的；嵌套类型、泛型方法、扩展方法、事件、`params` 的展开形式还不支持。
 - C# 的 `[NotNullWhen]` 这类特性不读：`if string.IsNullOrEmpty(s) { return }` 之后 `s` 仍是 `string?`。收窄只来自 ADR 列的几种写法。
-- `match` 的 `case null`、`case is T` 收窄随 `match` 一步做。
-- enum 还没进 Binder。进来时要带上 ADR-0040 的两条：`x == 类型.Case` / `!=` 报 NYX2055（建议 `is` / `is not`），Nyxel 声明的 enum 两个 case 同一个值报 NYX2056（.NET 的枚举照收，`match` 里两个别名都列出来时报重复）。
+- `match` 的 `case null`、`case is T` 收窄随 `match` 一步做；`match` 里两个 .NET 枚举的别名 case 都列出来时报重复（ADR-0040），`case` 标签引用常量（ADR-0038），也随 `match` 做。
+- 带数据的 enum（`struct enum`、`class enum`）还报 NYX2001：C# 那边怎么判断是哪个 case、怎么取数据还没定（ADR-0024、ADR-0029 留下的）。
+- 公开的成员用了 `internal` 的类型（`public func F(e: Element)`，`Element` 没写 `public`）还没有检查，到 Roslyn 报 CS0051，按 NYX2053 内部错误出来。
 - struct 的 `==` 还不能用（NYX2021）：ADR-0030 的“struct 比内容”要编译器生成 `Equals` / `GetHashCode` / `==`，随运算符一步做。`self = 新值`（在 `var self` 函数里整个换掉）照旧报 NYX2028。
-- `static let` 还没有常量求值：按 ADR-0038，初始值是常量表达式、类型能 `const` 的 `static let` 要生成 C# 的 `const`，默认参数值、`case` 标签、枚举值引用它时检查它是不是常量。需要给 `SourceFieldSymbol` 加 `ConstantValue`、一个常量表达式求值器（字面量折叠的 `Fold` 是它的雏形），随 enum 一步实现（case 的值也要它）。
 
 ## 写设计时定下的语言规则
 

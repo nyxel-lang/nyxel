@@ -51,20 +51,35 @@ internal static class Conversions
         return null;
     }
 
-    /// <summary>The conversions <c>as</c> makes beyond the implicit ones (ADR-0014): between numeric types.</summary>
+    /// <summary>
+    /// The conversions <c>as</c> makes beyond the implicit ones (ADR-0014): between numeric types, and between an
+    /// enum and a whole number.
+    /// </summary>
     public static ConversionKind? ClassifyExplicit(TypeSymbol from, TypeSymbol to)
     {
         if (ClassifyImplicit(from, to) is { } implicitConversion)
         {
             return implicitConversion;
         }
-        // Between numeric types; between two numeric T? too (long? as int?), but a T? never becomes a T.
-        if (from.IsNullable == to.IsNullable && IsNumeric(from.NonNullable.SpecialType) && IsNumeric(to.NonNullable.SpecialType))
+        // Between two T? too (long? as int?), but a T? never becomes a T.
+        if (from.IsNullable != to.IsNullable)
+        {
+            return null;
+        }
+        var (source, target) = (from.NonNullable, to.NonNullable);
+        if (IsNumeric(source.SpecialType) && IsNumeric(target.SpecialType))
         {
             return ConversionKind.ExplicitNumeric;
         }
+        if ((source.TypeKind == TypeKind.Enum && IsWholeNumber(target.SpecialType)) || (target.TypeKind == TypeKind.Enum && IsWholeNumber(source.SpecialType)))
+        {
+            return ConversionKind.ExplicitEnum;
+        }
         return null;
     }
+
+    /// <summary>The integer types, without <c>char</c>.</summary>
+    public static bool IsWholeNumber(SpecialType type) => IsIntegral(type) && type != SpecialType.System_Char;
 
     /// <summary>A conversion to a base class or an interface the other way round: the kind <c>as</c> can't make.</summary>
     public static bool IsDowncast(TypeSymbol from, TypeSymbol to) =>

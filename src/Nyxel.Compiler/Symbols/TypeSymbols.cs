@@ -117,6 +117,9 @@ public abstract class NamedTypeSymbol : TypeSymbol
 
     public virtual bool IsSealed => false;
 
+    /// <summary>For an enum, the integer type its values are stored as: <c>int</c> unless declared (ADR-0024).</summary>
+    public virtual NamedTypeSymbol? EnumUnderlyingType => null;
+
     /// <summary>The type parameters of the enclosing types, outermost first, then the type's own.</summary>
     internal ImmutableArray<TypeParameterSymbol> AllTypeParameters =>
         ContainingType is { } outer ? outer.OriginalDefinition.AllTypeParameters.AddRange(TypeParameters) : TypeParameters;
@@ -196,6 +199,8 @@ internal sealed class ConstructedNamedTypeSymbol : NamedTypeSymbol
     public override bool IsAbstract => _definition.IsAbstract;
 
     public override bool IsSealed => _definition.IsSealed;
+
+    public override NamedTypeSymbol? EnumUnderlyingType => _definition.EnumUnderlyingType;
 
     public override NamedTypeSymbol? BaseType => _definition.BaseType is { } baseType ? (NamedTypeSymbol)TypeMap.Substitute(baseType) : null;
 

@@ -54,6 +54,7 @@ internal static class BoundTreePrinter
             BoundForEach each => $"{each.Variable.Name}: {SymbolDisplay.FormatType(each.Variable.Type)}",
             BoundNullCheck check => check.IsNull ? "== null" : "!= null",
             BoundIsType isType => $"{(isType.IsNegated ? "is not" : "is")} {SymbolDisplay.FormatType(isType.TestedType)}",
+            BoundIsCase isCase => $"{(isCase.IsNegated ? "is not" : "is")} {SymbolDisplay.Format(isCase.Case)}",
             _ => "",
         };
         var type = node is BoundExpression { Type.IsError: false } expression and not BoundTypeExpression ? $": {SymbolDisplay.FormatType(expression.Type)}" : "";

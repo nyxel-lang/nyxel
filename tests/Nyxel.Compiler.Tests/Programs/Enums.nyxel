@@ -1,0 +1,115 @@
+namespace Programs
+
+import System
+
+/// One of several choices; the cases count from 0 (ADR-0024).
+enum Element {
+    case Fire
+    case Ice
+    case Lightning
+
+    /// Functions and computed properties come after the cases (ADR-0029).
+    public func Weakness(self) -> Element {
+        if self is Element.Fire {
+            return Element.Ice
+        }
+        if self is Element.Ice {
+            return Element.Lightning
+        }
+        return Element.Fire
+    }
+
+    public property IsHot: bool { get = self is Element.Fire }
+
+    /// Another name for a case (ADR-0045).
+    public static let Default: Element = Element.Fire
+
+    public static func Parse(text: string) -> Element? {
+        if text == "fire" {
+            return Element.Fire
+        }
+        if text == "ice" {
+            return Element.Ice
+        }
+        return null
+    }
+}
+
+/// Values that match the engine: every case written, stored as a byte.
+enum CookedType : byte {
+    case Mesh = 1
+    case Texture = 2
+    case Material = Assets.MaterialCode
+}
+
+/// Cases in order: they compare by their values (ADR-0045).
+enum Level {
+    case Debug
+    case Info
+    case Warning
+    case Error
+}
+
+/// Values that combine (ADR-0024).
+flags enum Layer {
+    case None = 0
+    case Ground = 1
+    case Water = 1 << 1
+    case Air = 1 << 2
+    case Solid = Layer.Ground | Layer.Water
+}
+
+class Assets {
+    /// A static let with a constant value is a C# const (ADR-0038).
+    public static let MaterialCode: int = 3
+    static let DefaultCount: int = 2
+    static let Twice: int = Assets.DefaultCount * 2
+    static let Prefix: string = "asset" + "-"
+    static let Start: Element = Element.Ice
+
+    /// Constants as default values.
+    static func Name(index: int = Assets.Twice, element: Element = Assets.Start, suffix: string? = null) -> string =
+        $"{Assets.Prefix}{index}-{element}{suffix ?? ""}"
+
+    static func Main() {
+        let e = Element.Fire
+        Console.WriteLine($"{e} is weak to {e.Weakness()}")
+        Console.WriteLine($"hot: {e.IsHot}, {e.Weakness().IsHot}")
+        Console.WriteLine(Element.Parse("ice") ?? Element.Lightning)
+        Console.WriteLine(Element.Parse("mud") ?? Element.Lightning)
+        Console.WriteLine(e is Element.Fire and e is not Element.Ice)
+        Console.WriteLine(e == e.Weakness().Weakness().Weakness())
+
+        // Between enums and whole numbers: as (ADR-0014).
+        Console.WriteLine(Element.Lightning as int)
+        Console.WriteLine(1 as Element)
+        Console.WriteLine(CookedType.Material as int)
+
+        var mask = Layer.Ground | Layer.Air
+        Console.WriteLine(mask)
+        Console.WriteLine(mask.HasFlag(Layer.Air))
+        mask |= Layer.Water
+        mask &= ~Layer.Ground
+        Console.WriteLine(mask)
+        Console.WriteLine(Layer.Solid as int)
+
+        Console.WriteLine(Assets.Name())
+        Console.WriteLine(Assets.Name(7, Element.Fire, "!"))
+        Console.WriteLine(Assets.Name(suffix = ".png"))
+
+        // Comparing goes by the values; calculating goes through the number (ADR-0045).
+        let level = Level.Warning
+        Console.WriteLine(level >= Level.Info and level < Level.Error)
+        Console.WriteLine((level as int + 1) as Level)
+        Console.WriteLine(e is Element.Default)
+
+        // .NET's enums work the same way.
+        let color = ConsoleColor.Red
+        Console.WriteLine(color is ConsoleColor.Red)
+        Console.WriteLine(color as int)
+
+        // Zero is the first case, so an array can start with it.
+        let elements = new array<Element>(2)
+        Console.WriteLine(elements[1])
+    }
+}

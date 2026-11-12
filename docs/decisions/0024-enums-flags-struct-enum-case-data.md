@@ -33,7 +33,7 @@
    ```
    - 都不写时按声明顺序 0、1、2，同 C#。
    - 值是整数常量，可以用运算组合：`1 << 3`、`Layer.Ground | Layer.Water`。引用别的 case 也写类型名（ADR-0008 的静态成员规则）。
-   - 两个 case 不能是同一个值（含 flags enum，ADR-0040）：case 是“几选一”，别名写成 `static let Old: E = E.New`。.NET 的枚举有别名照收，`match` 里两个别名都列出来时报错。
+   - 两个 case 不能是同一个值（含 flags enum，ADR-0040）：case 是“几选一”，别名写成 `static let Old: E = E.New`，写在 enum 里（ADR-0045）。.NET 的枚举有别名照收，`match` 里两个别名都列出来时报错。
    - 带数据的 enum 和 `struct enum` 不能写值。
 2. **底层类型写在冒号后面，同 C#**：`enum Tile : byte`。
    - 只能是 `byte`、`sbyte`、`short`、`ushort`、`int`、`uint`、`long`、`ulong` 之一，不写是 `int`。

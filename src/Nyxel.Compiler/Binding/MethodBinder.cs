@@ -169,7 +169,7 @@ internal sealed partial class MethodBinder
             {
                 return Bad(syntax ?? expression.Syntax, expression);
             }
-            return new BoundConversion(syntax ?? expression.Syntax, expression, conversion, target, isExplicit: false);
+            return MakeConversion(syntax ?? expression.Syntax, expression, conversion, target, isExplicit: false);
         }
         var location = syntax ?? expression.Syntax;
         if (expression.Type is NullTypeSymbol)

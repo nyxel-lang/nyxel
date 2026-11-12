@@ -109,7 +109,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX1202` | 索引器写了初始值、`static`，或写在扩展里（C# 14 的 extension 块不支持） | `property self[i: int]: int = 0 { get }`、`static property self[...]` |
 | `NYX1203` | 事件、索引器或运算符的参数写了默认值，索引器或运算符的参数是 `out` / `ref` | `event Died(slime: Slime = null)`、`property self[i: out int]`、`operator %(a: S, b: S = 1)` |
 | `NYX1205` | enum 的 case 写在成员后面（ADR-0029：先写全部 case） | `func F(self) { }` 之后的 `case A` |
-| `NYX1206` | enum 里写了字段、`init`、事件、索引器或自动属性 | case 后面的 `var x: int = 0` |
+| `NYX1206` | enum 里写了实例字段、`static var`、`init`、事件、索引器或自动属性（`static let` 可以，ADR-0045） | case 后面的 `var x: int = 0` |
 | `NYX1207` | enum 的成员写了 `protected`、`virtual`、`abstract`、`sealed`、`override` | `public override func ToString(self)` |
 | `NYX1208` | enum 的函数写了 `var self` | `func F(var self)` 写成 `func F(self)` |
 | `NYX1209` | 不带数据的 `enum` 写了接口（C# 的 enum 不能实现接口） | `enum E : IFoo { case A }` 写成 `struct enum E : IFoo` |
@@ -213,8 +213,8 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2021` | 二元运算符不能用在这两个类型上 | `true + 1`、`"a" < "b"` |
 | `NYX2022` | 一元运算符不能用在这个类型上 | `-"a"`、`not 1` |
 | `NYX2023` | 要整数的地方写了小数字面量（ADR-0013） | `let b: int = self.wave * 1.5` |
-| `NYX2024` | 常量超出类型的范围（ADR-0014） | `let b: byte = 300` |
-| `NYX2025` | 常量除以零 | `let x = 1 / 0` |
+| `NYX2024` | 常量超出类型的范围（ADR-0014）：字面量、常量的运算溢出（同 C#，ADR-0038）、enum case 的值放不进底层类型 | `let b: byte = 300`、`int.MaxValue + 1`、`enum E : byte { case A = 256 }` |
+| `NYX2025` | 整数或 `decimal` 除以常量零（同 C#，左边不是常量也算） | `let x = 1 / 0`、`count / 0` |
 | `NYX2026` | 给 `let` 重新赋值（ADR-0006）；`let` 字段只能在声明处和 `init` 里赋值 | 改成 `var` |
 | `NYX2027` | 给参数赋值（ADR-0014） | 先 `var x = 参数` |
 | `NYX2028` | 赋值的左边不能赋值 | `1 = x`、`self.Name() = x` |
@@ -244,8 +244,8 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2052` | 不能用 `[...]` 取元素的值 | `count[0]` |
 | `NYX2053` | 编译器内部错误：降级出的 C# 编译不过（ADR-0004 的兜底）。出现一次说明前端漏了一项检查 | 报告这个问题 |
 | `NYX2054` | 整数字面量相除放在按浮点算的字面量表达式里（ADR-0038）：整数除法会截断 | `let x: float = 1 / 2` 写成 `1.0 / 2` |
-| `NYX2055` | `==` / `!=` 右边直接写 enum case（ADR-0040；还没实现，等 enum 进 Binder） | `state == SlimeState.Idle` 写成 `state is SlimeState.Idle` |
-| `NYX2056` | 两个 case 同一个值（ADR-0040；还没实现，等 enum 进 Binder） | `case Old = 1` 和 `case New = 1`：后一个写成 `static let Old: E = E.New` |
+| `NYX2055` | `==` / `!=` 的一边直接写 enum case（ADR-0040、ADR-0045），.NET 的枚举和 enum 里的别名也算 | `state == SlimeState.Idle`、`SlimeState.Idle == state` 写成 `state is SlimeState.Idle` |
+| `NYX2056` | Nyxel 声明的 enum 里两个 case 同一个值（ADR-0040），报在后一个上 | `case Old = 1` 和 `case New = 1`：后一个写成 `static let Old: E = E.New` |
 | `NYX2057` | 没检查就用了 `T?` 的值（ADR-0009、ADR-0041）：成员（`int?` 的 `.Value`、`.HasValue` 也算）、下标、`for ... in`、`==` / `!=` 以外的运算符 | 局部变量 `if x != null { ... }`；字段、调用结果 `let x = self.target ?? return`；或者 `?.`、`??` |
 | `NYX2058` | `T?` 的值用在要 `T` 的地方（ADR-0009） | `let t: string = Console.ReadLine()` 写成 `... ?? return` 或 `... ?? ""` |
 | `NYX2059` | `null` 给了不能为 null 的类型（ADR-0009） | `let t: string = null` 写成 `string?` |
@@ -271,6 +271,12 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2079` | struct 直接或经别的 struct 包含自己（`S?` 也算） | `struct Node { var next: Node? = null }`：把它改成 class |
 | `NYX2080` | 在 struct 的副本上改（ADR-0032、ADR-0044）：属性、普通索引器、函数返回的 struct 上给字段或属性赋值、调用 `var self` 函数 | `self.healths[0].Damage(5)`：先 `var h = self.healths[0]`，改完写回 |
 | `NYX2081` | 改只读的 struct（ADR-0008、ADR-0032、ADR-0044）：`let` 局部变量和字段、参数、`for` 的变量、`self` 函数和 `get` 里的 `self`；也包括在这些值上调用没标 `readonly`、又不用返回值的 C# 方法 | `let h = new Health()` 后 `h.Damage(5)`：写成 `var h` |
+| `NYX2082` | 要编译期常量的地方不是常量（ADR-0038）：enum case 的值、参数的默认值、`is` 后面 enum 里的 `static let`（ADR-0045）。引用了初始值不是常量表达式的 `static let` 时说明是哪一个 | `case A = Config.Seed`（`static let Seed: int = Environment.TickCount`）；`func F(n: int = Math.Max(1, 2))` |
+| `NYX2083` | enum case 的值经过别的 case 又用到自己 | `case A = E.B as int` 和 `case B = E.A as int` |
+| `NYX2084` | 不是 flags enum 的 Nyxel enum 用了 `&`、`\|`、`^`、`~`（ADR-0024：结果不是任何一个 case）。.NET 的枚举照 C# 都能用 | 声明成 `flags enum` |
+| `NYX2085` | 没有值为 0 的 case 的 enum 的数组直接 `new`（ADR-0024：全零不是任何一个 case）。flags enum 和 .NET 的枚举可以 | `new array<CookedType>(8)` 写成用 `element` 给出每个元素 |
+| `NYX2086` | 没有默认值的参数写在有默认值的后面（同 C#） | `func F(a: int = 1, b: int)` 把 `b` 挪到前面 |
+| `NYX2087` | enum 的值做算术（`+ - * / %`、移位，ADR-0045：结果可能不是任何一个 case），.NET 的枚举也算 | `level + 1` 写成 `(level as int + 1) as Level` |
 
 ## 不在语法阶段报的
 

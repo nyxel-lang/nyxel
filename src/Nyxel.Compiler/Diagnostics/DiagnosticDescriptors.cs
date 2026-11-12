@@ -267,7 +267,7 @@ public static class DiagnosticDescriptors
         Error("NYX1205", "Write all the cases of an enum before its other members.");
 
     public static readonly DiagnosticDescriptor EnumMemberKind =
-        Error("NYX1206", "An enum's values are its cases, so it can't have {0}; it can have functions and computed properties.");
+        Error("NYX1206", "An enum's values are its cases, so it can't have {0}; it can have functions, computed properties and 'static let'.");
 
     public static readonly DiagnosticDescriptor EnumMemberModifier =
         Error("NYX1207", "An enum can't be inherited, so its members can't be '{0}'.");
@@ -603,6 +603,12 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor IntegerLiteralDivisionInDecimal =
         Error("NYX2054", "'{0}' divides whole numbers, which truncates, inside a decimal calculation; write '{1}' to divide as decimals.");
 
+    public static readonly DiagnosticDescriptor CaseComparedWithEquals =
+        Error("NYX2055", "'{0}' is a case of '{1}'; whether a value is a case is checked with 'is': write '{2}'.");
+
+    public static readonly DiagnosticDescriptor DuplicateCaseValue =
+        Error("NYX2056", "'{0}' has the same value as '{1}' ({2}), but the cases of an enum are different choices. If '{0}' is another name for '{1}', declare it as 'static let {0}: {3} = {3}.{1}'.");
+
     public static readonly DiagnosticDescriptor MaybeNull =
         Error("NYX2057", "'{0}' may be null; {1}.");
 
@@ -677,6 +683,24 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor ChangesReadOnlyStruct =
         Error("NYX2081", "{0} changes '{1}', which {2}.");
+
+    public static readonly DiagnosticDescriptor NotConstant =
+        Error("NYX2082", "{0} has to be known when compiling: {1}.");
+
+    public static readonly DiagnosticDescriptor ConstantDependsOnItself =
+        Error("NYX2083", "The value of '{0}' depends on itself.");
+
+    public static readonly DiagnosticDescriptor BitwiseOnPlainEnum =
+        Error("NYX2084", "'{0}' on values of '{1}' gives a value that isn't one of its cases, as '{1}' isn't a flags enum. If its values are meant to combine, declare it as 'flags enum {1}'.");
+
+    public static readonly DiagnosticDescriptor ArrayOfEnumWithoutZero =
+        Error("NYX2085", "'new {0}(...)' would start every element as 0, which isn't a case of '{1}'; give each element with 'element = func(i) = ...'.");
+
+    public static readonly DiagnosticDescriptor EnumArithmetic =
+        Error("NYX2087", "'{0}' can't calculate with values of '{1}': the result might not be one of its cases. To calculate with the number behind a value, convert it first: '{2} as int'.");
+
+    public static readonly DiagnosticDescriptor OptionalParameterBeforeRequired =
+        Error("NYX2086", "'{0}' has no default value but comes after '{1}', which has one: parameters with default values go last, as in C#.");
 
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);

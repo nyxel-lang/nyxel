@@ -397,13 +397,15 @@ internal sealed partial class Parser
     }
 
     /// <summary>
-    /// An enum has functions and computed properties (ADR-0029): its values are its cases, which don't change and
-    /// can't be inherited.
+    /// An enum has functions, computed properties and <c>static let</c> (ADR-0029, ADR-0045): its values are its
+    /// cases, which don't change and can't be inherited.
     /// </summary>
     private void CheckEnumMember(MemberDeclarationSyntax member)
     {
         var storage = member switch
         {
+            FieldDeclarationSyntax { Keyword.Kind: SyntaxKind.LetKeyword } field when field.Modifiers.Any(m => m.Kind == SyntaxKind.StaticKeyword) => null,
+            FieldDeclarationSyntax { Keyword.Kind: SyntaxKind.VarKeyword } field when field.Modifiers.Any(m => m.Kind == SyntaxKind.StaticKeyword) => "a 'static var'",
             FieldDeclarationSyntax => "fields",
             InitDeclarationSyntax => "an init",
             EventDeclarationSyntax => "events",

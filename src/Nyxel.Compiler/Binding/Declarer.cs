@@ -31,7 +31,9 @@ internal sealed class Declarer(BinderContext context)
         {
             var ns = DeclareNamespace(tree);
             DeclareTypes(tree, ns);
-            scopes.Add(tree, ImportScope.Create(context, tree, ns));
+            var scope = ImportScope.Create(context, tree, ns);
+            scopes.Add(tree, scope);
+            context.Scopes[tree] = scope;
         }
         foreach (var type in _types)
         {
@@ -44,6 +46,11 @@ internal sealed class Declarer(BinderContext context)
         foreach (var type in _types.Where(t => t.TypeKind == TypeKind.Struct))
         {
             CheckStructLayout(type);
+        }
+        // The values of the cases can name constants of any type, so they come once every member is declared.
+        foreach (var type in _types.Where(t => t.TypeKind == TypeKind.Enum))
+        {
+            CheckCaseValues(type);
         }
         var entryPoint = needsEntryPoint ? FindEntryPoint() : null;
         return new DeclaredProgram([.. _types], scopes.ToImmutable(), entryPoint);
@@ -73,35 +80,64 @@ internal sealed class Declarer(BinderContext context)
     {
         foreach (var member in tree.Root.Members)
         {
-            if (member is TypeDeclarationSyntax { Kind: SyntaxKind.ClassDeclaration or SyntaxKind.StructDeclaration } declaration)
+            switch (member)
             {
-                if (declaration.Identifier.IsMissing)
-                {
-                    continue;
-                }
-                if (ns.GetTypes(declaration.Identifier.Text).Any(t => t is SourceNamedTypeSymbol))
-                {
-                    context.Report(DiagnosticDescriptors.DuplicateTypeName, tree, declaration.Identifier, declaration.Identifier.Text, ns.IsGlobal ? "(global)" : ns.FullName);
-                    continue;
-                }
-                if (declaration.TypeParameterList is { } typeParameters)
-                {
-                    context.Report(DiagnosticDescriptors.NotSupportedYet, tree, typeParameters, "A generic type");
-                }
-                var type = new SourceNamedTypeSymbol(declaration, tree, ns);
-                ns.AddType(type);
-                _types.Add(type);
-            }
-            else
-            {
-                context.Report(DiagnosticDescriptors.NotSupportedYet, tree, DeclarationKeyword(member), Describe(member));
+                case TypeDeclarationSyntax { Kind: SyntaxKind.ClassDeclaration or SyntaxKind.StructDeclaration } declaration:
+                    if (declaration.TypeParameterList is { } typeParameters)
+                    {
+                        context.Report(DiagnosticDescriptors.NotSupportedYet, tree, typeParameters, "A generic type");
+                    }
+                    DeclareType(tree, ns, declaration, declaration.Identifier);
+                    break;
+                case EnumDeclarationSyntax { IsStruct: false, IsClass: false } enumeration when enumeration.Cases.All(c => c.ParameterList is null):
+                    DeclareType(tree, ns, enumeration, enumeration.Identifier);
+                    break;
+                case EnumDeclarationSyntax enumeration:
+                    // 'struct enum' and 'class enum' come next. An enum with data that says neither was reported by
+                    // the parser (NYX1235), and so was a 'class enum' without data (NYX1236).
+                    var hasData = enumeration.Cases.Any(c => c.ParameterList is not null);
+                    if (enumeration.IsStruct || (enumeration.IsClass && hasData))
+                    {
+                        context.Report(DiagnosticDescriptors.NotSupportedYet, tree, enumeration.KindKeyword!, enumeration.IsStruct ? "A 'struct enum'" : "A 'class enum'");
+                    }
+                    break;
+                default:
+                    context.Report(DiagnosticDescriptors.NotSupportedYet, tree, DeclarationKeyword(member), Describe(member));
+                    break;
             }
         }
     }
 
+    private void DeclareType(SyntaxTree tree, NamespaceSymbol ns, MemberDeclarationSyntax declaration, SyntaxToken identifier)
+    {
+        if (identifier.IsMissing)
+        {
+            return;
+        }
+        if (ns.GetTypes(identifier.Text).Any(t => t is SourceNamedTypeSymbol))
+        {
+            context.Report(DiagnosticDescriptors.DuplicateTypeName, tree, identifier, identifier.Text, ns.IsGlobal ? "(global)" : ns.FullName);
+            return;
+        }
+        var type = new SourceNamedTypeSymbol(declaration, tree, ns);
+        ns.AddType(type);
+        _types.Add(type);
+    }
+
     private void DeclareBaseType(SourceNamedTypeSymbol type)
     {
-        if (type.Syntax.BaseList is { } baseList)
+        if (type.TypeKind == TypeKind.Enum)
+        {
+            // An enum is a System.Enum (HasFlag, ToString); its underlying type follows the colon, int if none
+            // (ADR-0024). The parser checked that only one integer type can be there; an interface it reported.
+            type.DeclaredBaseType = context.GetSpecialType(SpecialType.System_Enum);
+            var underlying = type.BaseList is { Types: { Count: 1 } types } && types[0] is PredefinedTypeSyntax predefined
+                ? context.GetPredefinedType(predefined.Keyword.Kind)
+                : null;
+            type.DeclaredEnumUnderlyingType = underlying is not null && Conversions.IsWholeNumber(underlying.SpecialType) ? underlying : context.Int;
+            return;
+        }
+        if (type.BaseList is { } baseList)
         {
             context.Report(DiagnosticDescriptors.NotSupportedYet, type.SyntaxTree, baseList, "Inheritance and interfaces");
         }
@@ -113,7 +149,20 @@ internal sealed class Declarer(BinderContext context)
         var tree = type.SyntaxTree;
         var names = new HashSet<string>();
         var hasInit = false;
-        foreach (var member in type.Syntax.Members)
+        var isEnum = type.TypeKind == TypeKind.Enum;
+        if (type.Syntax is EnumDeclarationSyntax enumeration)
+        {
+            // Without written values the cases count from 0 in order, missing names included, as in C#.
+            for (var ordinal = 0; ordinal < enumeration.Cases.Count; ordinal++)
+            {
+                var @case = enumeration.Cases[ordinal];
+                if (!@case.Identifier.IsMissing && CheckName(@case.Identifier))
+                {
+                    type.AddMember(new SourceEnumCaseSymbol(type, @case, ordinal, context.Constants));
+                }
+            }
+        }
+        foreach (var member in type.MemberSyntaxes)
         {
             if (type.TypeKind == TypeKind.Struct)
             {
@@ -122,16 +171,25 @@ internal sealed class Declarer(BinderContext context)
             switch (member)
             {
                 case PropertyDeclarationSyntax property when !property.Identifier.IsMissing:
+                    if (isEnum && property.AccessorList.Accessors.FirstOrDefault(a => a.Kind == SyntaxKind.SetAccessorDeclaration) is { } setter)
+                    {
+                        context.Report(DiagnosticDescriptors.NotSupportedYet, tree, setter.Keyword, "A 'set' in an enum");
+                        break;
+                    }
                     if (CheckName(property.Identifier))
                     {
                         type.AddMember(DeclareProperty(type, property, scope));
                     }
                     break;
+                case FieldDeclarationSyntax field when isEnum && !(field.Keyword.Kind == SyntaxKind.LetKeyword && field.Modifiers.Any(m => m.Kind == SyntaxKind.StaticKeyword)):
+                case InitDeclarationSyntax when isEnum:
+                    // An enum has no storage besides its cases, only static let (ADR-0045); the parser reported these (NYX1206).
+                    break;
                 case FieldDeclarationSyntax field when !field.Identifier.IsMissing:
                     if (CheckName(field.Identifier))
                     {
                         var fieldType = field.TypeAnnotation is { } annotation ? scope.BindType(annotation.Type) : ErrorTypeSymbol.Instance;
-                        type.AddMember(new SourceFieldSymbol(type, field, fieldType));
+                        type.AddMember(new SourceFieldSymbol(type, field, fieldType, context.Constants));
                     }
                     break;
                 case FunctionDeclarationSyntax function when !function.Identifier.IsMissing:
@@ -162,7 +220,7 @@ internal sealed class Declarer(BinderContext context)
             }
         }
 
-        if (!hasInit)
+        if (!hasInit && !isEnum)
         {
             // A class without an init gets a public one without parameters, if every field has a value (ADR-0013).
             type.AddMember(new SourceMethodSymbol(type, null, MethodSymbol.ConstructorName, MethodKind.Constructor, isStatic: false)
@@ -206,7 +264,8 @@ internal sealed class Declarer(BinderContext context)
         {
             HasVarSelf = self?.VarKeyword is not null,
         };
-        if (self?.VarKeyword is { } varKeyword && type.TypeKind != TypeKind.Struct)
+        // An enum's 'var self' was reported by the parser (NYX1208).
+        if (self?.VarKeyword is { } varKeyword && type.TypeKind == TypeKind.Class)
         {
             context.Report(DiagnosticDescriptors.VarSelfInClass, tree, varKeyword);
         }
@@ -392,15 +451,21 @@ internal sealed class Declarer(BinderContext context)
         var tree = method.ContainingType.SyntaxTree;
         var result = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var names = new HashSet<string>();
+        ParameterSyntax? firstOptional = null;
         foreach (var parameter in parameters.OfType<ParameterSyntax>())
         {
             if (parameter.RefKindKeyword is { } refKind)
             {
                 context.Report(DiagnosticDescriptors.NotSupportedYet, tree, refKind, $"'{refKind.Text}' parameters");
             }
-            if (parameter.Default is { } defaultValue)
+            // The values themselves are bound with the bodies; parameters with them go last, as in C# (CS1737).
+            if (parameter.Default is not null)
             {
-                context.Report(DiagnosticDescriptors.NotSupportedYet, tree, defaultValue, "A default parameter value");
+                firstOptional ??= parameter;
+            }
+            else if (firstOptional is not null && !parameter.Identifier.IsMissing)
+            {
+                context.Report(DiagnosticDescriptors.OptionalParameterBeforeRequired, tree, parameter.Identifier, parameter.Identifier.Text, firstOptional.Identifier.Text);
             }
             if (!parameter.Identifier.IsMissing && !names.Add(parameter.Identifier.Text))
             {
@@ -414,11 +479,36 @@ internal sealed class Declarer(BinderContext context)
         return result.ToImmutable();
     }
 
+    /// <summary>
+    /// Two cases of an enum can't have the same value (ADR-0040): a case is one of several choices. Working the values
+    /// out also reports a value that isn't a constant or doesn't fit.
+    /// </summary>
+    private void CheckCaseValues(SourceNamedTypeSymbol type)
+    {
+        var seen = new Dictionary<object, SourceEnumCaseSymbol>();
+        foreach (var @case in type.Cases)
+        {
+            if (@case.ConstantValue is not { } value)
+            {
+                continue;
+            }
+            if (seen.TryGetValue(value, out var first))
+            {
+                context.Report(DiagnosticDescriptors.DuplicateCaseValue, type.SyntaxTree, @case.Syntax.Identifier, @case.Name, first.Name, value, type.Name);
+            }
+            else
+            {
+                seen.Add(value, @case);
+            }
+        }
+    }
+
     /// <summary>The <c>Main</c> without <c>self</c> to start the program from (ADR-0036).</summary>
     private SourceMethodSymbol? FindEntryPoint()
     {
         var valid = new List<SourceMethodSymbol>();
-        foreach (var main in _types.SelectMany(t => t.GetMembers("Main")).OfType<SourceMethodSymbol>().Where(m => m.IsStatic))
+        // An enum's functions become C# extension members, which can't be an entry point.
+        foreach (var main in _types.Where(t => t.TypeKind != TypeKind.Enum).SelectMany(t => t.GetMembers("Main")).OfType<SourceMethodSymbol>().Where(m => m.IsStatic))
         {
             var tree = main.ContainingType.SyntaxTree;
             if (main.IsAsync)

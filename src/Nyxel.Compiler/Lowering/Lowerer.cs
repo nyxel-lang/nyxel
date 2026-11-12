@@ -21,6 +21,9 @@ internal sealed class Lowerer(BoundProgram program)
     private int _temporaries;
     private Dictionary<string, string>? _renamedLocals;
 
+    // How 'self' is written: 'this', or the receiver of an enum's extension block.
+    private string _self = "this";
+
     public static string Lower(BoundProgram program) => new Lowerer(program).LowerProgram();
 
     private string LowerProgram()
@@ -53,6 +56,12 @@ internal sealed class Lowerer(BoundProgram program)
     private void LowerType(SourceNamedTypeSymbol type)
     {
         _source = type.SyntaxTree.Text;
+        if (type.TypeKind == TypeKind.Enum)
+        {
+            LowerEnum(type);
+            return;
+        }
+        _self = "this";
         var access = type.Accessibility == Accessibility.Public ? "public" : "internal";
         var keyword = type.TypeKind == TypeKind.Struct ? "struct" : "class";
         _writer.WriteHidden($"{access} {keyword} {Escape(type.Name)}");
@@ -81,6 +90,91 @@ internal sealed class Lowerer(BoundProgram program)
         _writer.Unindent();
         _writer.WriteHidden("}");
     }
+
+    /// <summary>
+    /// An enum without data is a C# enum (ADR-0024): <c>[Flags]</c> for a flags enum, its underlying type, and every
+    /// case with its value written out. Its functions and properties go into the extension blocks of a static class
+    /// named after it (ADR-0029), so C# calls them as <c>element.Weakness()</c> and <c>Element.Parse("ice")</c>. Its
+    /// <c>static let</c>s are fields of that class, each with an extension property of the same name, so C# reads
+    /// <c>Tile.Gate</c>, and <c>TileExtensions.Gate</c> where it needs a constant (ADR-0045).
+    /// </summary>
+    private void LowerEnum(SourceNamedTypeSymbol type)
+    {
+        var access = type.Accessibility == Accessibility.Public ? "public" : "internal";
+        if (type.IsFlags)
+        {
+            _writer.WriteHidden("[global::System.Flags]");
+        }
+        var underlying = type.EnumUnderlyingType is { SpecialType: not Microsoft.CodeAnalysis.SpecialType.System_Int32 } declared ? $" : {TypeName(declared)}" : "";
+        _writer.WriteHidden($"{access} enum {Escape(type.Name)}{underlying}");
+        _writer.WriteHidden("{");
+        _writer.Indent();
+        foreach (var @case in type.Cases)
+        {
+            _writer.WriteMapped(_source, @case.Syntax.Span, $"{Escape(@case.Name)} = {Literal(@case.ConstantValue).Text},");
+        }
+        _writer.Unindent();
+        _writer.WriteHidden("}");
+
+        var members = type.GetMembers().Where(m => m is SourceMethodSymbol or SourcePropertySymbol).ToList();
+        var fields = type.GetMembers().OfType<SourceFieldSymbol>().ToList();
+        if (members.Count == 0 && fields.Count == 0)
+        {
+            return;
+        }
+        _writer.WriteHidden($"{access} static class {Escape(type.Name)}Extensions");
+        _writer.WriteHidden("{");
+        _writer.Indent();
+        foreach (var field in fields)
+        {
+            LowerField(field);
+        }
+        var shown = fields.Where(f => f.Accessibility != Accessibility.Private).ToList();
+        // 'self' is the receiver of the instance block: Nyxel names can't be 'self', so it clashes with nothing.
+        _self = "self";
+        foreach (var (isStatic, receiver) in new[] { (false, $"{TypeName(type)} self"), (true, TypeName(type)) })
+        {
+            var block = members.Where(m => m is SourceMethodSymbol method ? method.IsStatic == isStatic : ((SourcePropertySymbol)m).IsStatic == isStatic).ToList();
+            if (block.Count == 0 && !(isStatic && shown.Count > 0))
+            {
+                continue;
+            }
+            _writer.WriteHidden($"extension({receiver})");
+            _writer.WriteHidden("{");
+            _writer.Indent();
+            if (isStatic)
+            {
+                foreach (var field in shown)
+                {
+                    _writer.WriteHidden($"{Modifiers(field.Accessibility, isStatic: true)}{TypeName(field.Type)} {Escape(field.Name)} => {ExtensionsName(type)}.{Escape(field.Name)};");
+                }
+            }
+            foreach (var member in block)
+            {
+                if (member is SourceMethodSymbol method)
+                {
+                    LowerMethod(type, method);
+                }
+                else
+                {
+                    LowerProperty((SourcePropertySymbol)member);
+                }
+            }
+            _writer.Unindent();
+            _writer.WriteHidden("}");
+        }
+        _self = "this";
+        _writer.Unindent();
+        _writer.WriteHidden("}");
+    }
+
+    /// <summary>The static class that holds the extension blocks of a Nyxel enum's members: <c>global::Game.ElementExtensions</c>.</summary>
+    private static string ExtensionsName(NamedTypeSymbol enumType) =>
+        enumType.ContainingNamespace is { IsGlobal: false } ns
+            ? $"global::{string.Join(".", ns.FullName.Split('.').Select(Escape))}.{Escape(enumType.Name)}Extensions"
+            : $"global::{Escape(enumType.Name)}Extensions";
+
+    private static bool IsNyxelEnum(NamedTypeSymbol type) => type is SourceNamedTypeSymbol { TypeKind: TypeKind.Enum };
 
     /// <summary>
     /// A property (ADR-0011): an auto property as C#'s <c>{ get; private set; } = value</c>, a computed one with its
@@ -123,14 +217,17 @@ internal sealed class Lowerer(BoundProgram program)
 
     private void LowerField(SourceFieldSymbol field)
     {
-        var modifiers = Modifiers(field.Accessibility, field.IsStatic) + (field.IsReadOnly ? "readonly " : "");
+        // A static let with a constant value is a C# const (ADR-0038).
+        var modifiers = field.IsConst
+            ? Modifiers(field.Accessibility, isStatic: false) + "const "
+            : Modifiers(field.Accessibility, field.IsStatic) + (field.IsReadOnly ? "readonly " : "");
         var initializer = program.Initializers.TryGetValue(field, out var value) ? $" = {Expression(value)}" : "";
         _writer.WriteMapped(_source, field.Syntax.Span, $"{modifiers}{TypeName(field.Type)} {Escape(field.Name)}{initializer};");
     }
 
     private void LowerMethod(SourceNamedTypeSymbol type, SourceMethodSymbol method)
     {
-        var parameters = string.Join(", ", method.Parameters.Select(p => $"{TypeName(p.Type)} {Escape(p.Name)}"));
+        var parameters = string.Join(", ", method.Parameters.Select(p => $"{TypeName(p.Type)} {Escape(p.Name)}{DefaultValue(p)}"));
         // A struct's self function can't change the value: C#'s readonly method (ADR-0008).
         var readOnly = method.IsReadOnly ? "readonly " : "";
         var header = method.MethodKind == MethodKind.Constructor
@@ -139,6 +236,19 @@ internal sealed class Lowerer(BoundProgram program)
         _writer.WriteHidden(header);
         LowerBody(method);
     }
+
+    /// <summary>
+    /// <c> = value</c> for a parameter with a default. C# takes a constant, <c>null</c> or <c>new S()</c> there: a value
+    /// going into an <c>int?</c> is written without its conversion, which C# makes itself.
+    /// </summary>
+    private string DefaultValue(ParameterSymbol parameter) => program.DefaultValues.TryGetValue(parameter, out var value)
+        ? " = " + value switch
+        {
+            BoundConversion { ConversionKind: ConversionKind.NullLiteral } => "null",
+            BoundConversion { ConversionKind: ConversionKind.ImplicitNullable } conversion => Expression(conversion.Operand),
+            _ => Expression(value),
+        }
+        : "";
 
     private void LowerBody(SourceMethodSymbol method)
     {
@@ -407,6 +517,11 @@ internal sealed class Lowerer(BoundProgram program)
                 return ($"{Expression(check.Operand, RelationalPrecedence + 1)} {(check.IsNull ? "is null" : "is not null")}", RelationalPrecedence);
             case BoundIsType isType:
                 return ($"{Expression(isType.Operand, RelationalPrecedence + 1)} {(isType.IsNegated ? "is not" : "is")} {TypeName(isType.TestedType)}", RelationalPrecedence);
+            case BoundIsCase isCase:
+                // C#'s constant pattern: the same meaning for a value, an E? and an object (ADR-0040). An alias is a
+                // const of the enum's extension class (ADR-0045).
+                var pattern = isCase.Case is SourceFieldSymbol alias ? ExtensionsName(alias.ContainingType) : TypeName(isCase.Case.ContainingType);
+                return ($"{Expression(isCase.Operand, RelationalPrecedence + 1)} {(isCase.IsNegated ? "is not" : "is")} {pattern}.{Escape(isCase.Case.Name)}", RelationalPrecedence);
             case BoundCoalesce coalesce:
                 var right = coalesce switch
                 {
@@ -416,15 +531,23 @@ internal sealed class Lowerer(BoundProgram program)
                 };
                 return ($"{Expression(coalesce.Left, CoalescePrecedence + 1)} ?? {right}", CoalescePrecedence);
             case BoundSelf:
-                return ("this", PrimaryPrecedence);
+                return (_self, PrimaryPrecedence);
             case BoundFieldAccess field:
-                return ($"{Receiver(field.Receiver, field.Field.ContainingType)}.{Escape(field.Field.Name)}", PrimaryPrecedence);
+                return ($"{FieldOwner(field)}.{Escape(field.Field.Name)}", PrimaryPrecedence);
+            case BoundPropertyAccess property when IsNyxelEnum(property.Property.ContainingType):
+                // The getter of an extension property, called as the static method C# makes of it.
+                return ($"{ExtensionsName(property.Property.ContainingType)}.get_{property.Property.Name}({(property.Receiver is { } owner ? Expression(owner) : "")})", PrimaryPrecedence);
             case BoundPropertyAccess property:
                 return ($"{Receiver(property.Receiver, property.Property.ContainingType)}.{Escape(property.Property.Name)}", PrimaryPrecedence);
             case BoundIndexerAccess indexer:
                 return ($"{Expression(indexer.Receiver, PrimaryPrecedence)}[{Arguments(indexer.Arguments)}]", PrimaryPrecedence);
             case BoundArrayAccess array:
                 return ($"{Expression(array.Array, PrimaryPrecedence)}[{string.Join(", ", array.Indices.Select(i => Expression(i)))}]", PrimaryPrecedence);
+            case BoundCall call when IsNyxelEnum(call.Method.ContainingType):
+                // An enum's function is an extension member: called through its class, with the value first. C# would
+                // look 'Element.Parse' up on System.Enum before the extensions, and the class isn't imported anyway.
+                var receiverAndArguments = string.Join(", ", new[] { call.Receiver is { } enumValue ? Expression(enumValue) : null, Arguments(call.Arguments) }.Where(s => !string.IsNullOrEmpty(s)));
+                return ($"{ExtensionsName(call.Method.ContainingType)}.{Escape(call.Method.Name)}({receiverAndArguments})", PrimaryPrecedence);
             case BoundCall call:
                 return ($"{Receiver(call.Receiver, call.Method.ContainingType)}.{Escape(call.Method.Name)}({Arguments(call.Arguments)})", PrimaryPrecedence);
             case BoundObjectCreation creation:
@@ -475,6 +598,12 @@ internal sealed class Lowerer(BoundProgram program)
 
     private string Receiver(BoundExpression? receiver, NamedTypeSymbol containingType) =>
         receiver is null ? TypeName(containingType) : Expression(receiver, PrimaryPrecedence);
+
+    /// <summary>What a field is read through: its receiver, its type, or for a Nyxel enum's static let the enum's extension class.</summary>
+    private string FieldOwner(BoundFieldAccess field) =>
+        field.Field is SourceFieldSymbol && IsNyxelEnum(field.Field.ContainingType)
+            ? ExtensionsName(field.Field.ContainingType)
+            : Receiver(field.Receiver, field.Field.ContainingType);
 
     private string Arguments(IEnumerable<BoundArgument> arguments) =>
         string.Join(", ", arguments.Select(a => a.Name is { } name ? $"{Escape(name)}: {Expression(a.Value)}" : Expression(a.Value)));

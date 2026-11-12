@@ -19,7 +19,10 @@ internal abstract class BoundExpression(SyntaxNode syntax, TypeSymbol type) : Bo
 {
     public TypeSymbol Type { get; } = type;
 
-    /// <summary>The value when it is known at compile time: literals and folded literal arithmetic.</summary>
+    /// <summary>
+    /// The value when it is known at compile time, as C# would fold it (ADR-0038): literals, constants and enum
+    /// cases (an enum's value as its underlying type), and operations and conversions of those.
+    /// </summary>
     public virtual object? ConstantValue => null;
 
     public bool HasErrors => Type.IsError;
@@ -237,11 +240,14 @@ internal enum UnaryOperatorKind
     LogicalNot,
 }
 
-internal sealed class BoundUnary(SyntaxNode syntax, UnaryOperatorKind operatorKind, BoundExpression operand, TypeSymbol type) : BoundExpression(syntax, type)
+internal sealed class BoundUnary(SyntaxNode syntax, UnaryOperatorKind operatorKind, BoundExpression operand, TypeSymbol type, object? constantValue = null)
+    : BoundExpression(syntax, type)
 {
     public UnaryOperatorKind OperatorKind { get; } = operatorKind;
 
     public BoundExpression Operand { get; } = operand;
+
+    public override object? ConstantValue => constantValue;
 }
 
 internal enum BinaryOperatorKind
@@ -267,7 +273,7 @@ internal enum BinaryOperatorKind
 }
 
 /// <summary>A binary operation; both operands are already converted to the operator's operand types.</summary>
-internal sealed class BoundBinary(SyntaxNode syntax, BinaryOperatorKind operatorKind, BoundExpression left, BoundExpression right, TypeSymbol type)
+internal sealed class BoundBinary(SyntaxNode syntax, BinaryOperatorKind operatorKind, BoundExpression left, BoundExpression right, TypeSymbol type, object? constantValue = null)
     : BoundExpression(syntax, type)
 {
     public BinaryOperatorKind OperatorKind { get; } = operatorKind;
@@ -275,6 +281,8 @@ internal sealed class BoundBinary(SyntaxNode syntax, BinaryOperatorKind operator
     public BoundExpression Left { get; } = left;
 
     public BoundExpression Right { get; } = right;
+
+    public override object? ConstantValue => constantValue;
 }
 
 internal enum ConversionKind
@@ -290,10 +298,13 @@ internal enum ConversionKind
     /// <summary><c>null</c> to a <c>T?</c>.</summary>
     NullLiteral,
     ExplicitNumeric,
+
+    /// <summary>Between an enum and a whole number, with <c>as</c> (ADR-0014): <c>Element.Fire as int</c>, <c>5 as Element</c>.</summary>
+    ExplicitEnum,
 }
 
 /// <summary>A conversion; <see cref="IsExplicit"/> for <c>x as T</c>, otherwise one that happens where it is needed.</summary>
-internal sealed class BoundConversion(SyntaxNode syntax, BoundExpression operand, ConversionKind conversionKind, TypeSymbol type, bool isExplicit)
+internal sealed class BoundConversion(SyntaxNode syntax, BoundExpression operand, ConversionKind conversionKind, TypeSymbol type, bool isExplicit, object? constantValue = null)
     : BoundExpression(syntax, type)
 {
     public BoundExpression Operand { get; } = operand;
@@ -301,6 +312,8 @@ internal sealed class BoundConversion(SyntaxNode syntax, BoundExpression operand
     public ConversionKind ConversionKind { get; } = conversionKind;
 
     public bool IsExplicit { get; } = isExplicit;
+
+    public override object? ConstantValue => constantValue;
 }
 
 /// <summary>
@@ -320,6 +333,20 @@ internal sealed class BoundIsType(SyntaxNode syntax, BoundExpression operand, Ty
     public BoundExpression Operand { get; } = operand;
 
     public TypeSymbol TestedType { get; } = testedType;
+
+    public bool IsNegated { get; } = isNegated;
+}
+
+/// <summary>
+/// <c>x is Element.Fire</c>, or <c>is not</c> (ADR-0024, ADR-0040): whether the value is that case of an enum. It
+/// only answers yes or no; nothing is narrowed.
+/// </summary>
+internal sealed class BoundIsCase(SyntaxNode syntax, BoundExpression operand, FieldSymbol @case, bool isNegated, TypeSymbol boolType)
+    : BoundExpression(syntax, boolType)
+{
+    public BoundExpression Operand { get; } = operand;
+
+    public FieldSymbol Case { get; } = @case;
 
     public bool IsNegated { get; } = isNegated;
 }

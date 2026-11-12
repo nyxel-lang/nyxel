@@ -30,6 +30,7 @@ internal static class BoundNodeExtensions
         BoundInterpolatedString interpolated => interpolated.Parts.Select(p => p.Value),
         BoundNullCheck check => Of(check.Operand),
         BoundIsType isType => Of(isType.Operand),
+        BoundIsCase isCase => Of(isCase.Operand),
         BoundConditionalAccess conditional => Of(conditional.Receiver, conditional.Access),
         BoundCoalesce coalesce => Of(coalesce.Left, coalesce.Right, coalesce.Jump),
         BoundBadExpression bad => bad.Children,

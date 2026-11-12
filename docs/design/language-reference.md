@@ -723,7 +723,7 @@ let hit = new Damage.Burn(Amount = 12, Seconds = 3)     // 带数据的 case：n
 - 判断是不是某个 case 一律写 `is`：`hit is Damage.Burn`、`state is SlimeState.Idle`，得到 bool，不取数据（ADR-0024、ADR-0040，见“类型检查与收窄”）。`x == 类型.Case` 是编译错误，诊断给出 `is`。
 - 两个 enum 值之间用 `==`（ADR-0024）：带数据的（两种都是）比内容，同一个 case、数据逐个相等就相等，能当字典的键；不带数据的比值。
 
-### enum 的成员与接口（ADR-0029）
+### enum 的成员与接口（ADR-0029、ADR-0045）
 
 ```nyxel
 enum Element {
@@ -756,16 +756,25 @@ let w = element.Weakness()
 let e = Element.Parse("ice")
 ```
 
-- case 后面可以写实例方法、静态函数、计算属性（含 `static property`）。先写全部 case，再写成员。
-- 不能写字段、`init`、自动属性、事件、索引器：enum 的值就是它的 case（加上 case 的数据），没有别的存储。
+- case 后面可以写实例方法、静态函数、计算属性（含 `static property`）和 `static let`。先写全部 case，再写成员。
+- 不能写实例字段、`static var`、`init`、自动属性、事件、索引器：enum 的值就是它的 case（加上 case 的数据），没有别的存储。`static let` 不是值的一部分，用来写 case 的别名和与这个 enum 有关的常量（ADR-0045）：
+  ```nyxel
+  enum Tile {
+      case Floor = 1
+      case Door = 2
+
+      public static let Gate: Tile = Tile.Door        // 别名：Door 的另一个名字
+      public static let Default: Tile = Tile.Floor
+  }
+  ```
 - 不能写 `var self`（值创建以后不能改），不能写 `protected`、`virtual`、`abstract`、`sealed`、`override`（enum 不能被继承）。
 - 普通、flags、`struct enum`、`class enum` 四种都一样。不是自己定义的 enum（C# 和引擎的）照旧用扩展加方法。
 - `struct enum` 和 `class enum` 能实现接口，接口的成员写在 enum 里；只能实现接口，不能继承类。
 - 不带数据的 `enum` 不能实现接口：它是 C# 的 enum，C# 的 enum 不能实现接口。要实现就写成 `struct enum`（见“带数据的 enum 放在哪”）。
-- C# 那边：不带数据的 enum 的成员在同一命名空间里生成的 `名字Extensions` 类的 extension 块里，C# 照样写 `element.Weakness()`、`Element.Parse("ice")`；`class enum` 的成员在抽象基类上，`struct enum` 的在 struct 上。
+- C# 那边：不带数据的 enum 的成员在同一命名空间里生成的 `名字Extensions` 类的 extension 块里，C# 照样写 `element.Weakness()`、`Element.Parse("ice")`；`static let` 是这个类的字段（值是常量时是 `const`），另有同名的 extension 静态属性，C# 写 `Tile.Gate`，要常量的地方写 `TileExtensions.Gate`。`class enum` 的成员在抽象基类上，`struct enum` 的在 struct 上。
 - 待定：带数据 enum 的 `ToString`。
 
-### enum 的值与 flags（ADR-0024、ADR-0040）
+### enum 的值与 flags（ADR-0024、ADR-0040、ADR-0045）
 
 ```nyxel
 enum CookedType : uint {                // 底层类型
@@ -790,7 +799,7 @@ if mask.HasFlag(Layer.Air) { ... }
 - 值：
   - 要么每个 case 都写，要么都不写。都不写时按声明顺序 0、1、2，同 C#。
   - 值是整数常量，可以用运算组合（`1 << 3`、`Layer.Ground | Layer.Water`）；引用别的 case 也写类型名。
-  - 两个 case 不能是同一个值（ADR-0040）：case 是“几选一”，别名写成 `static let Old: Tile = Tile.New`。.NET 的枚举有别名照收，`match` 里两个别名都列出来是编译错误。
+  - 两个 case 不能是同一个值（ADR-0040）：case 是“几选一”，别名在 enum 里写成 `static let Old: Tile = Tile.New`（ADR-0045）。别名是它所指的 case 的另一个名字：能写在 `is` 后面，不算新的 case。.NET 的枚举有别名照收；`match` 里一个 case 和它的别名都列出来是编译错误。
   - 存档、网络消息、和 C++ 引擎对齐的 enum 建议写明每个值：插入新 case 不会改掉旧的值。
 - 底层类型写在冒号后面，同 C#：`byte`、`sbyte`、`short`、`ushort`、`int`、`uint`、`long`、`ulong` 之一，不写是 `int`。
 - `flags enum`：
@@ -1169,7 +1178,7 @@ let stem = path[..<path.Length - 4]     // 去掉末尾 4 个字符
 - 能切的类型和结果同 C#：字符串得到新字符串，数组和 List 复制出新的一份（会分配，改它不影响原来的），`Span` 只指向原来的那一段。
 - 没有 C# 的 `^1`（从末尾数）：最后一个写 `items[items.Count - 1]`，数组和字符串用 `Length`。`^` 只是异或。
 
-## 运算符（ADR-0010、ADR-0042）
+## 运算符（ADR-0010、ADR-0042、ADR-0045）
 
 ```nyxel
 if not self.IsDead and target != null {
@@ -1181,7 +1190,8 @@ self.combo += 1
 
 - 逻辑运算用单词 `and`、`or`、`not`（短路、优先级同 C#）。没有 `&&`、`||`、`!`。
 - 没有 `++` / `--`，写 `+= 1`。
-- 算术、比较、位运算、复合赋值、整数除法、隐式数值转换同 C#，只有一处例外：整数相除的结果不能隐式变成浮点，见“整数相除的结果”（ADR-0042）。`??=` 见“空值”；Nyxel 的 enum 只有 flags enum 能位运算，见“enum 的值与 flags”。
+- 算术、比较、位运算、复合赋值、整数除法、隐式数值转换同 C#，只有一处例外：整数相除的结果不能隐式变成浮点，见“整数相除的结果”（ADR-0042）。`??=` 见“空值”。
+- enum（ADR-0024、ADR-0045）：同一个 enum 的两个值能 `==` `!=` `<` `>` `<=` `>=`，按底层的值比，同 C#；不能做算术（`level + 1` 可能不是任何一个 case），要算就先 `as int`：`(level as int + 1) as LogLevel`。Nyxel 的 enum 只有 flags enum 能位运算，.NET 的枚举都能，见“enum 的值与 flags”。
 - 赋值（包括 `+=` 等）是语句，不产生值：不能 `a = b = 0`，不能写在条件里（ADR-0011）。
 - 优先级从高到低（ADR-0019）：成员访问、调用、下标 → 一元（`-` `+` `~` `not` `await` `launch`）→ `as` → `*` `/` `%` → `+` `-` → `<<` `>>` → `..<` `...` → `<` `>` `<=` `>=` `is` → `==` `!=` → `&` → `^` → `|` → `and` → `or` → `??`。除了 `as`（ADR-0014）和区间，其余同 C#。`??` 从右往左结合，区间不结合，其余从左往右。
   - `not` 和 C# 的 `!` 一样只管紧跟着的那个值：`not hp > 0` 是 `(not hp) > 0`，编译错误，诊断给出 `hp <= 0` 和 `not (hp > 0)`；`not x is T` 写 `x is not T`（ADR-0042）。
@@ -1231,7 +1241,7 @@ if target == self.player { ... }         // class：是不是同一个对象
 - 和 `null` 比较见“空值”。
 - 待定：struct 自定义相等。
 
-## 类型检查与收窄（ADR-0010、ADR-0024、ADR-0040）
+## 类型检查与收窄（ADR-0010、ADR-0024、ADR-0040、ADR-0045）
 
 ```nyxel
 func OnHit(self, other: Collider) {
@@ -1247,7 +1257,7 @@ func OnHit(self, other: Collider) {
 
 - `x is T` 得到 bool；`x is not T` 是否定。`is` 后面只能写类型或 enum case。
 - 被检查的是局部变量或参数时自动收窄（同空值收窄的规则，被 lambda 捕获的 `var` 不收窄），不另起变量名。
-- `x is 类型.Case` 判断是不是某个 enum case（ADR-0024）：`if self.state is SlimeState.Idle`、`hit is not Damage.Heal`。只判断，不取数据，也不收窄；要数据写 `match`。`==` 右边直接写 case 名（`state == SlimeState.Idle`、`key == Key.Escape`）是编译错误，诊断给出 `is`（ADR-0040）；两个 enum 值之间照常 `==`。
+- `x is 类型.Case` 判断是不是某个 enum case（ADR-0024）：`if self.state is SlimeState.Idle`、`hit is not Damage.Heal`。只判断，不取数据，也不收窄；要数据写 `match`。`==` / `!=` 的一边直接写 case 名（`state == SlimeState.Idle`、`Key.Escape != key`）是编译错误，诊断给出 `is`（ADR-0040、ADR-0045），enum 里的别名也算 case 名；两个 enum 值之间照常 `==`。
 
 ## 类型转换（ADR-0014）
 
