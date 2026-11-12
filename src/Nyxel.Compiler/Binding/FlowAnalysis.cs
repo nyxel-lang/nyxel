@@ -40,22 +40,22 @@ internal static class FlowAnalysis
     };
 
     /// <summary>
-    /// The fields of <paramref name="fields"/> that some path through the init body leaves unset, at a
-    /// <c>return</c> or at its end. A field counts as set by <c>self.field = value</c>.
+    /// The fields and auto properties of <paramref name="members"/> that some path through the init body leaves
+    /// unset, at a <c>return</c> or at its end. A member counts as set by <c>self.member = value</c>.
     /// </summary>
-    public static IEnumerable<FieldSymbol> FieldsNotSetOnEveryPath(BoundBlock body, IReadOnlyCollection<FieldSymbol> fields)
+    public static IEnumerable<Symbol> MembersNotSetOnEveryPath(BoundBlock body, IReadOnlyCollection<Symbol> members)
     {
-        var exits = new List<HashSet<FieldSymbol>>();
+        var exits = new List<HashSet<Symbol>>();
         var atEnd = Assign(body, [], exits);
         if (atEnd is not null)
         {
             exits.Add(atEnd);
         }
-        return fields.Where(f => exits.Any(set => !set.Contains(f)));
+        return members.Where(m => exits.Any(set => !set.Contains(m)));
     }
 
-    // The fields set when the statement finishes; null when it never finishes normally. Returns record their set.
-    private static HashSet<FieldSymbol>? Assign(BoundStatement statement, HashSet<FieldSymbol> before, List<HashSet<FieldSymbol>> exits)
+    // The members set when the statement finishes; null when it never finishes normally. Returns record their set.
+    private static HashSet<Symbol>? Assign(BoundStatement statement, HashSet<Symbol> before, List<HashSet<Symbol>> exits)
     {
         // let t = x ?? return: a way out before the statement finishes.
         if (CoalesceJumps(statement).Any(j => j is BoundReturn))
@@ -65,7 +65,7 @@ internal static class FlowAnalysis
         switch (statement)
         {
             case BoundBlock block:
-                HashSet<FieldSymbol>? current = before;
+                HashSet<Symbol>? current = before;
                 foreach (var inner in block.Statements)
                 {
                     if (current is null)
@@ -77,6 +77,8 @@ internal static class FlowAnalysis
                 return current;
             case BoundAssignment { Target: BoundFieldAccess { Receiver: BoundSelf, Field: var field } }:
                 return [.. before, field];
+            case BoundAssignment { Target: BoundPropertyAccess { Receiver: BoundSelf, Property: var property } }:
+                return [.. before, property];
             case BoundIf ifStatement:
                 var then = Assign(ifStatement.Then, before, exits);
                 var @else = ifStatement.Else is { } elseStatement ? Assign(elseStatement, before, exits) : before;

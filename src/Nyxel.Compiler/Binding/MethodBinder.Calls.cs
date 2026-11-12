@@ -81,7 +81,8 @@ internal sealed partial class MethodBinder
                 return Bad(syntax);
         }
         var instance = method.IsStatic ? null : group.Receiver;
-        return new BoundCall(syntax, instance, method, result.Arguments);
+        var call = new BoundCall(syntax, instance, method, result.Arguments);
+        return CheckVarSelfCall(call) ? call : Bad(syntax, call);
     }
 
     private BoundExpression BindObjectCreation(ObjectCreationExpressionSyntax syntax)
@@ -126,7 +127,9 @@ internal sealed partial class MethodBinder
             return Bad(syntax);
         }
         var constructors = named.GetMembers(MethodSymbol.ConstructorName).OfType<MethodSymbol>().Where(c => !c.IsStatic).ToImmutableArray();
-        if (named.IsValueType && arguments.Length == 0 && !constructors.Any(c => c.Parameters.Length == 0))
+        // new S() of a C# struct is all zeros. A Nyxel struct that declares an init can only be made through it
+        // (ADR-0013): zeros would skip it, as for arrays (ADR-0023).
+        if (named.IsValueType && named is not SourceNamedTypeSymbol && arguments.Length == 0 && !constructors.Any(c => c.Parameters.Length == 0))
         {
             return new BoundObjectCreation(syntax, named, null, []);
         }

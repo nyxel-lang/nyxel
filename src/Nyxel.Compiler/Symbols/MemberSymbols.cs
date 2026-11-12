@@ -9,6 +9,12 @@ public enum MethodKind
     Constructor,
     Operator,
     Conversion,
+
+    /// <summary>The <c>get</c> of a property.</summary>
+    PropertyGet,
+
+    /// <summary>The <c>set</c> of a property.</summary>
+    PropertySet,
 }
 
 public enum RefKind
@@ -53,6 +59,15 @@ public abstract class MethodSymbol : Symbol
     public virtual bool IsOverride => false;
 
     public virtual bool IsAsync => false;
+
+    /// <summary>
+    /// A struct method that doesn't change the value it is called on: Nyxel's <c>self</c> methods and getters, C#'s
+    /// <c>readonly</c> members and the methods of a <c>readonly struct</c> (ADR-0032).
+    /// </summary>
+    public virtual bool IsReadOnly => false;
+
+    /// <summary><see cref="RefKind.Ref"/> or <see cref="RefKind.In"/> for a C# method that returns <c>ref</c> or <c>ref readonly</c>.</summary>
+    public virtual RefKind ReturnRefKind => RefKind.None;
 
     /// <summary>The method this one overrides, as its definition.</summary>
     public virtual MethodSymbol? OverriddenMethod => null;
@@ -106,6 +121,15 @@ public abstract class PropertySymbol : Symbol
     public abstract bool HasGetter { get; }
 
     public abstract bool HasSetter { get; }
+
+    /// <summary>Who can read the property: its own visibility, or the narrower one written on <c>get</c>.</summary>
+    public virtual Accessibility GetterAccessibility => Accessibility;
+
+    /// <summary>Who can set the property: its own visibility, or the narrower one written on <c>set</c> (<c>private set</c>).</summary>
+    public virtual Accessibility SetterAccessibility => Accessibility;
+
+    /// <summary><see cref="RefKind.Ref"/> or <see cref="RefKind.In"/> for a C# indexer that returns <c>ref</c> or <c>ref readonly</c> (<c>Span&lt;T&gt;</c>).</summary>
+    public virtual RefKind ReturnRefKind => RefKind.None;
 
     public virtual PropertySymbol OriginalDefinition => this;
 }
@@ -188,6 +212,10 @@ internal sealed class SubstitutedMethodSymbol(MethodSymbol original, NamedTypeSy
 
     public override bool IsOverride => original.IsOverride;
 
+    public override bool IsReadOnly => original.IsReadOnly;
+
+    public override RefKind ReturnRefKind => original.ReturnRefKind;
+
     public override MethodSymbol? OverriddenMethod => original.OverriddenMethod;
 
     public override MethodSymbol OriginalDefinition => original.OriginalDefinition;
@@ -243,6 +271,12 @@ internal sealed class SubstitutedPropertySymbol(PropertySymbol original, NamedTy
     public override bool HasGetter => original.HasGetter;
 
     public override bool HasSetter => original.HasSetter;
+
+    public override Accessibility GetterAccessibility => original.GetterAccessibility;
+
+    public override Accessibility SetterAccessibility => original.SetterAccessibility;
+
+    public override RefKind ReturnRefKind => original.ReturnRefKind;
 
     public override PropertySymbol OriginalDefinition => original.OriginalDefinition;
 }

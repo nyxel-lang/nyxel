@@ -42,28 +42,31 @@ internal sealed partial class MethodBinder
     public BoundBlock BindBody()
     {
         var method = _method ?? throw new InvalidOperationException("Not a function.");
-        switch (method.Syntax)
+        var (body, expressionBody) = method.Syntax switch
         {
-            case FunctionDeclarationSyntax { Body: { } body }:
-                return BindBlock(body);
-            case FunctionDeclarationSyntax { ExpressionBody: { } expressionBody }:
-                // func F() -> int = value returns the value; without a return type the expression is a statement.
-                BoundStatement statement = method.ReturnsVoid
-                    ? BindExpressionStatement(expressionBody, expressionBody.Expression)
-                    : new BoundReturn(expressionBody, Convert(BindValue(expressionBody.Expression, method.ReturnType), method.ReturnType));
-                return new BoundBlock(expressionBody, [statement]);
-            case InitDeclarationSyntax init:
-                return BindBlock(init.Body);
-            default:
-                return new BoundBlock(method.Syntax ?? _containingType.Syntax, []);
+            FunctionDeclarationSyntax function => (function.Body, function.ExpressionBody),
+            AccessorDeclarationSyntax accessor => (accessor.Body, accessor.ExpressionBody),
+            InitDeclarationSyntax init => (init.Body, null),
+            _ => (null, null),
+        };
+        if (body is not null)
+        {
+            return BindBlock(body);
         }
+        if (expressionBody is not null)
+        {
+            // func F() -> int = value (and get = value) returns the value; without a return type the expression is a statement.
+            BoundStatement statement = method.ReturnsVoid
+                ? BindExpressionStatement(expressionBody, expressionBody.Expression)
+                : new BoundReturn(expressionBody, Convert(BindValue(expressionBody.Expression, method.ReturnType), method.ReturnType));
+            return new BoundBlock(expressionBody, [statement]);
+        }
+        return new BoundBlock(method.Syntax ?? _containingType.Syntax, []);
     }
 
-    public BoundExpression BindFieldInitializer(SourceFieldSymbol field)
-    {
-        var value = field.Syntax.Initializer!.Value;
-        return Convert(BindValue(value, field.Type), field.Type);
-    }
+    /// <summary>The initial value of a field or an auto property, converted to its type.</summary>
+    public BoundExpression BindInitializer(EqualsValueClauseSyntax initializer, TypeSymbol type) =>
+        Convert(BindValue(initializer.Value, type), type);
 
     // Scopes ---------------------------------------------------------------------------------------------------
 
@@ -95,7 +98,7 @@ internal sealed partial class MethodBinder
             var position = existing switch
             {
                 LocalSymbol other => other.Identifier.Position,
-                SourceParameterSymbol parameter => parameter.Syntax.Identifier.Position,
+                SourceParameterSymbol parameter => parameter.Identifier.Position,
                 _ => identifier.Position,
             };
             Report(DiagnosticDescriptors.NameAlreadyDeclared, identifier, identifier.Text, Tree.Text.GetLinePosition(position).Line + 1);
@@ -127,7 +130,8 @@ internal sealed partial class MethodBinder
             case BoundMethodGroup group:
                 Report(DiagnosticDescriptors.FunctionIsNotValue, syntax, group.Name);
                 return Bad(syntax);
-            case BoundPropertyAccess { Property.HasGetter: false } property:
+            case BoundPropertyAccess property when !property.Property.HasGetter
+                || !IsAccessibleHere(property.Property.GetterAccessibility, property.Property.ContainingType):
                 Report(DiagnosticDescriptors.PropertyHasNoGetter, syntax, SymbolDisplay.Format(property.Property));
                 return Bad(syntax);
             case { Type.IsVoid: true } when !allowVoid:

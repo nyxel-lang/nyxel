@@ -423,7 +423,7 @@ class Slime : Behaviour {
   - 并列的块、并列的分支可以重用名字。局部变量从声明的地方开始可见，到所在的块结束，所以块结束以后再声明同名的变量也可以。
   - 字段不受影响（总是写 `self.hp`）；`_` 是丢弃，不算名字。
 
-## 函数与方法（ADR-0006、ADR-0008、ADR-0032、ADR-0039）
+## 函数与方法（ADR-0006、ADR-0008、ADR-0032、ADR-0039、ADR-0044）
 
 ```nyxel
 class Slime : Behaviour {
@@ -465,7 +465,7 @@ let d = Slime.Distance(a, b)        // 静态函数通过类型名调用
 
 - `func Name(参数) -> 返回类型 { ... }`；没有返回值时省略 `->` 和返回类型。参数和返回类型必须写。
 - 第一个参数是 `self`（不写类型）的是实例方法；没有 `self` 的是静态函数，必须写 `static func`（ADR-0039）。两个标记要一致：`static func F(self)`、不带 `static` 的 `func F()` 都是编译错误，诊断说明加哪个或去掉哪个。`init`、`operator` 不写：`init` 总是实例的，运算符总是静态的。
-- `var self` 只能用在 struct 上，表示方法会修改这个值；只写 `self` 的 struct 方法不能修改字段，也不能调用 `var self` 方法。class 方法的 `self` 是引用，总能修改对象的字段，不需要也不允许写 `var self`。
+- `var self` 只能用在 struct 上，表示方法会修改这个值；只写 `self` 的 struct 方法不能修改字段和属性，也不能调用 `var self` 方法。class 方法的 `self` 是引用，总能修改对象的字段，不需要也不允许写 `var self`。
 - `var self` 方法不能在 `let` 的 struct 上调用，也不能在临时副本上调用（属性、`List` 这类普通索引器、函数调用的结果）：
   ```nyxel
   let h = new Health()
@@ -476,7 +476,7 @@ let d = Slime.Distance(a, b)        // 静态函数通过类型名调用
   self.healths[0] = first
   self.slots[0].Damage(amount = 5)        // 能（slots 是 array<Health>）：数组元素就是数组里的格子
   ```
-- 哪些写法拿到的是副本，同 C#（ADR-0032）。“改”指给字段赋值、调用 `var self` 方法：
+- 哪些写法拿到的是副本，同 C#（ADR-0032）。“改”指给字段或属性赋值、调用 `var self` 方法（属性的 setter 同 `var self` 方法，getter 同 `self` 方法，ADR-0044）：
 
   | 写法 | 拿到的是 | 能改吗 |
   |---|---|---|
@@ -1432,7 +1432,7 @@ async func Pump(self, session: RuntimeSession) {
 - `await using 名字 = 值`：值实现 `IAsyncDisposable`（或有 `DisposeAsync`，同 C#），其余同 `using`。只实现了 `IAsyncDisposable` 的写成 `using` 是编译错误；两个都实现的（`FileStream`）两种都能写，各调各的。
 - `await for 名字 in 集合`：遍历 `IAsyncEnumerable<T>`（或有 `GetAsyncEnumerator`，同 C#），可以解构。JS、Swift 的 `for await` 是编译错误。
 
-## 属性（ADR-0011）
+## 属性（ADR-0011、ADR-0044）
 
 ```nyxel
 class Player : Behaviour {
@@ -1457,7 +1457,18 @@ interface IDamageable {
 ```
 
 - `property` 声明属性；`var` / `let` 只声明字段。
-- 访问器要么都带函数体（计算属性），要么都不带（自动属性，初始值写在类型后面）。每个访问器一行，可以单独加可见性（`private set`；`private` 只出现在访问器和 `init` 上）。
+- 访问器要么都带函数体（计算属性），要么都不带（自动属性，初始值写在类型后面）。每个访问器一行，可以单独加可见性（`private set`；`private` 只出现在访问器和 `init` 上），规则同 C#：只能有一个访问器写，属性要有 `get` 和 `set` 两个访问器，写的要比属性本身更严。
+- 自动属性的值同字段（ADR-0044）：只有 `get` 的同 `let` 字段，在声明处或本类型的 `init` 里赋值，之后只读；带 `set` 的同 `var` 字段。初始值可以不写，规则也同字段：类型没有 `init` 时必须写，有 `init` 时每个 `init` 都要赋值。
+
+  ```nyxel
+  class Slime : IDamageable {
+      public property Health: int { get }       // 同 let 字段
+      init(hp: int) {
+          self.Health = hp
+      }
+  }
+  ```
+- 属性必须有 `get`（ADR-0044）：只写 `set` 是编译错误，“只能写”的操作写成函数（`SetVolume(v)`）。
 - getter 的函数体可以是块，也可以是 `= 表达式`，同函数（ADR-0026）。setter 的体是语句，只能写块。
 - setter 的新值在括号里命名：`set(value)`。访问器里 `self` 隐式可用。静态属性写 `static property`。
 - 默认用字段；实现接口的属性、对外只读对内可写、值需要计算时用属性。

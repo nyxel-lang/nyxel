@@ -642,6 +642,42 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor InferredLocalCannotBeNull =
         Error("NYX2069", "'{0}' is a '{1}', the type of its first value, so it can't be given a value that may be null. Declare it as 'var {0}: {1}? = ...' to let it hold null.");
 
+    public static readonly DiagnosticDescriptor AccessorBodiesMixed =
+        Error("NYX2070", "The accessors of '{0}' must all have bodies (a computed property) or none (an auto property, which stores the value).");
+
+    public static readonly DiagnosticDescriptor PropertyNeedsGetter =
+        Error("NYX2071", "'{0}' has no 'get': a property must be readable. Something that can only be set is a function, such as 'func Set{0}(self, value: {1})'.");
+
+    public static readonly DiagnosticDescriptor ComputedPropertyInitializer =
+        Error("NYX2072", "'{0}' computes its value in 'get', so it can't have an initial value; only an auto property, with accessors that have no bodies, stores one.");
+
+    public static readonly DiagnosticDescriptor SetterNeedsParameter =
+        Error("NYX2073", "Name the new value of this 'set': 'set(value)'.");
+
+    public static readonly DiagnosticDescriptor AutoSetterParameter =
+        Error("NYX2074", "The 'set' of an auto property has no body, so it takes no '({0})'.");
+
+    public static readonly DiagnosticDescriptor DuplicateAccessor =
+        Error("NYX2075", "'{0}' already has a '{1}'.");
+
+    public static readonly DiagnosticDescriptor AccessorVisibility =
+        Error("NYX2076", "'{0}' can't be written on this '{1}': {2}.");
+
+    public static readonly DiagnosticDescriptor ProtectedInStruct =
+        Error("NYX2077", "A struct can't be inherited, so nothing in it can be 'protected'.");
+
+    public static readonly DiagnosticDescriptor VarSelfInClass =
+        Error("NYX2078", "'var self' is only for struct functions. Through 'self' a class function can always change the object's fields, and 'self' never points to another object; write 'self'.");
+
+    public static readonly DiagnosticDescriptor StructContainsItself =
+        Error("NYX2079", "'{0}' contains itself through '{1}': a struct holds its fields in place, so it can't contain itself. Make one of the structs a class.");
+
+    public static readonly DiagnosticDescriptor ChangesStructCopy =
+        Error("NYX2080", "{0} changes '{1}', which is a copy of the struct, so the change would be lost. Store it in a 'var', change that, and assign it back.");
+
+    public static readonly DiagnosticDescriptor ChangesReadOnlyStruct =
+        Error("NYX2081", "{0} changes '{1}', which {2}.");
+
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);
 }

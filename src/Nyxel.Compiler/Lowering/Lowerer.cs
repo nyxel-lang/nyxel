@@ -19,6 +19,7 @@ internal sealed class Lowerer(BoundProgram program)
     private readonly CSharpWriter _writer = new();
     private SourceText _source = null!;
     private int _temporaries;
+    private Dictionary<string, string>? _renamedLocals;
 
     public static string Lower(BoundProgram program) => new Lowerer(program).LowerProgram();
 
@@ -53,7 +54,8 @@ internal sealed class Lowerer(BoundProgram program)
     {
         _source = type.SyntaxTree.Text;
         var access = type.Accessibility == Accessibility.Public ? "public" : "internal";
-        _writer.WriteHidden($"{access} class {Escape(type.Name)}");
+        var keyword = type.TypeKind == TypeKind.Struct ? "struct" : "class";
+        _writer.WriteHidden($"{access} {keyword} {Escape(type.Name)}");
         _writer.WriteHidden("{");
         _writer.Indent();
         foreach (var member in type.GetMembers())
@@ -63,8 +65,16 @@ internal sealed class Lowerer(BoundProgram program)
                 case SourceFieldSymbol field:
                     LowerField(field);
                     break;
+                case SourcePropertySymbol property:
+                    LowerProperty(property);
+                    break;
                 case SourceMethodSymbol { Syntax: not null } method:
                     LowerMethod(type, method);
+                    break;
+                case SourceMethodSymbol { MethodKind: MethodKind.Constructor } when type.TypeKind == TypeKind.Struct:
+                    // The implicit init (ADR-0013). C# runs a struct's field initializers only in a constructor that
+                    // is written out, and requires one when there are initializers (CS8983).
+                    _writer.WriteHidden($"public {Escape(type.Name)}() {{ }}");
                     break;
             }
         }
@@ -72,38 +82,107 @@ internal sealed class Lowerer(BoundProgram program)
         _writer.WriteHidden("}");
     }
 
+    /// <summary>
+    /// A property (ADR-0011): an auto property as C#'s <c>{ get; private set; } = value</c>, a computed one with its
+    /// accessors as blocks. A struct's <c>get</c> is <c>readonly</c>, as its <c>self</c> functions are (ADR-0044).
+    /// </summary>
+    private void LowerProperty(SourcePropertySymbol property)
+    {
+        var syntax = property.Syntax;
+        var modifiers = Modifiers(property.Accessibility, property.IsStatic);
+        var name = $"{TypeName(property.Type)} {Escape(property.Name)}";
+        if (property.IsAuto)
+        {
+            var accessors = string.Join(" ", new[] { property.Getter, property.Setter }.OfType<SourceMethodSymbol>()
+                .Select(a => $"{AccessorModifiers(property, a)}{(a.MethodKind == MethodKind.PropertyGet ? "get" : "set")};"));
+            var initializer = program.Initializers.TryGetValue(property, out var value) ? $" = {Expression(value)};" : "";
+            var end = syntax.Initializer?.Span.End ?? syntax.TypeAnnotation.Span.End;
+            _writer.WriteMapped(_source, TextSpan.FromBounds(syntax.Span.Start, end), $"{modifiers}{name} {{ {accessors} }}{initializer}");
+            return;
+        }
+        // C# takes 'readonly' on the property when it has only a get (CS8664), on the get otherwise.
+        var getterReadOnly = property.Getter is { IsReadOnly: true };
+        var wholeReadOnly = getterReadOnly && property.Setter is null;
+        _writer.WriteHidden($"{modifiers}{(wholeReadOnly ? "readonly " : "")}{name}");
+        _writer.WriteHidden("{");
+        _writer.Indent();
+        foreach (var accessor in new[] { property.Getter, property.Setter }.OfType<SourceMethodSymbol>())
+        {
+            var isGet = accessor.MethodKind == MethodKind.PropertyGet;
+            var readOnly = isGet && getterReadOnly && !wholeReadOnly ? "readonly " : "";
+            _writer.WriteHidden($"{AccessorModifiers(property, accessor)}{readOnly}{(isGet ? "get" : "set")}");
+            LowerBody(accessor);
+        }
+        _writer.Unindent();
+        _writer.WriteHidden("}");
+    }
+
+    /// <summary>The visibility of an accessor when it narrows its property's (<c>private set</c>).</summary>
+    private static string AccessorModifiers(SourcePropertySymbol property, SourceMethodSymbol accessor) =>
+        accessor.Accessibility == property.Accessibility ? "" : Modifiers(accessor.Accessibility, isStatic: false);
+
     private void LowerField(SourceFieldSymbol field)
     {
         var modifiers = Modifiers(field.Accessibility, field.IsStatic) + (field.IsReadOnly ? "readonly " : "");
-        var initializer = program.FieldInitializers.TryGetValue(field, out var value) ? $" = {Expression(value)}" : "";
+        var initializer = program.Initializers.TryGetValue(field, out var value) ? $" = {Expression(value)}" : "";
         _writer.WriteMapped(_source, field.Syntax.Span, $"{modifiers}{TypeName(field.Type)} {Escape(field.Name)}{initializer};");
     }
 
     private void LowerMethod(SourceNamedTypeSymbol type, SourceMethodSymbol method)
     {
         var parameters = string.Join(", ", method.Parameters.Select(p => $"{TypeName(p.Type)} {Escape(p.Name)}"));
+        // A struct's self function can't change the value: C#'s readonly method (ADR-0008).
+        var readOnly = method.IsReadOnly ? "readonly " : "";
         var header = method.MethodKind == MethodKind.Constructor
             ? $"{Modifiers(method.Accessibility, isStatic: false)}{Escape(type.Name)}({parameters})"
-            : $"{Modifiers(method.Accessibility, method.IsStatic)}{TypeName(method.ReturnType)} {Escape(method.Name)}({parameters})";
+            : $"{Modifiers(method.Accessibility, method.IsStatic)}{readOnly}{TypeName(method.ReturnType)} {Escape(method.Name)}({parameters})";
         _writer.WriteHidden(header);
+        LowerBody(method);
+    }
 
+    private void LowerBody(SourceMethodSymbol method)
+    {
         var body = program.Bodies[method];
         var block = method.Syntax switch
         {
             FunctionDeclarationSyntax function => function.Body,
             InitDeclarationSyntax init => init.Body,
+            AccessorDeclarationSyntax accessor => accessor.Body,
             _ => null,
         };
         // The braces are mapped too, so that a breakpoint can stop where the function starts and ends (rule 5).
         WriteBrace(block?.OpenBraceToken, "{");
         _writer.Indent();
+        _renamedLocals = null;
+        if (method is { MethodKind: MethodKind.PropertySet, Parameters: [{ Name: not "value" } parameter] })
+        {
+            // C# names the new value 'value'; Nyxel names it in set(v). A local named 'value' in this setter would
+            // clash with C#'s, so it gets a name no local of the setter has.
+            _writer.WriteHidden($"{TypeName(parameter.Type)} {Escape(parameter.Name)} = value;");
+            var names = body.DescendantsAndSelf().Select(DeclaredLocal).OfType<LocalSymbol>().Select(l => l.Name).ToHashSet();
+            var rename = Enumerable.Range(1, names.Count + 1).Select(i => $"value_{i}").First(n => !names.Contains(n));
+            _renamedLocals = new Dictionary<string, string> { ["value"] = rename };
+        }
         foreach (var statement in body.Statements)
         {
             LowerStatement(statement);
         }
+        _renamedLocals = null;
         _writer.Unindent();
         WriteBrace(block?.CloseBraceToken, "}");
+
+        static LocalSymbol? DeclaredLocal(BoundNode node) => node switch
+        {
+            BoundLocalDeclaration declaration => declaration.Local,
+            BoundForRange range => range.Variable,
+            BoundForEach each => each.Variable,
+            _ => null,
+        };
     }
+
+    /// <summary>How a local is written in C#: its own name, unless a setter had to rename it (<see cref="LowerBody"/>).</summary>
+    private string LocalName(LocalSymbol local) =>
+        _renamedLocals is not null && _renamedLocals.TryGetValue(local.Name, out var renamed) ? renamed : Escape(local.Name);
 
     private void WriteBrace(SyntaxToken? token, string brace)
     {
@@ -128,7 +207,7 @@ internal sealed class Lowerer(BoundProgram program)
                 break;
             case BoundLocalDeclaration declaration:
                 var initializer = LowerCoalesceJump(statement, declaration.Initializer);
-                Mapped(statement, $"{TypeName(declaration.Local.Type)} {Escape(declaration.Local.Name)} = {Expression(initializer)};");
+                Mapped(statement, $"{TypeName(declaration.Local.Type)} {LocalName(declaration.Local)} = {Expression(initializer)};");
                 break;
             case BoundExpressionStatement expression:
                 Mapped(statement, $"{Expression(expression.Expression)};");
@@ -274,7 +353,7 @@ internal sealed class Lowerer(BoundProgram program)
         _writer.WriteMapped(_source, header, $"{counter}++)");
         _writer.WriteHidden("{");
         _writer.Indent();
-        _writer.WriteHidden($"{type} {Escape(range.Variable.Name)} = {counter};");
+        _writer.WriteHidden($"{type} {LocalName(range.Variable)} = {counter};");
         LowerBlock(range.Body);
         _writer.Unindent();
         _writer.WriteHidden("}");
@@ -284,7 +363,7 @@ internal sealed class Lowerer(BoundProgram program)
     {
         var syntax = (ForStatementSyntax)each.Syntax;
         var header = Header(syntax.ForKeyword, syntax.Collection);
-        _writer.WriteMapped(_source, header, $"foreach ({TypeName(each.Variable.Type)} {Escape(each.Variable.Name)}");
+        _writer.WriteMapped(_source, header, $"foreach ({TypeName(each.Variable.Type)} {LocalName(each.Variable)}");
         _writer.WriteMapped(_source, header, $"in {Expression(each.Collection)})");
         LowerBlock(each.Body);
     }
@@ -313,7 +392,7 @@ internal sealed class Lowerer(BoundProgram program)
             case BoundLiteral literal:
                 return Literal(literal.Value);
             case BoundLocalAccess local:
-                return Narrowed(Escape(local.Local.Name), local.Local.Type, local.Type);
+                return Narrowed(LocalName(local.Local), local.Local.Type, local.Type);
             case BoundParameterAccess parameter:
                 return Narrowed(Escape(parameter.Parameter.Name), parameter.Parameter.Type, parameter.Type);
             case BoundTemporary temporary:

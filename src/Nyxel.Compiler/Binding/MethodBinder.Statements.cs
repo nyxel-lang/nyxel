@@ -81,6 +81,10 @@ internal sealed partial class MethodBinder
         {
             Report(DiagnosticDescriptors.ExpressionNotStatement, expression);
         }
+        if ((bound as BoundCall ?? (bound as BoundConditionalAccess)?.Access as BoundCall) is { } call)
+        {
+            CheckUnusedCall(call);
+        }
         return new BoundExpressionStatement(syntax, bound);
     }
 
@@ -236,32 +240,53 @@ internal sealed partial class MethodBinder
             case BoundParameterAccess parameter:
                 Report(DiagnosticDescriptors.AssignToParameter, syntax, parameter.Parameter.Name);
                 return false;
-            case BoundFieldAccess { Receiver: var receiver } when receiver is not null && Narrowable(receiver) is var (_, declared) && declared.IsNullable && declared.IsValueType:
-                // C# can't set a field of the value inside a Nullable<T> in place.
-                NotSupported(syntax, "Setting a field of a checked 'T?' struct");
-                return false;
             case BoundFieldAccess field:
                 // A let field can be set where it is declared and in an init of its type (ADR-0006).
-                var inInit = _method is { MethodKind: MethodKind.Constructor } && ReferenceEquals(field.Field.ContainingType, _containingType)
-                    && field.Receiver is BoundSelf;
-                if (field.Field.IsReadOnly && !(inInit && field.Field is SourceFieldSymbol))
+                if (field.Field.IsReadOnly && !IsLetFieldInOwnInit(field))
                 {
                     Report(DiagnosticDescriptors.AssignToLet, syntax, field.Field.Name);
                     return false;
                 }
-                return true;
-            case BoundPropertyAccess { Property.HasSetter: false } property:
-                Report(DiagnosticDescriptors.PropertyHasNoSetter, syntax, SymbolDisplay.Format(property.Property));
-                return false;
-            case BoundIndexerAccess { Indexer.HasSetter: false } indexer:
-                Report(DiagnosticDescriptors.PropertyHasNoSetter, syntax, SymbolDisplay.Format(indexer.Indexer));
-                return false;
-            case BoundPropertyAccess or BoundIndexerAccess:
-                return true;
+                // Setting a field changes the struct it is in (ADR-0032).
+                return field.Receiver is null || CheckCanChange(field.Receiver, $"Setting '{field.Field.Name}'");
+            case BoundPropertyAccess property:
+                return CheckPropertyAssignable(property, syntax);
+            case BoundIndexerAccess indexer:
+                if (!indexer.Indexer.HasSetter || !IsAccessibleHere(indexer.Indexer.SetterAccessibility, indexer.Indexer.ContainingType))
+                {
+                    Report(DiagnosticDescriptors.PropertyHasNoSetter, syntax, SymbolDisplay.Format(indexer.Indexer));
+                    return false;
+                }
+                return CheckCanChange(indexer.Receiver, "Setting an element");
             default:
                 Report(DiagnosticDescriptors.NotAssignable, syntax);
                 return false;
         }
+    }
+
+    /// <summary>
+    /// A property can be set through a <c>set</c> that is visible here; on a struct the setter changes the value
+    /// (ADR-0044). An auto property with only <c>get</c> is set like a <c>let</c> field: in an <c>init</c> of its type.
+    /// </summary>
+    private bool CheckPropertyAssignable(BoundPropertyAccess access, ExpressionSyntax syntax)
+    {
+        var property = access.Property;
+        if (property is SourcePropertySymbol { IsReadOnly: true })
+        {
+            var inInit = _method is { MethodKind: MethodKind.Constructor } && ReferenceEquals(property.ContainingType, _containingType)
+                && access.Receiver is BoundSelf;
+            if (!inInit)
+            {
+                Report(DiagnosticDescriptors.PropertyHasNoSetter, syntax, SymbolDisplay.Format(property));
+            }
+            return inInit;
+        }
+        if (!property.HasSetter || !IsAccessibleHere(property.SetterAccessibility, property.ContainingType))
+        {
+            Report(DiagnosticDescriptors.PropertyHasNoSetter, syntax, SymbolDisplay.Format(property));
+            return false;
+        }
+        return access.Receiver is null || CheckCanChange(access.Receiver, $"Setting '{property.Name}'");
     }
 
     /// <summary>

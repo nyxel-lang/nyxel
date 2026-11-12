@@ -1,6 +1,6 @@
 # ADR-0008: 类型定义：class / struct / enum、命名构造、new、self
 
-- 状态：已接受（2026-11-10 修订）
+- 状态：已接受（2026-11-11 修订）
 - 日期：2026-10-02
 
 ## 背景
@@ -34,7 +34,7 @@
    - 第一个参数是 `self`（不写类型）的是实例方法；没有 `self` 的是静态函数，必须写 `static func`，两个标记不一致是编译错误（ADR-0039）。
    - struct 的方法要修改自己时写 `var self`；只写 `self` 的 struct 方法不能修改自己的字段，也不能调用自己的 `var self` 方法。
    - `var self` 只能用在 struct 上。class 方法的 `self` 是引用：通过它总能修改对象的字段，而 `self` 本身不会指向别的对象，“方法改不改自己”对 class 没有意义。class 方法写 `var self` 是编译错误，诊断要说明这个原因。
-   - **`let` 的 struct 整个不可变**：struct 变量存的是数据本身，所以 `let` 的 struct 局部变量或字段，既不能给它的字段赋值，也不能调用它的 `var self` 方法。
+   - **`let` 的 struct 整个不可变**：struct 变量存的是数据本身，所以 `let` 的 struct 局部变量或字段，既不能给它的字段或属性赋值，也不能调用它的 `var self` 方法（属性的 setter 同 `var self` 方法，ADR-0044）。
    - **不能在临时副本上调用 `var self` 方法**：属性、普通索引器（`list[i]`、`dict[key]`）、普通函数调用取出来的 struct 是一份副本，修改会随副本丢失（C# 允许这样写，Unity 的 `transform.position.Normalize()` 就是这样悄悄失效的）。这是编译错误，诊断建议先存进 `var` 局部变量，改完再写回。数组元素、`Span<T>` 的元素、返回 `ref` 的函数（`world.Get<T>(e)`）指向原来的存储，不是副本，可以直接改；完整的表见 ADR-0032 决策 1。
    - 调用时不传 `self`：`slime.TakeDamage(5)`；静态函数只能通过类型名调用：`Slime.Count()`。不能写成 `Slime.TakeDamage(slime, 5)`。
    - 字段、属性和函数都用 `static` 标记静态的；函数另外还靠有没有 `self`，两者互相印证。
@@ -78,3 +78,4 @@
 - 2026-11-04：带数据的 enum 必须写明 `struct enum` / `class enum`（决策 2）；没有 `self` 的函数必须写 `static func`（决策 6），见 ADR-0039。
 - 2026-11-04：`init` 默认公开（决策 3，原来默认私有），见 ADR-0040。
 - 2026-11-10：`init` 上写 `public` 是编译错误（决策 3），见 ADR-0042。
+- 2026-11-11：给 `let` 的 struct 的属性赋值也不行（决策 6），见 ADR-0044。

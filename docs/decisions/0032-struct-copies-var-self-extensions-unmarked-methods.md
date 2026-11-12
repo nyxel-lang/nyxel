@@ -1,6 +1,6 @@
 # ADR-0032: 哪些写法是 struct 的副本、`var self` 扩展、C# 里没标 `readonly` 的方法
 
-- 状态：已接受
+- 状态：已接受（2026-11-11 修订）
 - 日期：2026-10-30
 
 ## 背景
@@ -51,7 +51,7 @@ System.Numerics 的 `Vector3`、`Matrix4x4`、`Quaternion` 的实例方法都标
    | `ReadOnlySpan<T>` 的元素、返回 `ref readonly` 的函数 | 原来的存储，只读 | 不能 |
    | 属性 `obj.Position`、普通索引器 `list[i]` / `dict[key]`、普通函数的返回值 | 副本 | 不能，改了会丢 |
 
-   - “改”指给它的字段赋值、调用它的 `var self` 方法（ADR-0008 决策 6）。
+   - “改”指给它的字段或属性赋值、调用它的 `var self` 方法（ADR-0008 决策 6）。属性的 setter 同 `var self` 方法，getter 同 `self` 方法（ADR-0044）。
    - 副本上要改，先存进 `var` 局部变量，改完再写回去，诊断给出这个写法。
    - 没有 ref 局部变量（C# 的 `ref var t = ref world.Get<Transform>(e)`）。`var t = world.Get<Transform>(e)` 是复制一份。要连改几个字段，调用几次 `Get`，或者写一个 `var self` 方法（决策 2）。
 
@@ -128,3 +128,7 @@ System.Numerics 的 `Vector3`、`Matrix4x4`、`Quaternion` 的实例方法都标
 - 翻译（M2 / M3）：`var self` 扩展放进 `extension(ref T self)` 块。
 - 样例 samples/Ecs/Spin.nyxel：照 EnginePlayground 的旋转系统写的，`Span` 元素上调用 `var self` 扩展、`world.Get<T>(e)` 的 `ref` 返回值、查询构建器。
 - 待定：ref 局部变量（`ref var t = ref world.Get<Transform>(e)`）。
+
+## 修订记录
+
+- 2026-11-11：“改”包括给属性赋值（决策 1），见 ADR-0044。

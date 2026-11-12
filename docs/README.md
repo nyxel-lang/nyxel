@@ -67,5 +67,6 @@
 | [0041](decisions/0041-null-details-assignment-equality-members.md) | 空值的五处细节：赋了不可能是 null 的值之后当作非空；`int?` 只有 `==` / `!=` 像 C# 那样提升；`T?` 没有成员（`.Value` 也不行）；对不会是 null 的引用类型做 null 检查是警告；没标注的程序集只管最外层 |
 | [0042](decisions/0042-integer-division-captured-var-local-initial-value-precedence-hints.md) | 整体 review 第四批：整数相除的结果不能隐式变成浮点（写 `a as float / b` 或 `(a / b) as float`）；被 lambda 捕获的 `var` 局部变量不收窄；局部变量必须在声明处给初始值；`not` 和位运算的优先级不动、加专门的诊断；`init` 上写 `public` 是错误；推断出类型的 `var` 赋 null 时诊断指到声明；`typeof` / `nameof` 记入待定 |
 | [0043](decisions/0043-if-then-else-try-value-form.md) | 当值用的 `if` 写 `if c then a else b`（`then` 是保留字，`then` / `else` 可以放下一行行首、不能放行尾）；当值用的 `try` 写 `try a catch e: T -> b`；`->` 在分支里只跟在 `case`、`catch` 后面；原来的 `if c -> a else -> b` 是错误；不加不带值的 `match`；语句形式的 `if` 不写 `then` |
+| [0044](decisions/0044-auto-property-values-no-setter-only-struct-setters.md) | 实现属性和 struct 时补的三条：自动属性的值同字段（只有 `get` 的同 `let` 字段，能在 `init` 里赋值；初始值可以不写，规则同字段）；属性必须有 `get`；struct 上给属性赋值算“改”（setter 同 `var self` 方法，`let` 的 struct 和副本上不行）；改了 ADR-0008、0011、0032 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

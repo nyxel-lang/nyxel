@@ -218,7 +218,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2026` | 给 `let` 重新赋值（ADR-0006）；`let` 字段只能在声明处和 `init` 里赋值 | 改成 `var` |
 | `NYX2027` | 给参数赋值（ADR-0014） | 先 `var x = 参数` |
 | `NYX2028` | 赋值的左边不能赋值 | `1 = x`、`self.Name() = x` |
-| `NYX2029` | 属性、索引器没有能用的 setter | `text.Length = 3` |
+| `NYX2029` | 属性、索引器没有能用的 setter：没有 `set`、`private set` 在外面用、只有 `get` 的自动属性在 `init` 外面赋值（ADR-0044） | `text.Length = 3` |
 | `NYX2030` | 属性、索引器没有能用的 getter |  |
 | `NYX2031` | 局部变量、参数和看得见的同名（ADR-0036） | 内层块里再 `let speed`；lambda 参数和外层同名 |
 | `NYX2032` | 同一个命名空间里两个同名的类型 |  |
@@ -238,8 +238,8 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2046` | 有两个以上 `Main`（ADR-0036） |  |
 | `NYX2047` | `Main` 的参数或返回类型不对（ADR-0036） | `static func Main(args: array<string>) -> int` |
 | `NYX2048` | `async func Main`（ADR-0036） |  |
-| `NYX2049` | 没有初始值的字段，类却没有 `init`（ADR-0013） | 给字段初始值，或者写 `init` |
-| `NYX2050` | `init` 不是每条路径都给没有初始值的字段赋了值 |  |
+| `NYX2049` | 没有初始值的字段或自动属性，类型却没有 `init`（ADR-0013、ADR-0044）；静态的总要初始值 | 给初始值，或者写 `init` |
+| `NYX2050` | `init` 不是每条路径都给没有初始值的字段或自动属性赋了值（ADR-0044） |  |
 | `NYX2051` | 数组下标、创建时的长度个数和维数不一致 | `grid[1]` 写成 `grid[x, y]` |
 | `NYX2052` | 不能用 `[...]` 取元素的值 | `count[0]` |
 | `NYX2053` | 编译器内部错误：降级出的 C# 编译不过（ADR-0004 的兜底）。出现一次说明前端漏了一项检查 | 报告这个问题 |
@@ -259,6 +259,18 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2067` | `not` 后面跟着比较或 `is`，而它只管到紧跟着的那个值（优先级同 C# 的 `!`，ADR-0010、ADR-0042），那个值又不是 `bool` | `not hp > 0` 写成 `hp <= 0` 或 `not (hp > 0)`；`not x is T` 写成 `x is not T` |
 | `NYX2068` | `&`、`^`、`\|` 和比较混写，比较先算（优先级同 C#，ADR-0010、ADR-0042），得到的 `bool` 和数字没法做位运算 | `mask & 4 != 0` 写成 `(mask & 4) != 0` |
 | `NYX2069` | 类型由初始值推断出来的 `var`，后来赋了 `null` 或 `T?` 的值（ADR-0041、ADR-0042） | `var current = node` 写成 `var current: Node? = node` |
+| `NYX2070` | 属性的访问器有的带函数体、有的不带（ADR-0011：都带是计算属性，都不带是自动属性） | `get = self.x` 和不带体的 `set` 写在一起 |
+| `NYX2071` | 属性没有 `get`（ADR-0044：只能写的操作写成函数） | `property Volume: float { set(v) { ... } }` 写成 `func SetVolume(self, v: float)` |
+| `NYX2072` | 计算属性写了初始值（只有自动属性存值） | `property P: int = 1 { get = 2 }` |
+| `NYX2073` | 带函数体的 `set` 没写新值的名字 | `set { ... }` 写成 `set(value) { ... }` |
+| `NYX2074` | 自动属性的 `set` 写了参数（它没有函数体，用不到） | `set(v)` 写成 `set` |
+| `NYX2075` | 属性写了两个 `get` 或两个 `set` |  |
+| `NYX2076` | 访问器上的可见性不合规则（同 C#）：只能写 `private` / `protected`，只能写在一个访问器上，属性要有 `get` 和 `set`，要比属性本身更严 | `property P: int = 0 { get private set }`（P 本身就是私有的）写成 `public property` |
+| `NYX2077` | struct 的成员或访问器写了 `protected`（struct 不能被继承） |  |
+| `NYX2078` | class 的函数写了 `var self`（ADR-0008：只有 struct 的函数能写） | `func F(var self)` 写成 `func F(self)` |
+| `NYX2079` | struct 直接或经别的 struct 包含自己（`S?` 也算） | `struct Node { var next: Node? = null }`：把它改成 class |
+| `NYX2080` | 在 struct 的副本上改（ADR-0032、ADR-0044）：属性、普通索引器、函数返回的 struct 上给字段或属性赋值、调用 `var self` 函数 | `self.healths[0].Damage(5)`：先 `var h = self.healths[0]`，改完写回 |
+| `NYX2081` | 改只读的 struct（ADR-0008、ADR-0032、ADR-0044）：`let` 局部变量和字段、参数、`for` 的变量、`self` 函数和 `get` 里的 `self`；也包括在这些值上调用没标 `readonly`、又不用返回值的 C# 方法 | `let h = new Health()` 后 `h.Damage(5)`：写成 `var h` |
 
 ## 不在语法阶段报的
 

@@ -620,18 +620,24 @@ internal sealed partial class MethodBinder
     /// <summary>Private members are for their own type, protected ones for derived types too (ADR-0015).</summary>
     private bool CheckAccessible(Symbol member, SyntaxNode location)
     {
-        var owner = ContainingTypeOf(member)?.OriginalDefinition;
-        var accessible = member.Accessibility switch
-        {
-            Accessibility.Private => ReferenceEquals(owner, _containingType),
-            Accessibility.Protected => DerivesFrom(_containingType, owner),
-            _ => true,
-        };
+        var accessible = IsAccessibleHere(member.Accessibility, ContainingTypeOf(member));
         if (!accessible)
         {
             Report(DiagnosticDescriptors.Inaccessible, location, SymbolDisplay.Format(member), member.Accessibility == Accessibility.Private ? "private" : "protected");
         }
         return accessible;
+    }
+
+    /// <summary>Whether code in this type can use something of <paramref name="owner"/> with this visibility (also <c>private set</c>).</summary>
+    private bool IsAccessibleHere(Accessibility accessibility, NamedTypeSymbol? owner)
+    {
+        owner = owner?.OriginalDefinition;
+        return accessibility switch
+        {
+            Accessibility.Private => ReferenceEquals(owner, _containingType),
+            Accessibility.Protected => DerivesFrom(_containingType, owner),
+            _ => true,
+        };
 
         static bool DerivesFrom(NamedTypeSymbol type, NamedTypeSymbol? baseType)
         {

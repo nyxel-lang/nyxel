@@ -41,6 +41,10 @@ internal sealed class Declarer(BinderContext context)
         {
             DeclareMembers(type, scopes[type.SyntaxTree]);
         }
+        foreach (var type in _types.Where(t => t.TypeKind == TypeKind.Struct))
+        {
+            CheckStructLayout(type);
+        }
         var entryPoint = needsEntryPoint ? FindEntryPoint() : null;
         return new DeclaredProgram([.. _types], scopes.ToImmutable(), entryPoint);
     }
@@ -69,7 +73,7 @@ internal sealed class Declarer(BinderContext context)
     {
         foreach (var member in tree.Root.Members)
         {
-            if (member is TypeDeclarationSyntax { Kind: SyntaxKind.ClassDeclaration } declaration)
+            if (member is TypeDeclarationSyntax { Kind: SyntaxKind.ClassDeclaration or SyntaxKind.StructDeclaration } declaration)
             {
                 if (declaration.Identifier.IsMissing)
                 {
@@ -111,8 +115,18 @@ internal sealed class Declarer(BinderContext context)
         var hasInit = false;
         foreach (var member in type.Syntax.Members)
         {
+            if (type.TypeKind == TypeKind.Struct)
+            {
+                CheckNotProtected(tree, member.Modifiers);
+            }
             switch (member)
             {
+                case PropertyDeclarationSyntax property when !property.Identifier.IsMissing:
+                    if (CheckName(property.Identifier))
+                    {
+                        type.AddMember(DeclareProperty(type, property, scope));
+                    }
+                    break;
                 case FieldDeclarationSyntax field when !field.Identifier.IsMissing:
                     if (CheckName(field.Identifier))
                     {
@@ -140,7 +154,7 @@ internal sealed class Declarer(BinderContext context)
                     hasInit = true;
                     type.AddMember(DeclareInit(type, init, scope));
                     break;
-                case FieldDeclarationSyntax or FunctionDeclarationSyntax:
+                case FieldDeclarationSyntax or FunctionDeclarationSyntax or PropertyDeclarationSyntax:
                     break;
                 default:
                     context.Report(DiagnosticDescriptors.NotSupportedYet, tree, DeclarationKeyword(member), Describe(member));
@@ -156,11 +170,19 @@ internal sealed class Declarer(BinderContext context)
                 DeclaredReturnType = context.Void,
             });
         }
+        // A field, or an auto property (ADR-0044), without an initial value is set by every init.
         foreach (var field in type.GetMembers().OfType<SourceFieldSymbol>())
         {
             if (field.Syntax.Initializer is null && (!hasInit || field.IsStatic))
             {
                 context.Report(DiagnosticDescriptors.FieldNeedsInitialValue, tree, field.Syntax.Identifier, field.Name);
+            }
+        }
+        foreach (var property in type.GetMembers().OfType<SourcePropertySymbol>().Where(p => p.IsAuto))
+        {
+            if (property.Syntax.Initializer is null && (!hasInit || property.IsStatic))
+            {
+                context.Report(DiagnosticDescriptors.FieldNeedsInitialValue, tree, property.Syntax.Identifier, property.Name);
             }
         }
 
@@ -184,6 +206,10 @@ internal sealed class Declarer(BinderContext context)
         {
             HasVarSelf = self?.VarKeyword is not null,
         };
+        if (self?.VarKeyword is { } varKeyword && type.TypeKind != TypeKind.Struct)
+        {
+            context.Report(DiagnosticDescriptors.VarSelfInClass, tree, varKeyword);
+        }
         if (syntax.TypeParameterList is { } typeParameters)
         {
             context.Report(DiagnosticDescriptors.NotSupportedYet, tree, typeParameters, "A generic function");
@@ -200,6 +226,157 @@ internal sealed class Declarer(BinderContext context)
         method.DeclaredParameters = DeclareParameters(method, parameters.Skip(self is null ? 0 : 1), scope);
         method.DeclaredReturnType = syntax.ReturnType is { } returnType ? scope.BindType(returnType.Type) : context.Void;
         return method;
+    }
+
+    /// <summary>
+    /// A property and its accessors (ADR-0011, ADR-0044): all with bodies or none, an initial value only without
+    /// bodies, a <c>get</c> always, <c>set(value)</c> named when it has a body, and visibility on accessors as in C#.
+    /// </summary>
+    private SourcePropertySymbol DeclareProperty(SourceNamedTypeSymbol type, PropertyDeclarationSyntax syntax, ImportScope scope)
+    {
+        var tree = type.SyntaxTree;
+        var propertyType = scope.BindType(syntax.TypeAnnotation.Type);
+        var property = new SourcePropertySymbol(type, syntax, propertyType);
+        foreach (var modifier in syntax.Modifiers.Where(m => m.Kind is SyntaxKind.VirtualKeyword or SyntaxKind.OverrideKeyword
+            or SyntaxKind.AbstractKeyword or SyntaxKind.SealedKeyword))
+        {
+            context.Report(DiagnosticDescriptors.NotSupportedYet, tree, modifier, $"'{modifier.Text}'");
+        }
+
+        var accessors = syntax.AccessorList.Accessors;
+        var withBodies = accessors.Count(a => a.Body is not null || a.ExpressionBody is not null);
+        if (withBodies > 0 && withBodies < accessors.Count)
+        {
+            context.Report(DiagnosticDescriptors.AccessorBodiesMixed, tree, syntax.Identifier, property.Name);
+        }
+        if (withBodies > 0 && syntax.Initializer is { } initializer)
+        {
+            context.Report(DiagnosticDescriptors.ComputedPropertyInitializer, tree, initializer, property.Name);
+        }
+
+        foreach (var accessor in accessors)
+        {
+            var isGet = accessor.Kind == SyntaxKind.GetAccessorDeclaration;
+            if ((isGet ? property.Getter : property.Setter) is not null)
+            {
+                context.Report(DiagnosticDescriptors.DuplicateAccessor, tree, accessor.Keyword, property.Name, accessor.Keyword.Text);
+                continue;
+            }
+            var method = new SourceMethodSymbol(type, accessor, property.Name, isGet ? MethodKind.PropertyGet : MethodKind.PropertySet, property.IsStatic)
+            {
+                Property = property,
+                DeclaredReturnType = isGet ? propertyType : context.Void,
+            };
+            if (!isGet)
+            {
+                var hasBody = accessor.Body is not null || accessor.ExpressionBody is not null;
+                if (hasBody && accessor.Parameter is null)
+                {
+                    context.Report(DiagnosticDescriptors.SetterNeedsParameter, tree, accessor.Keyword);
+                }
+                else if (!hasBody && accessor.Parameter is { } parameter)
+                {
+                    context.Report(DiagnosticDescriptors.AutoSetterParameter, tree, parameter, parameter.Identifier.Text);
+                }
+                else if (accessor.Parameter is { Identifier.IsMissing: false } value)
+                {
+                    method.DeclaredParameters = [new SourceParameterSymbol(method, value, value.Identifier, propertyType, 0)];
+                }
+            }
+            if (isGet)
+            {
+                property.Getter = method;
+            }
+            else
+            {
+                property.Setter = method;
+            }
+        }
+        if (property.Getter is null)
+        {
+            context.Report(DiagnosticDescriptors.PropertyNeedsGetter, tree, syntax.Identifier, property.Name, SymbolDisplay.FormatType(propertyType));
+        }
+        CheckAccessorVisibility(type, property);
+        return property;
+    }
+
+    /// <summary>
+    /// <c>private set</c> (ADR-0011, rules as in C#): only <c>private</c> or <c>protected</c>, on one of the two accessors
+    /// of a property that has both, and narrower than the property itself.
+    /// </summary>
+    private void CheckAccessorVisibility(SourceNamedTypeSymbol type, SourcePropertySymbol property)
+    {
+        var tree = type.SyntaxTree;
+        var narrowed = false;
+        foreach (var accessor in property.Syntax.AccessorList.Accessors)
+        {
+            if (type.TypeKind == TypeKind.Struct)
+            {
+                CheckNotProtected(tree, accessor.Modifiers);
+            }
+            foreach (var modifier in accessor.Modifiers)
+            {
+                if (type.TypeKind == TypeKind.Struct && modifier.Kind == SyntaxKind.ProtectedKeyword)
+                {
+                    continue;
+                }
+                var reason = modifier.Kind is not (SyntaxKind.PrivateKeyword or SyntaxKind.ProtectedKeyword)
+                    ? "an accessor can only narrow the property's visibility, with 'private' or 'protected'"
+                    : narrowed ? "only one of 'get' and 'set' can have a visibility of its own"
+                    : property.Getter is null || property.Setter is null ? "only a property with both 'get' and 'set' can narrow one of them"
+                    : SourceMethodSymbol.AccessorAccessibility(accessor.Modifiers) >= property.Accessibility
+                        ? $"the property itself is {(property.Accessibility == Accessibility.Private ? "private" : "protected")}, so this narrows nothing"
+                    : null;
+                if (reason is not null)
+                {
+                    context.Report(DiagnosticDescriptors.AccessorVisibility, tree, modifier, modifier.Text, accessor.Keyword.Text, reason);
+                }
+                narrowed |= modifier.Kind is SyntaxKind.PrivateKeyword or SyntaxKind.ProtectedKeyword;
+            }
+        }
+    }
+
+    /// <summary>A struct can't be inherited, so nothing in it is <c>protected</c>.</summary>
+    private void CheckNotProtected(SyntaxTree tree, SyntaxList<SyntaxToken> modifiers)
+    {
+        if (modifiers.FirstOrDefault(m => m.Kind == SyntaxKind.ProtectedKeyword) is { } protectedKeyword)
+        {
+            context.Report(DiagnosticDescriptors.ProtectedInStruct, tree, protectedKeyword);
+        }
+    }
+
+    /// <summary>
+    /// A struct holds its fields in place, so it can't contain itself, directly or through other structs (C#'s
+    /// CS0523). <c>S?</c> of a struct contains an <c>S</c> too.
+    /// </summary>
+    private void CheckStructLayout(SourceNamedTypeSymbol type)
+    {
+        foreach (var (name, location, memberType) in StoredMembers(type))
+        {
+            if (Contains(memberType, type, []))
+            {
+                context.Report(DiagnosticDescriptors.StructContainsItself, type.SyntaxTree, location, type.Name, name);
+            }
+        }
+
+        static bool Contains(TypeSymbol memberType, SourceNamedTypeSymbol target, HashSet<SourceNamedTypeSymbol> visited)
+        {
+            var stored = memberType is NullableTypeSymbol { UnderlyingType.IsValueType: true } nullable ? nullable.UnderlyingType : memberType;
+            if (stored is not SourceNamedTypeSymbol { TypeKind: TypeKind.Struct } structType)
+            {
+                return false;
+            }
+            return ReferenceEquals(structType, target)
+                || (visited.Add(structType) && StoredMembers(structType).Any(m => Contains(m.Type, target, visited)));
+        }
+
+        static IEnumerable<(string Name, SyntaxNode Location, TypeSymbol Type)> StoredMembers(SourceNamedTypeSymbol type) =>
+            type.GetMembers().Select(m => m switch
+            {
+                SourceFieldSymbol { IsStatic: false } field => (field.Name, (SyntaxNode)field.Syntax.Identifier, field.Type),
+                SourcePropertySymbol { IsStatic: false, IsAuto: true } property => (property.Name, property.Syntax.Identifier, property.Type),
+                _ => default,
+            }).Where(m => m.Name is not null);
     }
 
     private SourceMethodSymbol DeclareInit(SourceNamedTypeSymbol type, InitDeclarationSyntax syntax, ImportScope scope)

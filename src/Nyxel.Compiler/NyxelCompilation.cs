@@ -114,15 +114,23 @@ public sealed class NyxelCompilation
             var context = new BinderContext(Symbols, diagnostics);
             var declared = new Declarer(context).Declare(SyntaxTrees, OutputKind != CodeAnalysis.OutputKind.DynamicallyLinkedLibrary);
             var bodies = new Dictionary<SourceMethodSymbol, BoundBlock>(ReferenceEqualityComparer.Instance);
-            var initializers = new Dictionary<SourceFieldSymbol, BoundExpression>(ReferenceEqualityComparer.Instance);
+            var initializers = new Dictionary<Symbol, BoundExpression>(ReferenceEqualityComparer.Instance);
             foreach (var type in declared.Types)
             {
                 var scope = declared.Scopes[type.SyntaxTree];
-                foreach (var field in type.GetMembers().OfType<SourceFieldSymbol>().Where(f => f.Syntax.Initializer is not null))
+                foreach (var member in type.GetMembers())
                 {
-                    initializers.Add(field, new MethodBinder(context, scope, type, null).BindFieldInitializer(field));
+                    switch (member)
+                    {
+                        case SourceFieldSymbol { Syntax.Initializer: { } initializer } field:
+                            initializers.Add(field, new MethodBinder(context, scope, type, null).BindInitializer(initializer, field.Type));
+                            break;
+                        case SourcePropertySymbol { IsAuto: true, Syntax.Initializer: { } initializer } property:
+                            initializers.Add(property, new MethodBinder(context, scope, type, null).BindInitializer(initializer, property.Type));
+                            break;
+                    }
                 }
-                foreach (var method in type.GetMembers().OfType<SourceMethodSymbol>())
+                foreach (var method in MethodsWithBodies(type))
                 {
                     var body = new MethodBinder(context, scope, type, method).BindBody();
                     bodies.Add(method, body);
@@ -134,22 +142,37 @@ public sealed class NyxelCompilation
         return _program;
     }
 
+    /// <summary>The functions, <c>init</c>s and accessors of a type; the accessors of an auto property have no body.</summary>
+    internal static IEnumerable<SourceMethodSymbol> MethodsWithBodies(SourceNamedTypeSymbol type) =>
+        type.GetMembers().SelectMany(m => m switch
+        {
+            SourceMethodSymbol method => [method],
+            SourcePropertySymbol { IsAuto: false } property => new[] { property.Getter, property.Setter }.OfType<SourceMethodSymbol>(),
+            _ => [],
+        });
+
     private static void CheckFlow(BinderContext context, SourceNamedTypeSymbol type, SourceMethodSymbol method, BoundBlock body)
     {
         if (method.Syntax is null)
         {
             return;
         }
-        if (method.MethodKind == MethodKind.Ordinary && !method.ReturnsVoid && !method.ReturnType.IsError && FlowAnalysis.CanComplete(body))
+        if (method.MethodKind is MethodKind.Ordinary or MethodKind.PropertyGet && !method.ReturnsVoid && !method.ReturnType.IsError && FlowAnalysis.CanComplete(body))
         {
             context.Report(DiagnosticDescriptors.NotAllPathsReturn, type.SyntaxTree, method.NameLocation, method.Name);
         }
         if (method.MethodKind == MethodKind.Constructor)
         {
-            var unset = type.GetMembers().OfType<SourceFieldSymbol>().Where(f => !f.IsStatic && f.Syntax.Initializer is null).ToList<FieldSymbol>();
-            foreach (var field in FlowAnalysis.FieldsNotSetOnEveryPath(body, unset))
+            // Fields and auto properties (ADR-0044) without an initial value.
+            var unset = type.GetMembers().Where(m => m switch
             {
-                context.Report(DiagnosticDescriptors.FieldNotSetInInit, type.SyntaxTree, method.NameLocation, field.Name);
+                SourceFieldSymbol field => !field.IsStatic && field.Syntax.Initializer is null,
+                SourcePropertySymbol property => property is { IsAuto: true, IsStatic: false, Syntax.Initializer: null },
+                _ => false,
+            }).ToList();
+            foreach (var member in FlowAnalysis.MembersNotSetOnEveryPath(body, unset))
+            {
+                context.Report(DiagnosticDescriptors.FieldNotSetInInit, type.SyntaxTree, method.NameLocation, member.Name);
             }
         }
     }
@@ -162,7 +185,7 @@ public sealed record NyxelEmitResult(bool Success, ImmutableArray<Diagnostic> Di
 internal sealed class BoundProgram(
     DeclaredProgram declared,
     IReadOnlyDictionary<SourceMethodSymbol, BoundBlock> bodies,
-    IReadOnlyDictionary<SourceFieldSymbol, BoundExpression> fieldInitializers,
+    IReadOnlyDictionary<Symbol, BoundExpression> initializers,
     ImmutableArray<Diagnostic> diagnostics)
 {
     public ImmutableArray<SourceNamedTypeSymbol> Types => declared.Types;
@@ -171,7 +194,8 @@ internal sealed class BoundProgram(
 
     public IReadOnlyDictionary<SourceMethodSymbol, BoundBlock> Bodies => bodies;
 
-    public IReadOnlyDictionary<SourceFieldSymbol, BoundExpression> FieldInitializers => fieldInitializers;
+    /// <summary>The initial values of fields and auto properties.</summary>
+    public IReadOnlyDictionary<Symbol, BoundExpression> Initializers => initializers;
 
     public ImmutableArray<Diagnostic> Diagnostics => diagnostics;
 }

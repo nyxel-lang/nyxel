@@ -100,7 +100,7 @@ public class SemanticErrorTests
     [InlineData("class C {\n    func Secret(self) {\n    }\n}\nclass D {\n    static func F() {\n        new C().Secret()\n    }\n}", "NYX2044 7:17")]
     [InlineData("import System.Colections\n", "NYX2005 1:8")]
     [InlineData("import System.Threading\nimport System.Timers\n\nclass C {\n    static func F(t: Timer) {\n    }\n}", "NYX2006 5:22")]
-    [InlineData("struct S {\n}", "NYX2001 1:1")]
+    [InlineData("interface I {\n}", "NYX2001 1:1")]
     [InlineData("class C {\n    static func F() -> int {\n        while true {\n        }\n    }\n}", null)]
     public void ErrorsInDeclarations(string source, string? expected) =>
         Assert.Equal(expected is null ? [] : [expected], DiagnosticsOf(source));

@@ -180,6 +180,14 @@ internal sealed class SymbolTable
         CodeAnalysis.Accessibility.Internal or CodeAnalysis.Accessibility.ProtectedAndInternal => Accessibility.Internal,
         _ => Accessibility.Private,
     };
+
+    /// <summary>How a C# method or property returns: by value, <c>ref</c> (<see cref="RefKind.Ref"/>) or <c>ref readonly</c> (<see cref="RefKind.In"/>).</summary>
+    internal static RefKind ToRefKind(CodeAnalysis.RefKind refKind) => refKind switch
+    {
+        CodeAnalysis.RefKind.Ref => RefKind.Ref,
+        CodeAnalysis.RefKind.RefReadOnly => RefKind.In,
+        _ => RefKind.None,
+    };
 }
 
 internal sealed class MetadataNamedTypeSymbol(SymbolTable table, CodeAnalysis.INamedTypeSymbol type) : NamedTypeSymbol
@@ -306,6 +314,10 @@ internal sealed class MetadataMethodSymbol(SymbolTable table, CodeAnalysis.IMeth
 
     public override bool IsAsync => method.IsAsync;
 
+    public override bool IsReadOnly => method.IsReadOnly;
+
+    public override RefKind ReturnRefKind => SymbolTable.ToRefKind(method.RefKind);
+
     public override MethodSymbol? OverriddenMethod =>
         method.OverriddenMethod is { } overridden ? table.GetMember(overridden.OriginalDefinition) as MethodSymbol : null;
 }
@@ -379,6 +391,8 @@ internal sealed class MetadataPropertySymbol(SymbolTable table, CodeAnalysis.IPr
             return _parameters;
         }
     }
+
+    public override RefKind ReturnRefKind => SymbolTable.ToRefKind(property.RefKind);
 
     public override bool HasGetter => property.GetMethod is { } getter && IsAccessible(getter);
 

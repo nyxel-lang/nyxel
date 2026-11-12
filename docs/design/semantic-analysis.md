@@ -196,8 +196,8 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - `Symbols/`：`Symbol` 和各种类型、成员；`SymbolTable` 包装 Roslyn 读出的元数据，管数组类型；源码符号在 `SourceSymbols.cs`；`SymbolDisplay` 用 Nyxel 的写法显示名字。
 - `Binding/`：`Declarer`（第 1 到 4 遍）、`ImportScope`、`MethodBinder`（第 5 遍，按语句、表达式、调用分文件）、`Conversions`、`FlowAnalysis`、绑定树的节点和打印。
 - `NyxelCompilation`：`Create`、`GetDiagnostics`、`EmitCSharp`、`Emit`。
-- 语义诊断 NYX2001 到 NYX2069（diagnostics.md“语义”；NYX2055、2056 已分配给 ADR-0040，还没实现）。
-- 测试：`BinderTests`、`SemanticErrorTests`、`NullSafetyTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
+- 语义诊断 NYX2001 到 NYX2081（diagnostics.md“语义”；NYX2055、2056 已分配给 ADR-0040，还没实现）。
+- 测试：`BinderTests`、`SemanticErrorTests`、`NullSafetyTests`、`PropertyAndStructTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
 
 ### 空值和收窄（2026-11-06）
 
@@ -225,6 +225,21 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - **推断出类型的 `var` 赋了可能是 null 的值**（NYX2069）：`BindAssignment` 在做转换之前查：目标是没写类型的 `var` 局部变量（标识符的父节点是 `TypeAnnotation` 为空的声明）、类型不可空，值是 `null` 或去掉 `?` 以后能转成它的 `T?`。别的情况照旧是 NYX2058 / NYX2059。
 - **局部变量没有初始值**：Parser 报 NYX1239；Binder 不再报，把它当 `var` 声明出来（类型取写的类型，没写是错误类型），后面给它赋值的语句不连带报错。
 
+### 属性和 struct（2026-11-11，ADR-0044）
+
+- **属性**：`SourcePropertySymbol` 带着两个访问器，访问器是 `MethodKind` 为 `PropertyGet` / `PropertySet` 的 `SourceMethodSymbol`（语法是 `AccessorDeclarationSyntax`，名字取属性名，消息里好认）；`set(v)` 的新值是它唯一的参数，同名检查和别的参数一样。
+  - 第 4 遍（`Declarer.DeclareProperty`）查 NYX2070 到 2076：访问器有的带体有的不带、计算属性写了初始值、没有 `get`、重复的 `get` / `set`、`set` 的参数、访问器上的可见性（同 C#）。
+  - 自动属性的值同字段：没有初始值时按字段的规则报 NYX2049 / 2050（`FlowAnalysis.MembersNotSetOnEveryPath` 把 `self.P = ...` 也算进去）；只有 `get` 的在本类型的 `init` 里经 `self.` 能赋值，别处报 NYX2029。
+  - 访问器上窄一些的可见性：`PropertySymbol.GetterAccessibility` / `SetterAccessibility`，读的时候和赋值的时候分别查（`IsAccessibleHere`），用不了时报 NYX2030 / 2029。元数据的属性照旧只看 public / protected 的访问器。
+  - 计算属性的访问器在第 5 遍和函数一样绑定（`NyxelCompilation.MethodsWithBodies`），getter 要每条路径都 `return`；自动属性的初始值和字段的一起绑定（`BoundProgram.Initializers` 按符号存）。
+- **struct**：第 1 遍和 class 一起声明。第 4 遍查 `protected`（NYX2077）、class 的 `var self`（NYX2078）、struct 直接或经别的 struct 包含自己（NYX2079，`S?` 也算）。`new S()` 只对 C# 的 struct 是全零；Nyxel 的 struct 声明了带参数的 `init` 就要经过它，没有不带参数的重载时报 NYX2013。
+- **能不能改**（ADR-0032 决策 1 的表，`MethodBinder.Structs.cs`）：`WhyCantChange` 把一个 struct 的值分成存储、只读的存储、副本，并找出决定它的那一段（`let` 局部变量、参数、`for` 的变量、`self`、`let` 字段，或者给出副本的属性、索引器、调用）。
+  - 给字段或属性赋值（含复合赋值、`??=`）、调用 Nyxel 的 `var self` 函数时，接收者是 struct 就查它；只读的报 NYX2081，副本报 NYX2080，消息说明是哪一段、为什么、怎么改。class 的值不查：改的是对象。
+  - 字段访问沿着接收者往外找：class 的字段是存储，struct 的字段跟着所在的 struct。数组元素是存储；返回 `ref` 的索引器和函数（`Span<T>`）是存储，`ref readonly` 是只读（读元数据的 `ReturnRefKind`）。
+  - struct 的 `self` 函数和 `get` 里的 `self` 是只读的，`var self` 函数、`set`、`init` 里能改（`SourceMethodSymbol.IsReadOnly`，降级成 C# 的 `readonly` 也用它）。
+  - 检查过的 `S?` 局部变量读出来是 `Nullable<S>` 里那个值的副本，改它报 NYX2080（原来给它的字段赋值报“还不支持”）。
+  - C# 里没标 `readonly` 的 struct 方法（`MethodSymbol.IsReadOnly` 读 Roslyn 的同名属性）只在单独成一条语句、值没用上时查（`BindExpressionStatement` 里的 `CheckUnusedCall`，ADR-0032 决策 3）。
+
 和设计不同、或者还没做到的：
 
 - 被 lambda 捕获的 `var` 不收窄（ADR-0042 决策 2）还没实现：Binder 还不支持 lambda，随“lambda 和泛型推断”一步做，做法见“流分析”。
@@ -232,7 +247,8 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - C# 的 `[NotNullWhen]` 这类特性不读：`if string.IsNullOrEmpty(s) { return }` 之后 `s` 仍是 `string?`。收窄只来自 ADR 列的几种写法。
 - `match` 的 `case null`、`case is T` 收窄随 `match` 一步做。
 - enum 还没进 Binder。进来时要带上 ADR-0040 的两条：`x == 类型.Case` / `!=` 报 NYX2055（建议 `is` / `is not`），Nyxel 声明的 enum 两个 case 同一个值报 NYX2056（.NET 的枚举照收，`match` 里两个别名都列出来时报重复）。
-- `static let` 还没有常量求值：按 ADR-0038，初始值是常量表达式、类型能 `const` 的 `static let` 要生成 C# 的 `const`，默认参数值、`case` 标签、枚举值引用它时检查它是不是常量。需要给 `SourceFieldSymbol` 加 `ConstantValue`、一个常量表达式求值器（字面量折叠的 `Fold` 是它的雏形），随“属性、struct、enum”一步实现。
+- struct 的 `==` 还不能用（NYX2021）：ADR-0030 的“struct 比内容”要编译器生成 `Equals` / `GetHashCode` / `==`，随运算符一步做。`self = 新值`（在 `var self` 函数里整个换掉）照旧报 NYX2028。
+- `static let` 还没有常量求值：按 ADR-0038，初始值是常量表达式、类型能 `const` 的 `static let` 要生成 C# 的 `const`，默认参数值、`case` 标签、枚举值引用它时检查它是不是常量。需要给 `SourceFieldSymbol` 加 `ConstantValue`、一个常量表达式求值器（字面量折叠的 `Fold` 是它的雏形），随 enum 一步实现（case 的值也要它）。
 
 ## 写设计时定下的语言规则
 

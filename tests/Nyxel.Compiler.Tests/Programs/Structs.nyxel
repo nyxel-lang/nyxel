@@ -1,0 +1,124 @@
+namespace Programs
+
+import System
+import System.Collections.Generic
+
+/// A value: copied when assigned (ADR-0008).
+struct Health {
+    var current: int = 30
+    let max: int = 30
+
+    /// Computed from the fields; a struct's get can't change the value.
+    public property IsDead: bool { get = self.current <= 0 }
+
+    public property Percent: int {
+        get {
+            return self.current * 100 / self.max
+        }
+    }
+
+    /// A self function can't change the value either.
+    public func Describe(self) -> string = $"{self.current}/{self.max}"
+
+    /// var self: changes the value it is called on.
+    public func Damage(var self, amount: int) {
+        self.current = Math.Max(self.current - amount, 0)
+    }
+}
+
+/// A struct with an init and a property with a setter.
+struct Point {
+    public var x: float
+    public var y: float
+
+    init(x: float, y: float) {
+        self.x = x
+        self.y = y
+    }
+
+    public property X: float {
+        get = self.x
+        set(newX) { self.x = newX }
+    }
+
+    public func Length(self) -> float = MathF.Sqrt(self.x * self.x + self.y * self.y)
+}
+
+/// Properties of a class (ADR-0011, ADR-0044).
+class Player {
+    var hp: int = 100
+    public var health: Health = new Health()
+    public var position: Point = new Point(x = 0, y = 0)
+
+    /// An auto property with only get: set in init, like a let field.
+    public property Name: string { get }
+
+    /// An auto property the outside can only read.
+    public property Score: int = 0 {
+        get
+        private set
+    }
+
+    public static property Created: int = 0 {
+        get
+        private set
+    }
+
+    public property HP: int {
+        get { return self.hp }
+        set(amount) {
+            let value = Math.Clamp(amount, 0, 100)
+            self.hp = value
+        }
+    }
+
+    init(name: string) {
+        self.Name = name
+        Player.Created += 1
+    }
+
+    public func AddScore(self, points: int) {
+        self.Score += points
+    }
+}
+
+class Structs {
+    static func Main() {
+        var a = new Health()
+        var b = a                   // a copy
+        b.Damage(amount = 12)
+        Console.WriteLine($"a: {a.Describe()}, b: {b.Describe()}, {b.Percent}%")
+        b.Damage(amount = 50)
+        Console.WriteLine($"b dead: {b.IsDead}")
+
+        var p = new Point(x = 3, y = 4)
+        p.X = 6
+        p.y = 8
+        Console.WriteLine($"length: {p.Length()}")
+
+        let player = new Player(name = "Ada")
+        player.HP = 250
+        Console.WriteLine($"{player.Name}: hp {player.HP}")
+        player.HP -= 300
+        Console.WriteLine($"{player.Name}: hp {player.HP}")
+        player.AddScore(points = 5)
+        player.AddScore(points = 7)
+        Console.WriteLine($"score: {player.Score}")
+
+        // A class's var field is storage: its struct changes in place.
+        player.health.Damage(amount = 10)
+        player.position.x += 1
+        Console.WriteLine($"health: {player.health.Describe()}, x: {player.position.X}")
+
+        // An element of a List<T> is a copy: take it out, change it, put it back.
+        let healths = new List<Health>()
+        healths.Add(new Health())
+        var first = healths[0]
+        first.Damage(amount = 5)
+        healths[0] = first
+        Console.WriteLine($"list: {healths[0].Describe()}")
+
+        let other = new Player(name = "Bo")
+        Console.WriteLine($"players: {Player.Created}, {other.Name}")
+    }
+}
