@@ -56,6 +56,13 @@ internal static class BoundTreePrinter
             BoundNullCheck check => check.IsNull ? "== null" : "!= null",
             BoundIsType isType => $"{(isType.IsNegated ? "is not" : "is")} {SymbolDisplay.FormatType(isType.TestedType)}",
             BoundIsCase isCase => $"{(isCase.IsNegated ? "is not" : "is")} {SymbolDisplay.Format(isCase.Case)}",
+            BoundCasePattern casePattern => casePattern.Data.IsDefaultOrEmpty
+                ? casePattern.Case.Name
+                : $"{casePattern.Case.Name}({string.Join(", ", casePattern.Data.Select(d => d is null ? "_" : $"{d.Name}: {SymbolDisplay.FormatType(d.Type)}"))})",
+            BoundTypePattern typePattern => $"is {SymbolDisplay.FormatType(typePattern.Type)}",
+            BoundRelationalPattern relational => relational.OperatorKind.ToString(),
+            BoundRangePattern range => range.IncludesUpper ? "..." : "..<",
+            BoundBinaryPattern binaryPattern => binaryPattern.IsAnd ? "and" : "or",
             _ => "",
         };
         var type = node is BoundExpression { Type.IsError: false } expression and not BoundTypeExpression ? $": {SymbolDisplay.FormatType(expression.Type)}" : "";

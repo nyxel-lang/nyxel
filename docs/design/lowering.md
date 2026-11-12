@@ -34,6 +34,7 @@ ADR-0004 留下的选择：用列跟踪的文本写出器生成 C#，再 `CSharp
   - 类型一律写全名，`global::System.Collections.Generic.List<int>`，内置类型写 C# 关键字。这样 C# 的名字查找不用做任何决定，Nyxel 的查找规则（ADR-0033）和 C# 的差别不会影响结果。
   - 静态成员写在类型全名后面，实例成员写在接收者后面，`self` 是 `this`。
   - Nyxel 的名字是 C# 关键字时（`base`、`params`）加 `@`。
+  - 局部变量照原名写，只有 C# 的作用域规则不允许时改名（`PlanLocalNames`）：C# 里一个块和它里面的块不能有同名的局部变量，先后都不行（CS0136）；Nyxel 只看声明处看得见的名字（ADR-0036），`if c { let a = 1 }` 后面可以再 `let a = 2`，`case Burn(amount, _)` 后面可以再 `let amount`。后声明的那个改成 `a_2` 这类函数里没有的名字（也避开参数）；并列的块之间照旧同名。
 - **成员**：`let` 字段是 `readonly`；`static func` 是 `static`；`init` 是构造函数；class 自动生成的无参 `init` 不写，C# 的默认构造函数就是它。可见性照写：私有是 `private`，类型默认是 `internal`；`init` 不写修饰符是 `public`（ADR-0040）。
 - **struct**（ADR-0008）：C# 的 `struct`。`self` 函数是 `readonly` 方法，`var self` 函数是普通方法。自动生成的无参 `init` 写成隐藏的 `public S() { }`：C# 只在写出来的构造函数里执行 struct 的字段初始值，有初始值时也必须写一个（CS8983）。
 - **属性**（ADR-0011、ADR-0044）：
@@ -41,7 +42,7 @@ ADR-0004 留下的选择：用列跟踪的文本写出器生成 C#，再 `CSharp
   - 计算属性的访问器写成块，`get = 表达式` 同表达式体函数（`return` 一行，大括号不映射）；块的大括号和语句照函数映射。
   - 访问器上的可见性只在比属性窄时写（`private set`）。
   - struct 的 `get` 是 `readonly`：只有 `get` 时 C# 要求写在属性上（`public readonly bool IsDead`，CS8664），有 `set` 时写在 `get` 上（`readonly get`）。
-  - `set(v)` 的新值在 C# 里叫 `value`：名字不是 `value` 时，setter 开头加一行隐藏的 `int v = value;`。这个 setter 里叫 `value` 的局部变量和 C# 的撞名（CS0136），改写成 `value_1` 这类 setter 里没有的名字。
+  - `set(v)` 的新值在 C# 里叫 `value`：名字不是 `value` 时，setter 开头加一行隐藏的 `int v = value;`。这个 setter 里叫 `value` 的局部变量和 C# 的撞名（CS0136），同样改名（`value_2`）。
 - **不带数据的 enum**（ADR-0024、ADR-0029）：C# 的 `enum`，flags enum 加 `[global::System.Flags]`，底层类型不是 `int` 时写出来。每个 case 一行、映射到 case 的声明，值总是写成算好的数（`Solid = 3,`），C# 不用再按自己的规则算一遍。
   - enum 里的函数和属性放进同一命名空间、同样可见性的 `static class 名字Extensions`：实例成员在 `extension(global::Game.Element self)` 块里，静态成员在 `extension(global::Game.Element)` 块里。C# 代码照样写 `element.Weakness()`、`Element.Parse("ice")`。
   - 这些成员里的 `self` 写成接收者 `self`（Nyxel 的名字不会是 `self`，撞不了名）。
@@ -86,6 +87,13 @@ ADR-0004 留下的选择：用列跟踪的文本写出器生成 C#，再 `CSharp
   global::Game.Enemy target = __nyxel_value1;
   ```
   Binder 只允许它们出现在整条语句的值上（`let` 的初始值、`=` 的右边，外面最多套着隐式转换；`a ?? b ?? return` 也行），其余位置报 NYX2001。`?? throw` 在哪都直接写成 C# 的 `?? throw`。
+- **`match`**（ADR-0009、ADR-0010、ADR-0024，`Lowerer.Match.cs`）：
+  - 当语句用的是 C# 的 `switch` 语句：头部映射到 `match 值`，每个分支一个 section，`case` 标签映射到 `case 模式 when 条件`，分支能走到结尾时加隐藏的 `break;`。最后没有 `case _` 时加 `default: throw new global::System.Runtime.CompilerServices.SwitchExpressionException(值);`：列全了 case 的 match 碰到不是任何 case 的值（`5 as Element`）时抛出，同 C# 的 switch 表达式（ADR-0024）；值是局部变量、参数、`self` 时带上它，别的不再求一次值。没有条件的 `case _` 写成 `default:`。
+  - 当值用的是 C# 的 switch 表达式，写在一行里（`x switch { A => 1, _ => 2 }`）。没有分支匹配时 C# 自己抛 `SwitchExpressionException`。分支的值是引用转换或装箱时写成强制转换：C# 按各分支定 switch 表达式的类型，不写的话由派生类的分支决定。`throw` 分支照写。
+  - 分支里有 `return` / `break` / `continue` 的 `let t = match ...`（Binder 只允许整条语句的值，同 `?? return`）：先声明一个隐藏的临时变量，再写成 switch 语句，每个分支给它赋值或者离开，这条语句再用这个临时变量。
+  - Nyxel 的 `break` 出现在 switch 语句里时，C# 的 `break` 只会离开 switch，所以写成 `goto __nyxel_break1;`，标签放在循环后面（只在用到时写出来）；`?? break` 同样。`continue` 照写。
+  - 模式：`case _` 是 `_`，`null`、`not null` 照写；常量照写，数字不带强制转换（`5` 对 `byte` 也行，C# 自己转换）；不带数据的 enum 的 case 是常量模式，别名是 `TileExtensions.Gate`；`struct enum` / `class enum` 的 case 是 case 类型的模式，取数据走 `Deconstruct`：`global::Game.Damage.Burn(var amount, _)`（ADR-0046，`struct enum` 是 C# 15 的 union 模式）；`case is T` 是类型模式，值本来就是 `T` 时写成 `not null`（值类型写成 `_`），因为 union 上的类型模式测的是 case 的类型；`or` 照写。
+  - C# 会把被前面的分支覆盖了的分支报成错误（CS8510、CS8120），Binder 先报（NYX2092），只是比较、区间、`and`、别的 `not` 的覆盖关系 Binder 不算。所以这几种不写成 C# 的模式，而是 `var __nyxel_match1 when __nyxel_match1 is >= 3 and <= 9`：C# 不检查 `when` 里的东西。区间 `a..<b` 写成 `>= a and < b`。
 
 ## 后端
 
@@ -107,3 +115,4 @@ ADR-0004 留下的选择：用列跟踪的文本写出器生成 C#，再 `CSharp
 
 - `for i in a...b` 在 `b` 是类型的最大值时会无限循环（C# 的 `<=` 加一溢出），以后改成先判断再加一。
 - `__nyxel_` 临时变量会出现在调试器的变量面板里（debug-mapping.md“在调试器里”）。
+- 当值用的 `match` 写成一行 C# 的 switch 表达式，断点只能停在整条语句上，不能停在某个分支上。

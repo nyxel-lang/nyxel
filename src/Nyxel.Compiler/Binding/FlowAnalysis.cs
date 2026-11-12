@@ -15,6 +15,8 @@ internal static class FlowAnalysis
         BoundReturn or BoundBreak or BoundContinue or BoundThrow => false,
         BoundIf ifStatement => ifStatement.Else is null || CanComplete(ifStatement.Then) || CanComplete(ifStatement.Else),
         BoundWhile loop => loop.Condition.ConstantValue is not true || ContainsBreak(loop.Body),
+        // Its arms cover every value (checked when binding).
+        BoundMatchStatement match => match.Arms.Any(a => CanComplete(a.Body!)),
         _ => true,
     };
 
@@ -25,18 +27,25 @@ internal static class FlowAnalysis
         BoundBlock block => block.Statements.Any(ContainsBreak),
         BoundIf ifStatement => ContainsBreak(ifStatement.Then) || (ifStatement.Else is { } @else && ContainsBreak(@else)),
         BoundWhile or BoundForRange or BoundForEach => false,
-        _ => CoalesceJumps(statement).Any(j => j is BoundBreak),
+        BoundMatchStatement match => match.Arms.Any(a => ContainsBreak(a.Body!)),
+        _ => ValueJumps(statement).Any(j => j is BoundBreak),
     };
 
-    /// <summary>The statements on the right of <c>??</c> in a statement's expressions: <c>let t = x ?? return</c>.</summary>
-    public static IEnumerable<BoundStatement> CoalesceJumps(BoundStatement statement) => statement switch
+    /// <summary>
+    /// The statements that leave from inside a statement's value: on the right of <c>??</c> (<c>let t = x ?? return</c>)
+    /// and the arms of a match that leave (<c>let t = match x { case _ -&gt; return }</c>).
+    /// </summary>
+    public static IEnumerable<BoundStatement> ValueJumps(BoundStatement statement) => statement switch
     {
-        BoundBlock or BoundIf or BoundWhile or BoundForRange or BoundForEach => [],
+        BoundBlock or BoundIf or BoundWhile or BoundForRange or BoundForEach or BoundMatchStatement => [],
         _ => statement.GetChildren().OfType<BoundExpression>()
             .SelectMany(e => e.DescendantsAndSelf())
-            .OfType<BoundCoalesce>()
-            .Select(c => c.Jump)
-            .OfType<BoundStatement>(),
+            .SelectMany(node => node switch
+            {
+                BoundCoalesce { Jump: { } jump } => [jump],
+                BoundMatchExpression match => match.Arms.Select(a => a.Body).OfType<BoundStatement>(),
+                _ => Enumerable.Empty<BoundStatement>(),
+            }),
     };
 
     /// <summary>
@@ -58,7 +67,7 @@ internal static class FlowAnalysis
     private static HashSet<Symbol>? Assign(BoundStatement statement, HashSet<Symbol> before, List<HashSet<Symbol>> exits)
     {
         // let t = x ?? return: a way out before the statement finishes.
-        if (CoalesceJumps(statement).Any(j => j is BoundReturn))
+        if (ValueJumps(statement).Any(j => j is BoundReturn))
         {
             exits.Add(before);
         }
@@ -92,6 +101,16 @@ internal static class FlowAnalysis
             case BoundForEach forEach:
                 Assign(forEach.Body, before, exits);
                 return before;
+            case BoundMatchStatement match:
+                HashSet<Symbol>? afterArms = null;
+                foreach (var arm in match.Arms)
+                {
+                    if (Assign(arm.Body!, before, exits) is { } afterArm)
+                    {
+                        afterArms = afterArms is null ? afterArm : [.. afterArms.Intersect(afterArm)];
+                    }
+                }
+                return afterArms;
             case BoundReturn:
                 exits.Add(before);
                 return null;

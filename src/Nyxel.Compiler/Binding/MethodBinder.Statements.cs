@@ -76,6 +76,10 @@ internal sealed partial class MethodBinder
 
     private BoundStatement BindExpressionStatement(SyntaxNode syntax, ExpressionSyntax expression)
     {
+        if (expression is MatchExpressionSyntax match)
+        {
+            return BindMatchStatement(match);
+        }
         var bound = BindValue(expression, allowVoid: true);
         if (bound is not (BoundCall or BoundObjectCreation or BoundConditionalAccess { Access: BoundCall }) && !bound.HasErrors)
         {
@@ -233,7 +237,11 @@ internal sealed partial class MethodBinder
             case { HasErrors: true } when target is not (BoundNamespaceExpression or BoundMethodGroup or BoundTypeExpression):
                 return false;
             case BoundLocalAccess { Local.IsReadOnly: true } local:
-                Report(DiagnosticDescriptors.AssignToLet, syntax, local.Local.Name);
+                // The data of a case in a match pattern has no 'let' to change into 'var' (ADR-0048).
+                var descriptor = local.Local.Identifier.Parent is IdentifierNameSyntax { Parent: CaseFieldListSyntax }
+                    ? DiagnosticDescriptors.AssignToCaseData
+                    : DiagnosticDescriptors.AssignToLet;
+                Report(descriptor, syntax, local.Local.Name);
                 return false;
             case BoundLocalAccess or BoundArrayAccess:
                 return true;

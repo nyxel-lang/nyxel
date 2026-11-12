@@ -196,8 +196,8 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - `Symbols/`：`Symbol` 和各种类型、成员；`SymbolTable` 包装 Roslyn 读出的元数据，管数组类型；源码符号在 `SourceSymbols.cs`；`SymbolDisplay` 用 Nyxel 的写法显示名字。
 - `Binding/`：`Declarer`（第 1 到 4 遍）、`ImportScope`、`MethodBinder`（第 5 遍，按语句、表达式、调用分文件）、`Conversions`、`FlowAnalysis`、绑定树的节点和打印。
 - `NyxelCompilation`：`Create`、`GetDiagnostics`、`EmitCSharp`、`Emit`。
-- 语义诊断 NYX2001 到 NYX2090（diagnostics.md“语义”）。
-- 测试：`BinderTests`、`SemanticErrorTests`、`NullSafetyTests`、`PropertyAndStructTests`、`EnumAndConstantTests`、`DataEnumTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
+- 语义诊断 NYX2001 到 NYX2098（diagnostics.md“语义”）。
+- 测试：`BinderTests`、`SemanticErrorTests`、`NullSafetyTests`、`PropertyAndStructTests`、`EnumAndConstantTests`、`DataEnumTests`、`MatchTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
 
 ### 空值和收窄（2026-11-06）
 
@@ -273,14 +273,31 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - **`==`**：`class enum` 是引用类型，走引用类型的 `==`（降级出的 record 比内容）；`struct enum` 由 `ResolveStructEnumEquality` 处理，`E?` 同 `int?` 提升。一边是不带数据的 case 名时报 NYX2055（`IsEnumCase` 认 `BoundEnumCase`）。`<` 这类运算符报 NYX2021。
 - **数组**：`struct enum` 的第一个 case 不带数据时全零就是它，`new array<E>(n)` 可以；否则、以及 `class enum`，报 NYX2064（`ZeroIsValid`）。
 - **成员**：同不带数据的 enum（ADR-0029）。`self` 的类型是 enum 本身；`struct enum` 的函数同 struct 的 `self` 函数，不能改值。enum 里的 `Main` 不算程序入口，四种 enum 都一样。
-- 还没做：`match` 取数据（随 `match` 一步做）；接口；`struct enum` 当参数的默认值（ADR-0029 留下的）；别的程序集里 Nyxel 编出的带数据 enum（读元数据时按 C# 的 union / closed 类认出来，M3）。
+- 还没做：接口；`struct enum` 当参数的默认值（ADR-0029 留下的）；别的程序集里 Nyxel 编出的带数据 enum（读元数据时按 C# 的 union / closed 类认出来，M3）。
+
+### match（2026-11-12，ADR-0009、ADR-0010、ADR-0024、ADR-0025、ADR-0040、ADR-0048）
+
+- **两种用法**：语句开头的 `match` 由 Parser 按语句解析（分支可以是块、简单语句、离开语句），`BindExpressionStatement` 交给 `BindMatchStatement`；别处是值（`BindMatchExpression`）。每个分支一个作用域，从绑完被匹配的值的流状态开始；分支结束后取能走到结尾的分支的交集，同 `if`。
+- **分支的值**：`return` / `break` / `continue` 只在 `match` 是整条语句的值时可以（`IsStatementValue`，同 `?? return`），`throw` 哪都行，`give` 等 `eval` 一起做。类型：有期望的类型、而且每个分支都能转成它时就是它；否则取各分支的共同类型（其余分支都能隐式转成的那一个），有 `null` 分支时是它的 `T?`，没有就报 NYX2097。只有数字的分支（`IsLiteralOnly`）最后绑定，跟着这个类型（ADR-0013 的“字面量跟着旁边有类型的值”）；全是数字时按期望的类型或者它们自己的默认类型，同字面量算式。
+- **模式**（`BindPattern`）：
+  - `case _`；`case null`、`case not null` 要值可能是 null（`T?` 或引用类型），否则 NYX2063。
+  - 常量：按被匹配的类型（去掉 `?`）作期望的类型绑定，所以数字跟着它；必须是常量（ADR-0038，`static let` 的常量也行，NYX2082），再转换成那个类型。被匹配的 enum 自己的 case 写成 `case Element.Fire` 报 NYX2096：只写名字。
+  - `case Fire` / `case Burn(amount, _)`（`CasePatternSyntax`）：被匹配的类型（去掉 `?`）必须是四种 enum 之一或 .NET 的枚举，名字在它的 case 和别名里找（NYX2093）。取数据时名字的个数要和数据项一样（NYX2094），不带数据的 case 不能写括号（NYX2095）；每个名字声明成分支作用域里的 `let` 局部变量，类型是数据项的类型，`_` 不声明；给它赋值报 NYX2098（`CheckAssignable` 看名字的父节点是不是 `CaseFieldListSyntax`）。出错时照样按位置声明这些名字，分支不连带报错。
+  - 比较 `case < 10` 和区间 `case 1...3`：数字和 `char`，值是常量；enum 上的比较还报 NYX2001。区间一个值都没有时（`5..<5`）报 NYX2092。
+  - `case is T`：只能是整个模式，规则同 `x is T`（NYX2061、`is T?` 报错）。`and`、`or`、`not` 里的 `is T` 和取数据还报 NYX2001。
+- **收窄**：`case is T` 在分支里（含 `when`）把被匹配的局部变量 / 参数收窄成 `T`（`NarrowedByIs`），`case not null` 收窄成去掉 `?` 的类型。case 不收窄，同 `is`（ADR-0024）。一个没有 `when` 的分支的模式匹配了 null（`case null`，或 C# 看得见的 `or` 的一边），后面的分支就从去掉 `?` 的状态开始（`AfterArm`，ADR-0048）；`match` 之后取能走到结尾的分支的交集，所以 `case null -> return` 加 `case _ -> {}` 之后也是非空。只管 null。
+- **覆盖**（`CheckArms`）：按顺序走一遍分支，记下没有 `when` 的分支覆盖了哪些值：`null`、“所有非 null 的值”、常量（按类型和值，所以别名就是它的 case）、类型。
+  - 一个分支的值全都被前面覆盖了，就报 NYX2092，消息说是哪一行。`or` 的各边在同一个分支里重复（`case Fire or Fire`、.NET 枚举的两个别名）也报。C# 对被覆盖的分支报错误（CS8510、CS8120），这里必须先报，不然会变成内部错误；所以只算 C# 也看得见的模式（常量、case、`null`、类型、`or`），比较、区间、`and`、其余的 `not` 不算覆盖，降级时放进 `when`（lowering.md“match”）。
+  - `bool` 列出 `true`、`false`，`struct enum` / `class enum` 列全 case，就是覆盖了所有非 null 的值，之后的 `case _` 到不了。不带数据的 enum 列全 case 不算：还可能有不是任何 case 的值（`5 as Element`），后面的 `case _` 能到。引用类型的值照 C# 算可能是 null（C# 代码可能传进来），声明成不可空的也一样，所以 `class enum` 列全 case 后的 `case _` 能到。
+  - 最后要覆盖所有值（NYX2091）：不带数据的 enum（不含 flags）每个不同的值都有 case，.NET 的别名算一个；`bool`、带数据的 enum 每个 case；其余（flags enum、数字、字符串、类）要 `case _` 或 `case not null`；`T?` 还要 `case null`。消息列出缺的 case。
 
 和设计不同、或者还没做到的：
 
+- `match` 取数据时名字和数据项名是同一组、顺序却不同的警告（ADR-0024）：编译器还没有警告。
+- 比较和区间之间的覆盖关系不算（`case < 10` 之后的 `case 5` 不报到不了），见上面“覆盖”。
 - 被 lambda 捕获的 `var` 不收窄（ADR-0042 决策 2）还没实现：Binder 还不支持 lambda，随“lambda 和泛型推断”一步做，做法见“流分析”。
 - 元数据的类型只看 public 的；嵌套类型、泛型方法、扩展方法、事件、`params` 的展开形式还不支持。
 - C# 的 `[NotNullWhen]` 这类特性不读：`if string.IsNullOrEmpty(s) { return }` 之后 `s` 仍是 `string?`。收窄只来自 ADR 列的几种写法。
-- `match` 的 `case null`、`case is T` 收窄随 `match` 一步做；`match` 里两个 .NET 枚举的别名 case 都列出来时报重复（ADR-0040），`case` 标签引用常量（ADR-0038），也随 `match` 做。
 - 带数据的 enum 里，case 名和它自己的数据项同名（`case Score(Score: int)`）、和 union 的成员同名（`Value`、`HasValue`、`TryGetValue`），或者 enum 自己的成员叫这些名字时，生成的 C# 编不过（C# 的成员不能和所在类型同名），按 NYX2053 内部错误出来。要么改名规则，要么补一条 Nyxel 自己的检查，碰到再定。
 - 公开的成员用了 `internal` 的类型（`public func F(e: Element)`，`Element` 没写 `public`）还没有检查，到 Roslyn 报 CS0051，按 NYX2053 内部错误出来。
 - struct 的 `==` 还不能用（NYX2021）：ADR-0030 的“struct 比内容”要编译器生成 `Equals` / `GetHashCode` / `==`，随运算符一步做。`self = 新值`（在 `var self` 函数里整个换掉）照旧报 NYX2028。

@@ -190,7 +190,7 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 
 | 错误码 | 什么时候 | 例子 |
 |---|---|---|
-| `NYX2001` | 第一条线（semantic-analysis.md）还没实现的写法；消息写明是哪种 | `match`、`try`、lambda、泛型函数的调用 |
+| `NYX2001` | 第一条线（semantic-analysis.md）还没实现的写法；消息写明是哪种 | `try`、lambda、泛型函数的调用 |
 | `NYX2002` | 名字不是局部变量或参数（不带接收者的名字只能是它们，ADR-0008） | `count` 拼错 |
 | `NYX2003` | 名字是所在类型的成员，但没写接收者 | `hp` 写成 `self.hp`，`Helper()` 写成 `Program.Helper()` |
 | `NYX2004` | 类型名找不到 | `Lsit<int>`；没写 `import System.Collections.Generic` |
@@ -280,6 +280,14 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2088` | 不带数据的 case 写了 `new`（它本身就是值），四种 enum 和 .NET 的枚举都算 | `new AiState.Idle()` 写成 `AiState.Idle` |
 | `NYX2089` | 带数据的 case 没写 `new` 就当值用（ADR-0024）；消息列出数据项 | `AiState.Chasing` 写成 `new AiState.Chasing(Target = ...)` |
 | `NYX2090` | 把 case 的数据当成员读（ADR-0024：数据用 `match` 取出）；消息给出 `match` 的写法 | `hit.Seconds` 写成 `match hit { case Burn(_, seconds) -> ... }` |
+| `NYX2091` | `match` 没有覆盖所有值（ADR-0009、ADR-0048）：enum 缺了 case，`T?` 缺了 `case null`，flags enum 和别的类型没有 `case _`；消息列出缺的 | 只写了 `case Fire` |
+| `NYX2092` | 这个 `case` 永远到不了（ADR-0048）：前面的分支已经覆盖了它的值（C# 同样报错），`case _` 后面还有分支，同一个值写了两次（含别名，ADR-0040、ADR-0045），区间是空的；消息说是哪一行 | `case Spark` 跟在 `case Lightning` 后面；`case 5..<5` |
+| `NYX2093` | `case` 后面单独的名字不是被匹配的 enum 的 case，或者被匹配的不是 enum；消息列出 case | `case Fier` |
+| `NYX2094` | 取 case 的数据时名字的个数不对（ADR-0024：每一项一个名字或 `_`）；消息给出写法 | `case Burn(x)`，`Burn` 有两项 |
+| `NYX2095` | 不带数据的 case 后面写了括号 | `case Fire(x)` |
+| `NYX2096` | 被匹配的 enum 自己的 case 写了类型名：`match` 里 case 只写名字（ADR-0048） | `case Element.Fire` 写成 `case Fire` |
+| `NYX2097` | 当值用的 `match` 各分支没有共同的类型，也没有期望的类型（ADR-0048） | 一个分支是 `1`、另一个是 `"x"` |
+| `NYX2098` | 给 `match` 取出的 case 数据赋值（ADR-0048：它是 `let`，模式里没有写 `var` 的地方）；消息建议先存进 `var` | `case Burn(amount, _) -> amount = 1` |
 
 ## 不在语法阶段报的
 

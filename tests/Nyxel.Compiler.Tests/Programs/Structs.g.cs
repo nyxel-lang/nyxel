@@ -121,9 +121,9 @@ namespace Programs
 #line hidden
                 int amount = value;
 #line (70, 13) - (70, 50) 17 "Structs.nyxel"
-                int value_1 = global::System.Math.Clamp(amount, 0, 100);
+                int value_2 = global::System.Math.Clamp(amount, 0, 100);
 #line (71, 13) - (71, 27) 17 "Structs.nyxel"
-                this.hp = value_1;
+                this.hp = value_2;
 #line (72, 9) - (72, 9) 13 "Structs.nyxel"
             }
 #line hidden

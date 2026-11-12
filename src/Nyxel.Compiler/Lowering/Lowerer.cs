@@ -15,12 +15,12 @@ namespace Nyxel.Compiler.Lowering;
 /// <c>global::</c>, so C#'s name lookup has nothing to decide. <paramref name="referencesHave"/> tells whether the
 /// referenced assemblies have a type, by its metadata name.
 /// </summary>
-internal sealed class Lowerer(BoundProgram program, Func<string, bool> referencesHave)
+internal sealed partial class Lowerer(BoundProgram program, Func<string, bool> referencesHave)
 {
     private readonly CSharpWriter _writer = new();
     private SourceText _source = null!;
     private int _temporaries;
-    private Dictionary<string, string>? _renamedLocals;
+    private Dictionary<LocalSymbol, string> _localNames = [];
 
     // How 'self' is written: 'this', or the receiver of an enum's extension block.
     private string _self = "this";
@@ -470,36 +470,26 @@ internal sealed class Lowerer(BoundProgram program, Func<string, bool> reference
         // The braces are mapped too, so that a breakpoint can stop where the function starts and ends (rule 5).
         WriteBrace(block?.OpenBraceToken, "{");
         _writer.Indent();
-        _renamedLocals = null;
+        string[] taken = [];
         if (method is { MethodKind: MethodKind.PropertySet, Parameters: [{ Name: not "value" } parameter] })
         {
             // C# names the new value 'value'; Nyxel names it in set(v). A local named 'value' in this setter would
-            // clash with C#'s, so it gets a name no local of the setter has.
+            // clash with C#'s, so it gets another name.
             _writer.WriteHidden($"{TypeName(parameter.Type)} {Escape(parameter.Name)} = value;");
-            var names = body.DescendantsAndSelf().Select(DeclaredLocal).OfType<LocalSymbol>().Select(l => l.Name).ToHashSet();
-            var rename = Enumerable.Range(1, names.Count + 1).Select(i => $"value_{i}").First(n => !names.Contains(n));
-            _renamedLocals = new Dictionary<string, string> { ["value"] = rename };
+            taken = ["value"];
         }
+        _localNames = PlanLocalNames(body, taken, method.Parameters.Select(p => p.Name));
         foreach (var statement in body.Statements)
         {
             LowerStatement(statement);
         }
-        _renamedLocals = null;
+        _localNames = [];
         _writer.Unindent();
         WriteBrace(block?.CloseBraceToken, "}");
-
-        static LocalSymbol? DeclaredLocal(BoundNode node) => node switch
-        {
-            BoundLocalDeclaration declaration => declaration.Local,
-            BoundForRange range => range.Variable,
-            BoundForEach each => each.Variable,
-            _ => null,
-        };
     }
 
-    /// <summary>How a local is written in C#: its own name, unless a setter had to rename it (<see cref="LowerBody"/>).</summary>
-    private string LocalName(LocalSymbol local) =>
-        _renamedLocals is not null && _renamedLocals.TryGetValue(local.Name, out var renamed) ? renamed : Escape(local.Name);
+    /// <summary>How a local is written in C#: its own name, unless C#'s scopes needed another (<see cref="PlanLocalNames"/>).</summary>
+    private string LocalName(LocalSymbol local) => Escape(_localNames.TryGetValue(local, out var renamed) ? renamed : local.Name);
 
     private void WriteBrace(SyntaxToken? token, string brace)
     {
@@ -523,14 +513,14 @@ internal sealed class Lowerer(BoundProgram program, Func<string, bool> reference
                 LowerBlock(block);
                 break;
             case BoundLocalDeclaration declaration:
-                var initializer = LowerCoalesceJump(statement, declaration.Initializer);
+                var initializer = LowerStatementValue(statement, declaration.Initializer);
                 Mapped(statement, $"{TypeName(declaration.Local.Type)} {LocalName(declaration.Local)} = {Expression(initializer)};");
                 break;
             case BoundExpressionStatement expression:
                 Mapped(statement, $"{Expression(expression.Expression)};");
                 break;
             case BoundAssignment assignment:
-                var assigned = LowerCoalesceJump(statement, assignment.Value);
+                var assigned = LowerStatementValue(statement, assignment.Value);
                 Mapped(statement, $"{Expression(assignment.Target)} = {Expression(assigned)};");
                 break;
             case BoundCoalesceAssignment coalesce:
@@ -548,19 +538,28 @@ internal sealed class Lowerer(BoundProgram program, Func<string, bool> reference
             case BoundWhile loop:
                 var whileSyntax = (WhileStatementSyntax)loop.Syntax;
                 _writer.WriteMapped(_source, Header(whileSyntax.WhileKeyword, whileSyntax.Condition), $"while ({Expression(loop.Condition)})");
+                EnterLoop();
                 LowerBlock(loop.Body);
+                ExitLoop();
                 break;
             case BoundForRange range:
+                EnterLoop();
                 LowerForRange(range);
+                ExitLoop();
                 break;
             case BoundForEach each:
+                EnterLoop();
                 LowerForEach(each);
+                ExitLoop();
+                break;
+            case BoundMatchStatement match:
+                LowerMatchStatement(match);
                 break;
             case BoundReturn returnStatement:
                 Mapped(statement, returnStatement.Value is { } value ? $"return {Expression(value)};" : "return;");
                 break;
             case BoundBreak:
-                Mapped(statement, "break;");
+                Mapped(statement, BreakText());
                 break;
             case BoundContinue:
                 Mapped(statement, "continue;");
@@ -616,7 +615,7 @@ internal sealed class Lowerer(BoundProgram program, Func<string, bool> reference
     {
         BoundReturn { Value: { } returned } => $"return {Expression(returned)};",
         BoundReturn => "return;",
-        BoundBreak => "break;",
+        BoundBreak => BreakText(),
         BoundContinue => "continue;",
         _ => throw new InvalidOperationException($"{jump.GetType().Name} after '??' can't be lowered."),
     };
@@ -812,6 +811,8 @@ internal sealed class Lowerer(BoundProgram program, Func<string, bool> reference
                 return ExpressionCore(conversion.Operand);
             case BoundInterpolatedString interpolated:
                 return (InterpolatedString(interpolated), PrimaryPrecedence);
+            case BoundMatchExpression match:
+                return MatchExpression(match);
             default:
                 throw new InvalidOperationException($"{expression.GetType().Name} can't be lowered; binding should have reported an error.");
         }

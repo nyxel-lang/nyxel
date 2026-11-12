@@ -121,6 +121,108 @@ internal sealed class BoundThrow(SyntaxNode syntax, BoundExpression exception) :
     public BoundExpression Exception { get; } = exception;
 }
 
+/// <summary>
+/// <c>match</c> used as a statement (ADR-0009): the first arm whose pattern matches, and whose <c>when</c> holds, runs.
+/// The arms cover every value (checked when binding); one that is none of an enum's cases throws, as C#'s switch
+/// expression does (ADR-0024).
+/// </summary>
+internal sealed class BoundMatchStatement(SyntaxNode syntax, BoundExpression value, ImmutableArray<BoundMatchArm> arms) : BoundStatement(syntax)
+{
+    public BoundExpression Value { get; } = value;
+
+    /// <summary>Each with a <see cref="BoundMatchArm.Body"/>.</summary>
+    public ImmutableArray<BoundMatchArm> Arms { get; } = arms;
+}
+
+/// <summary>
+/// One arm of a <c>match</c>: a statement for a <see cref="BoundMatchStatement"/>; for a <see cref="BoundMatchExpression"/>
+/// a value converted to the match's type, or a statement that leaves (return, throw, break, continue) in its place.
+/// </summary>
+internal sealed class BoundMatchArm(SyntaxNode syntax, BoundPattern pattern, BoundExpression? when, BoundStatement? body, BoundExpression? value)
+    : BoundNode(syntax)
+{
+    public BoundPattern Pattern { get; } = pattern;
+
+    public BoundExpression? When { get; } = when;
+
+    public BoundStatement? Body { get; } = body;
+
+    public BoundExpression? Value { get; } = value;
+}
+
+// Patterns (ADR-0009, ADR-0010, ADR-0024): tested against the value of a match. --------------------------------
+
+internal abstract class BoundPattern(SyntaxNode syntax) : BoundNode(syntax);
+
+/// <summary><c>case _</c>: every value, null too (ADR-0026).</summary>
+internal sealed class BoundDiscardPattern(SyntaxNode syntax) : BoundPattern(syntax);
+
+/// <summary><c>case null</c>.</summary>
+internal sealed class BoundNullPattern(SyntaxNode syntax) : BoundPattern(syntax);
+
+/// <summary><c>case not null</c>: every value but null.</summary>
+internal sealed class BoundNotNullPattern(SyntaxNode syntax) : BoundPattern(syntax);
+
+/// <summary>A constant (<c>case 0</c>, <c>case "boss"</c>, <c>case Limits.Max</c>), converted to the type matched.</summary>
+internal sealed class BoundConstantPattern(SyntaxNode syntax, BoundExpression value) : BoundPattern(syntax)
+{
+    public BoundExpression Value { get; } = value;
+}
+
+/// <summary>
+/// An enum case by its name (ADR-0024): a constant of an enum without data or of .NET's, an alias (ADR-0045), or a
+/// case of a <c>struct enum</c> / <c>class enum</c> with the locals its data goes into, by position (null for
+/// <c>_</c>; empty when no data is taken out).
+/// </summary>
+internal sealed class BoundCasePattern(SyntaxNode syntax, FieldSymbol @case, ImmutableArray<LocalSymbol?> data) : BoundPattern(syntax)
+{
+    public FieldSymbol Case { get; } = @case;
+
+    public ImmutableArray<LocalSymbol?> Data { get; } = data;
+}
+
+/// <summary><c>case is Enemy</c>: the value is a <see cref="Type"/>; a local or parameter matched is narrowed to it.</summary>
+internal sealed class BoundTypePattern(SyntaxNode syntax, TypeSymbol type) : BoundPattern(syntax)
+{
+    public TypeSymbol Type { get; } = type;
+}
+
+/// <summary><c>case &lt; 10</c>: the operator is one of the order comparisons, the value a constant of the type matched.</summary>
+internal sealed class BoundRelationalPattern(SyntaxNode syntax, BinaryOperatorKind operatorKind, BoundExpression value) : BoundPattern(syntax)
+{
+    public BinaryOperatorKind OperatorKind { get; } = operatorKind;
+
+    public BoundExpression Value { get; } = value;
+}
+
+/// <summary><c>case 10..&lt;50</c>, or <c>case 1...3</c> when the end is included (ADR-0010, ADR-0022).</summary>
+internal sealed class BoundRangePattern(SyntaxNode syntax, BoundExpression lower, BoundExpression upper, bool includesUpper) : BoundPattern(syntax)
+{
+    public BoundExpression Lower { get; } = lower;
+
+    public BoundExpression Upper { get; } = upper;
+
+    public bool IncludesUpper { get; } = includesUpper;
+}
+
+internal sealed class BoundNotPattern(SyntaxNode syntax, BoundPattern pattern) : BoundPattern(syntax)
+{
+    public BoundPattern Pattern { get; } = pattern;
+}
+
+/// <summary><c>a and b</c>, or <c>a or b</c> when not <see cref="IsAnd"/>.</summary>
+internal sealed class BoundBinaryPattern(SyntaxNode syntax, bool isAnd, BoundPattern left, BoundPattern right) : BoundPattern(syntax)
+{
+    public bool IsAnd { get; } = isAnd;
+
+    public BoundPattern Left { get; } = left;
+
+    public BoundPattern Right { get; } = right;
+}
+
+/// <summary>A pattern that had an error, already reported.</summary>
+internal sealed class BoundBadPattern(SyntaxNode syntax) : BoundPattern(syntax);
+
 /// <summary><c>target ??= value</c> (ADR-0023): sets the target only when it is null. The value is converted.</summary>
 internal sealed class BoundCoalesceAssignment(SyntaxNode syntax, BoundExpression target, BoundExpression value) : BoundStatement(syntax)
 {
@@ -391,6 +493,22 @@ internal sealed class BoundCoalesce(SyntaxNode syntax, BoundExpression left, Bou
     public BoundExpression? Right { get; } = right;
 
     public BoundStatement? Jump { get; } = jump;
+}
+
+/// <summary>
+/// <c>match</c> used as a value (ADR-0009, ADR-0025): the value of the first arm that matches, converted to
+/// <see cref="BoundExpression.Type"/>. An arm may leave instead (<c>throw</c> anywhere; <c>return</c>, <c>break</c>
+/// and <c>continue</c> only where the match is a whole statement's value, like <c>?? return</c>).
+/// </summary>
+internal sealed class BoundMatchExpression(SyntaxNode syntax, BoundExpression value, ImmutableArray<BoundMatchArm> arms, TypeSymbol type)
+    : BoundExpression(syntax, type)
+{
+    public BoundExpression Value { get; } = value;
+
+    public ImmutableArray<BoundMatchArm> Arms { get; } = arms;
+
+    /// <summary>Whether an arm returns, breaks or continues, which C# can't do from inside an expression.</summary>
+    public bool Leaves => Arms.Any(a => a.Body is not null and not BoundThrow);
 }
 
 /// <summary>A value lowering made into a temporary variable; never produced by binding.</summary>

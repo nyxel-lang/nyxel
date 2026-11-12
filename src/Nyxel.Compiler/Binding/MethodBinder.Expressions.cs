@@ -68,6 +68,8 @@ internal sealed partial class MethodBinder
                 return BindIs(isExpression);
             case AsExpressionSyntax asExpression:
                 return BindAs(asExpression);
+            case MatchExpressionSyntax match:
+                return BindMatchExpression(match, expected);
             case TypeSyntax type:
                 return new BoundTypeExpression(type, _scope.BindType(type));
             default:

@@ -1,0 +1,201 @@
+namespace Programs
+
+import System
+import System.Collections.Generic
+
+enum Element {
+    case Fire
+    case Ice
+    case Lightning
+
+    public static let Spark: Element = Element.Lightning
+}
+
+flags enum Layer {
+    case None = 0
+    case Ground = 1
+    case Water = 2
+}
+
+struct enum Damage {
+    case Physical(Amount: int)
+    case Burn(Amount: int, Seconds: float)
+    case Heal(Amount: int)
+}
+
+class enum Shape {
+    case Dot
+    case Circle(Radius: float)
+    case Group(Inner: Shape, Count: int)
+
+    public func Depth(self) -> int = match self {
+        case Group(inner, _) -> 1 + inner.Depth()
+        case _ -> 0
+    }
+}
+
+class Enemy {
+    public let Name: string
+
+    init(name: string) {
+        self.Name = name
+    }
+}
+
+class Game {
+    static func Weakness(element: Element) -> Element = match element {
+        case Fire -> Element.Ice
+        case Ice -> Element.Fire
+        case Spark -> Element.Lightning
+    }
+
+    static func Change(hit: Damage) -> int = match hit {
+        case Physical(amount) -> -amount
+        case Burn(amount, seconds) when seconds > 2 -> -amount * 2
+        case Burn(amount, _) -> -amount
+        case Heal(amount) -> amount
+    }
+
+    static func Size(n: int) -> string = match n {
+        case 0 -> "none"
+        case 1 or 2 -> "few"
+        case < 0 -> "negative"
+        case 3...9 -> "some"
+        case >= 10 and < 100 -> "many"
+        case _ -> "lots"
+    }
+
+    static func Describe(value: object?) -> string = match value {
+        case null -> "nothing"
+        case is string -> $"text of {value.Length}"
+        case is int -> "a number"
+        case _ -> "something"
+    }
+
+    static func Title(who: object?) -> string {
+        match who {
+            case is Enemy -> return $"enemy {who.Name}"
+            case not null -> return $"something else: {who}"
+            case null -> return "nobody"
+        }
+    }
+
+    static func Total(hits: List<Damage>) -> int {
+        var total = 0
+        for hit in hits {
+            match hit {
+                case Heal -> continue
+                case Burn(_, seconds) when seconds > 10 -> break
+                case Burn(amount, _) -> total += amount
+                case Physical(amount) -> {
+                    total += amount
+                }
+            }
+        }
+        let amount = total
+        return amount
+    }
+
+    static func FirstBurn(hits: List<Damage>) -> float {
+        var found: float = -1
+        for hit in hits {
+            let seconds = match hit {
+                case Burn(_, seconds) -> seconds
+                case _ -> continue
+            }
+            found = seconds
+            break
+        }
+        return found
+    }
+
+    public static func Main() {
+        Console.WriteLine($"Fire -> {Game.Weakness(Element.Fire)}")
+        Console.WriteLine($"Ice -> {Game.Weakness(Element.Ice)}")
+        Console.WriteLine($"Lightning -> {Game.Weakness(Element.Lightning)}")
+
+        let maybe: Element? = null
+        match maybe {
+            case Fire or Ice -> Console.WriteLine("cold or hot")
+            case Lightning -> Console.WriteLine("spark")
+            case null -> Console.WriteLine("no element")
+        }
+
+        let layer = Layer.Ground | Layer.Water
+        let layerText = match layer {
+            case None -> "none"
+            case Ground -> "ground"
+            case _ -> "mixed"
+        }
+        Console.WriteLine(layerText)
+
+        let day = DayOfWeek.Saturday
+        let weekend = match day {
+            case Saturday or Sunday -> true
+            case _ -> false
+        }
+        Console.WriteLine($"weekend: {weekend}")
+
+        let flag = weekend
+        let answer: string = match flag {
+            case true -> "yes"
+            case false -> "no"
+        }
+        Console.WriteLine(answer)
+
+        Console.WriteLine(Game.Change(new Damage.Physical(5)))
+        Console.WriteLine(Game.Change(new Damage.Burn(Amount = 4, Seconds = 3)))
+        Console.WriteLine(Game.Change(new Damage.Burn(4, 1)))
+        Console.WriteLine(Game.Change(new Damage.Heal(7)))
+
+        var n = -5
+        while n < 2000 {
+            Console.WriteLine($"{n}: {Game.Size(n)}")
+            n = match n {
+                case < 0 -> 0
+                case < 10 -> n + 3
+                case _ -> n * 10
+            }
+        }
+
+        Console.WriteLine(Game.Describe(null))
+        Console.WriteLine(Game.Describe("slime"))
+        Console.WriteLine(Game.Describe(3))
+        Console.WriteLine(Game.Describe(2.5))
+
+        Console.WriteLine(Game.Title(new Enemy("Slime")))
+        Console.WriteLine(Game.Title(42))
+        Console.WriteLine(Game.Title(null))
+
+        let hits = new List<Damage>()
+        hits.Add(new Damage.Physical(3))
+        hits.Add(new Damage.Heal(9))
+        hits.Add(new Damage.Burn(2, 1))
+        hits.Add(new Damage.Burn(100, 20))
+        hits.Add(new Damage.Physical(50))
+        Console.WriteLine($"total: {Game.Total(hits)}")
+        Console.WriteLine($"first burn: {Game.FirstBurn(hits)}")
+
+        Console.WriteLine($"depth: {new Shape.Group(new Shape.Group(Shape.Dot, 1), 2).Depth()}")
+        let shape = new Shape.Group(new Shape.Circle(1.5), 3)
+        match shape {
+            case Group(inner, count) -> {
+                let radius = match inner {
+                    case Circle(r) -> r
+                    case _ -> 0
+                }
+                Console.WriteLine($"group of {count}, radius {radius}")
+            }
+            case Circle(radius) -> Console.WriteLine($"circle {radius}")
+            case Dot -> Console.WriteLine("dot")
+        }
+
+        var score = 0
+        match "boss" {
+            case "slime" -> score += 1
+            case "boss" -> score += 100
+            case _ -> {}
+        }
+        Console.WriteLine($"score: {score}")
+    }
+}

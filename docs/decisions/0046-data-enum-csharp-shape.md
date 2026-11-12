@@ -19,7 +19,7 @@
 
 探针（Roslyn 5.9 的 Preview 模式，见“后果”）验证了：在生成的程序集里自己声明 `UnionAttribute`、`IUnion`、`IsClosedTypeAttribute` 后，下面两种形状在 .NET 10 上能编过、能运行；另一个程序集里用 C# 15 写的代码 `switch` 能查出漏掉的 case；别的程序集（C# 14 也一样）不能继承 closed 的类。
 
-三项都对比了代码，按推荐定。讨论中用户问了 C# 的 record 是什么（见决策 1 的说明），以及升到 .NET 11 要改什么（见 ADR-0047）。
+三项都对比了代码，按推荐定。讨论中用户问了 C# 的 record 是什么（见决策 1 的说明），以及升到 .NET 11 要改什么（见 ADR-0047）。实现时又碰到两处 Nyxel 这边的细节，先按最严做，用户随后确认（决策 4）。
 
 ## 决策
 
@@ -124,6 +124,20 @@
    - 值按字符串插值的规则转成文字，数据是 enum 的照样递归打印。
    - 两种 enum 一样。C# 那边的 case 类型单独打印也是这个格式。
 
+4. **不带数据的 case 不写 `new`，case 的数据项不能写默认值**：
+
+   ```nyxel
+   let a = AiState.Idle                     // 不带数据的 case 本身就是值
+   let b = new AiState.Idle()               // 错误（NYX2088）：诊断给出 AiState.Idle
+
+   struct enum Damage {
+       case Burn(Amount: int, Seconds: float = 3)   // 错误（NYX2001）：同元组类型的元素，不能有默认值
+   }
+   ```
+
+   - 同一个值只留一种写法。四种 enum 和 .NET 的枚举都一样（`new Element.Fire()` 也是错误）。C# 那边照旧 `new AiState.Idle()`（决策 2）。
+   - 数据项不能写默认值，同元组类型的元素（ADR-0024 决策 8 “按元组的规则”）。常用的组合写成 enum 里的 `static func` 或 `static let`。
+
 ## 备选方案
 
 - `class enum`：
@@ -144,6 +158,8 @@
 - `ToString`：
   - **C# record 的格式**：`Idle { }`、`Burn { Amount = 12, Seconds = 3 }`。和 Nyxel 的写法对不上，不带数据的 case 多一对空括号。
   - **只有 case 名**：`Burn`。日志里看不到数据，调试时最常要看的正是数据。
+- 不带数据的 case **也能写 `new`**（同 C# 那边）：两种写法是同一个值，读的人要知道它们一样；`class enum` 里 `new` 看起来像每次分配，其实共用一个对象。
+- case 的数据项**能写默认值**（同函数参数，C# record 的构造函数也能有）：创建时可以少写几项，但“同元组”的规则要开一个例外。真有需要时再放开，不影响已有代码。
 
 ## 后果
 

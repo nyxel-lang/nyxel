@@ -711,6 +711,30 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor CaseDataIsNotMember =
         Error("NYX2090", "'{0}' is data of the case '{1}' of '{2}', not a member: take it out with 'match', as in 'case {1}({3}) -> ...'.");
 
+    public static readonly DiagnosticDescriptor MatchNotExhaustive =
+        Error("NYX2091", "'match' doesn't cover every value of '{0}': {1}.");
+
+    public static readonly DiagnosticDescriptor ArmNeverReached =
+        Error("NYX2092", "This 'case' is never reached: {0}.");
+
+    public static readonly DiagnosticDescriptor NotACase =
+        Error("NYX2093", "'{0}' is not a case of '{1}'{2}.");
+
+    public static readonly DiagnosticDescriptor CaseDataCount =
+        Error("NYX2094", "'{0}' has {1}: write one name or '_' for each, in order, as in 'case {2}'.");
+
+    public static readonly DiagnosticDescriptor CaseHasNoData =
+        Error("NYX2095", "'{0}' has no data to take out: write 'case {0}'.");
+
+    public static readonly DiagnosticDescriptor QualifiedCaseInMatch =
+        Error("NYX2096", "A case of the enum matched is written by its name alone: 'case {0}'.");
+
+    public static readonly DiagnosticDescriptor NoCommonArmType =
+        Error("NYX2097", "The arms of 'match' have no type in common ({0}): give the result a type, as in 'let x: T = match ...', or convert the arms with 'as'.");
+
+    public static readonly DiagnosticDescriptor AssignToCaseData =
+        Error("NYX2098", "'{0}' is data taken out of a case, which can't be assigned; copy it into a 'var' to change it.");
+
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);
 }

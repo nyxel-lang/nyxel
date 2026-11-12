@@ -719,7 +719,9 @@ let hit = new Damage.Burn(Amount = 12, Seconds = 3)     // 带数据的 case：n
 - case 的数据同元组（ADR-0024）：
   - 每一项都有名字，用 PascalCase。C# 那边是 case 类型上的同名属性（`Damage.Burn` 的 `Amount`），见“带数据的 enum 在 C# 那边”。
   - 创建时按位置写（`new Damage.Burn(12, 3)`）或带名字写，同元组的值。
+  - 不能写默认值，同元组类型的元素（ADR-0046）。
   - 用 `match` 按位置取出，同元组的解构（见“match”）。数据创建以后不能改。
+- 不带数据的 case 本身就是值，不写 `new`：`new Element.Fire()`、`new AiState.Idle()` 是编译错误（ADR-0046），诊断给出不带 `new` 的写法。
 - 判断是不是某个 case 一律写 `is`：`hit is Damage.Burn`、`state is SlimeState.Idle`，得到 bool，不取数据（ADR-0024、ADR-0040，见“类型检查与收窄”）。`x == 类型.Case` 是编译错误，诊断给出 `is`。
 - 两个 enum 值之间用 `==`（ADR-0024）：带数据的（两种都是）比内容，同一个 case、数据逐个相等就相等，能当字典的键；不带数据的比值。
 - `ToString`（ADR-0046）：不带数据的 case 是名字（`Fire`、`Idle`）；带数据的同创建时的写法，`Burn(Amount = 12, Seconds = 3)`，值按字符串插值的规则转成文字。
@@ -1050,7 +1052,7 @@ let target = eval {
 - 块的类型是所有 `give` 的值的共同类型，同 `if` 的各分支；有期望的类型（`let x: T = eval { }`）时按期望的类型。
 - 翻译成 C#：先声明一个变量，块翻译成 C# 的块，每个 `give` 是赋值加 `goto` 到块后面。不是 lambda，不分配。
 
-## match（ADR-0009、ADR-0024）
+## match（ADR-0009、ADR-0024、ADR-0048）
 
 ```nyxel
 let change = match hit {
@@ -1080,16 +1082,29 @@ let scale = match self.size {
 - 每个分支一行，以 `case` 开头。默认分支写 `case _`，`_` 匹配其余任何值（ADR-0026）；`else` 只属于 `if`，写在 `match` 里是编译错误。分支用 `->`（Nyxel 没有 `=>`）。
 - `->` 右边（ADR-0025、ADR-0026）：
   - 当值用时是一个表达式或一条离开语句，当语句用时是一条简单语句或一个 `{ }` 块，见“分支与离开语句”。
+- 当值用时的类型（ADR-0048）：有期望的类型（`let x: float = match ...`、参数、返回值）而且每个分支都能转成它时就是它；否则是各分支的共同类型，有一个分支是 `null` 时是它的 `T?`，没有共同类型是编译错误。只有数字的分支跟着有类型的分支走：`case Burn(_, seconds) -> seconds` 加 `case _ -> 0`，`0` 是 `float`。离开的分支不参与。
+- enum 的 case 只写名字（ADR-0024、ADR-0048）：`case Fire`；写成 `case Element.Fire` 是编译错误。enum 里的别名（ADR-0045）同样只写名字。
 - case 的数据按位置取出，同元组的解构（ADR-0024）：
   - 名字个数和数据项一样，`_` 丢弃不要的；名字自己起，成为分支里的局部变量。
+  - 取出的数据是 `let`，不能赋值（ADR-0048）；要改就先存进一个 `var`。
   - 名字和数据项名是同一组（不分大小写）、顺序却不同时给警告：多半是写反了。
-- 必须覆盖所有情况（当语句用也一样）：enum 列全所有 case 或写 `case _`；flags enum 和其他类型必须有 `case _`。“其余不处理”写 `case _ -> {}`。
+- 必须覆盖所有情况（当语句用也一样）：enum 列全所有 case 或写 `case _`（.NET 枚举的别名算一个）；`bool` 列出 `true` 和 `false`（ADR-0048）；`T?` 还要 `case null`；flags enum 和其他类型必须有 `case _`。“其余不处理”写 `case _ -> {}`。
+- 到不了的分支是编译错误，同 C#（ADR-0048）：前面没有 `when` 的分支已经覆盖了它的每一个值，诊断说是哪一行。比如 `case _` 后面的分支、写了两次的值（别名和它的 case 也算，ADR-0040）、`bool` 和 `struct enum` 列全之后的 `case _`、空的区间（`case 5..<5`）。不带数据的 enum 列全 case 之后的 `case _` 能接住不是任何 case 的值（`5 as Element`），`class enum` 列全之后的能接住 C# 传进来的 null，都不算到不了。
 - 模式（ADR-0010）：
-  - 常量 `case 0`、`case "boss"`、`case null`；
+  - 常量 `case 0`、`case "boss"`、`case null`；别的类型里的常量写类型名（`case Limits.Max`，ADR-0038）；
   - 比较 `case < 10`；区间 `case 10..<50`、`case 1...3`；
   - 组合 `case 1 or 2`、`case > 0 and < 10`、`case not null`；
   - 类型 `case is Enemy`（被匹配的局部变量 / 参数在分支里收窄成该类型）；
   - 附加条件 `case Burn(_, seconds) when seconds > 3`。
+- 收窄（ADR-0010、ADR-0048），只对局部变量和参数，同别处的收窄：
+  - `case is Enemy` 在分支里把被匹配的值收窄成该类型，`case not null` 收窄成非空。
+  - 一个没有 `when` 的分支匹配了 `null`（`case null`，或 `or` 的一边是 `null`）之后，后面的分支里当作非空；`match` 之后从这些分支走出来的地方也是，同 `if x == null { return }`。只管 null，不按类型排除。
+  ```nyxel
+  match target {                  // target: Enemy?
+      case null -> return
+      case _ -> target.Attack()   // target 是 Enemy
+  }
+  ```
 
 ## 空值（ADR-0009、ADR-0023、ADR-0041、ADR-0042）
 
@@ -1117,7 +1132,7 @@ class Turret : Behaviour {
 - `T` 一定有值，`T?` 可能为 `null`，违反是编译错误。值类型的 `int?` 就是 C# 的 `int?`，规则和引用类型的 `T?` 一样。
 - `T?` 用之前要检查：它没有成员（`int?` 的 `.Value`、`.HasValue`、`.GetValueOrDefault()` 也不能用，ADR-0041），不能传给要 `T` 的地方。
 - C# 程序集的可空标注照单全收；没有标注的程序集，返回值、字段、属性当作 `T?`，参数可以接受 `null`。只管最外层：`List<Enemy>` 当作 `List<Enemy>?`，元素仍是 `Enemy`（ADR-0041）。
-- 检查后自动收窄：只对局部变量和参数；字段、属性、调用结果先存进局部变量。
+- 检查后自动收窄：只对局部变量和参数；字段、属性、调用结果先存进局部变量。`match` 里的 `case not null` 和匹配过 `null` 的分支之后同样收窄（ADR-0048），见“match”。
 - 被 lambda 捕获的 `var` 局部变量不收窄（ADR-0042）：函数里只要有一个 lambda 读或写了它，它在整个函数里（lambda 里面也算）一直是声明的类型，因为 lambda 可能在检查和使用之间把它改掉。先存进 `let` 再用；`let` 和参数不能重新赋值，被捕获了也照常收窄。
   ```nyxel
   var target: Enemy? = self.FindTarget()
