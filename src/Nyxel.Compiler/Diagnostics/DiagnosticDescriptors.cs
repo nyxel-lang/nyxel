@@ -702,6 +702,15 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor OptionalParameterBeforeRequired =
         Error("NYX2086", "'{0}' has no default value but comes after '{1}', which has one: parameters with default values go last, as in C#.");
 
+    public static readonly DiagnosticDescriptor CaseWithoutDataIsValue =
+        Error("NYX2088", "'{0}' has no data, so it is a value already: write '{0}' without 'new'.");
+
+    public static readonly DiagnosticDescriptor CaseWithDataNeedsNew =
+        Error("NYX2089", "'{0}' has data, so its values are created with 'new': 'new {0}({1})'.");
+
+    public static readonly DiagnosticDescriptor CaseDataIsNotMember =
+        Error("NYX2090", "'{0}' is data of the case '{1}' of '{2}', not a member: take it out with 'match', as in 'case {1}({3}) -> ...'.");
+
     private static DiagnosticDescriptor Error(string id, string messageFormat) =>
         new(id, DiagnosticSeverity.Error, messageFormat);
 }

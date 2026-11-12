@@ -1,0 +1,23 @@
+Idle
+True
+Chasing(Target = slime)
+Fleeing(From = bat, Until = 2.5)
+True
+True
+Idle, calm: True
+True
+True
+False
+True
+Idle
+Physical(Amount = 5)
+Burn(Amount = 12, Seconds = 3)
+Heal(Amount = 4)
+False
+True
+Not(Inner = Both(Left = Always, Right = Never))
+1
+True
+True
+True
+True

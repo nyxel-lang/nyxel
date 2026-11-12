@@ -196,8 +196,8 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 - `Symbols/`：`Symbol` 和各种类型、成员；`SymbolTable` 包装 Roslyn 读出的元数据，管数组类型；源码符号在 `SourceSymbols.cs`；`SymbolDisplay` 用 Nyxel 的写法显示名字。
 - `Binding/`：`Declarer`（第 1 到 4 遍）、`ImportScope`、`MethodBinder`（第 5 遍，按语句、表达式、调用分文件）、`Conversions`、`FlowAnalysis`、绑定树的节点和打印。
 - `NyxelCompilation`：`Create`、`GetDiagnostics`、`EmitCSharp`、`Emit`。
-- 语义诊断 NYX2001 到 NYX2086（diagnostics.md“语义”）。
-- 测试：`BinderTests`、`SemanticErrorTests`、`NullSafetyTests`、`PropertyAndStructTests`、`EnumAndConstantTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
+- 语义诊断 NYX2001 到 NYX2090（diagnostics.md“语义”）。
+- 测试：`BinderTests`、`SemanticErrorTests`、`NullSafetyTests`、`PropertyAndStructTests`、`EnumAndConstantTests`、`DataEnumTests`、`OverloadResolutionTests`（30 个调用和 Roslyn 对照）、`ProgramTests`。
 
 ### 空值和收窄（2026-11-06）
 
@@ -242,7 +242,7 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
 
 ### enum 和常量（2026-11-12，ADR-0024、ADR-0029、ADR-0038、ADR-0040、ADR-0045）
 
-- **不带数据的 enum**：第 1 遍和 class 一起声明（`SourceNamedTypeSymbol` 的语法也可以是 `EnumDeclarationSyntax`），`TypeKind.Enum`，基类是 `System.Enum`（`HasFlag`、`ToString` 由此而来）；第 3 遍定底层类型，冒号后面的整数类型，没写是 `int`。`struct enum` / `class enum` 还报 NYX2001。
+- **不带数据的 enum**：第 1 遍和 class 一起声明（`SourceNamedTypeSymbol` 的语法也可以是 `EnumDeclarationSyntax`），`TypeKind.Enum`，基类是 `System.Enum`（`HasFlag`、`ToString` 由此而来）；第 3 遍定底层类型，冒号后面的整数类型，没写是 `int`。`struct enum` / `class enum` 见下一节。
   - case 是 enum 类型的常量字段（`SourceEnumCaseSymbol`），和 Roslyn 读出的 .NET 枚举成员一个样子：`Element.Fire`、`ConsoleColor.Red` 都绑定成 `BoundFieldAccess`，`ConstantValue` 是底层类型的值。
   - case 的值第一次被问到时才算（见下面的 `ConstantEvaluator`）：写了值的，按底层类型作期望的类型绑定那个表达式，结果是整数常量或者本 enum 的常量（`Layer.Ground | Layer.Water`），值放得进底层类型就行。这同 C#：`byte` 的 enum 里 `case A = 1 << 3` 可以，虽然 `1 << 3` 是 `int`。没写值的按位置从 0 数。第 4 遍之后（所有成员的签名都有了）`Declarer.CheckCaseValues` 把每个 case 的值算一遍，同时查 NYX2056。
   - 成员：函数、静态函数、计算属性同 class，`self` 的类型是 enum 本身。带 `set` 的属性还报 NYX2001（C# 那边是 extension 属性，给它赋值要另外降级）。enum 里的 `Main` 不算程序入口：extension 成员当不了入口。
@@ -261,13 +261,27 @@ roadmap 上 M2 的验收是 hello world 和几个算法小程序能跑、断点�
   - 初始值经过别的常量又用到自己时，再次进入的那一次得到“不是常量”，整个环于是都是 `static readonly`，按 C# 的规则依次初始化，不报错（C# 的 `static readonly` 同样允许）。只有 enum case 成环报 NYX2083：case 的值必须是常量。
 - **默认参数值**：第 4 遍只查顺序（NYX2086），值在第 5 遍和函数体一起绑定（`BindDefaultValue`，存进 `BoundProgram.DefaultValues`）。同 C#，可以是常量、`T?` 的 `null`、放进 `T?` 的常量、C# struct 的全零 `new S()`；最后一种要选中的构造函数是 Roslyn 给元数据里的 struct 补的那个（`IsImplicitlyDeclared`），struct 自己声明的无参构造函数会执行代码，当不了默认值。其余报 NYX2082，引用了不是常量的 `static let` 时说出是哪一个。
 
+### 带数据的 enum（2026-11-12，ADR-0024、ADR-0039、ADR-0046）
+
+- **类型**：`struct enum` 的 `TypeKind` 是 `Struct`，`class enum` 的是 `Class`，同它们在 C# 里的样子，值类型、引用类型的规则（赋值复制、`T?`、null 检查）因此照常适用；`SourceNamedTypeSymbol.IsDataEnum` 标出它们，`IsDeclaredEnum` 标出四种 enum。基类同 Nyxel 的 struct 和 class。冒号后面的接口还报 NYX2001。
+- **case**：同不带数据的 enum，是 `SourceEnumCaseSymbol`，类型是 enum 本身；不是常量（`IsConst` 只对 `TypeKind.Enum`）。带数据的 case 的数据项（`Items`）是参数符号，第 4 遍声明，规则同元组类型的元素：写默认值、`ref` 报 NYX2001，重名报 NYX2031。`struct enum` 的数据项放在值里，`CheckStructLayout` 一并查“包含自己”（NYX2079）。
+- **值**：
+  - `AiState.Idle`：成员访问找到不带数据的 case，绑定成 `BoundEnumCase`（没有实参）；带数据的报 NYX2089，消息列出数据项。
+  - `new Damage.Burn(12, 3)`：`BindObjectCreation` 先看限定名（`BindCreated`），左边是 `struct enum` / `class enum`、右边是带数据的 case 时，把数据项当参数走一遍重载决议（只有一个候选，`ParametersOf` 认 case），按位置或带名字，规则同调用的实参，绑定成 `BoundEnumCase`。`new 某个 enum.不带数据的 case()` 报 NYX2088，普通 enum 和 .NET 的枚举也一样。`new AiState()` 报 NYX2041。
+  - `hit.Amount`：找不到成员时，名字是某个 case 的数据项就报 NYX2090，给出 `match` 的写法（数据项名转成 camelCase 当局部变量名，`Naming.CamelCase`）。
+- **`is`**：`CaseNamedBy` 认 `struct enum` / `class enum` 的 case，绑定成 `BoundIsCase`，同普通 enum。`static let` 的值不是常量，写在 `is` 后面照旧报 NYX2082。
+- **`==`**：`class enum` 是引用类型，走引用类型的 `==`（降级出的 record 比内容）；`struct enum` 由 `ResolveStructEnumEquality` 处理，`E?` 同 `int?` 提升。一边是不带数据的 case 名时报 NYX2055（`IsEnumCase` 认 `BoundEnumCase`）。`<` 这类运算符报 NYX2021。
+- **数组**：`struct enum` 的第一个 case 不带数据时全零就是它，`new array<E>(n)` 可以；否则、以及 `class enum`，报 NYX2064（`ZeroIsValid`）。
+- **成员**：同不带数据的 enum（ADR-0029）。`self` 的类型是 enum 本身；`struct enum` 的函数同 struct 的 `self` 函数，不能改值。enum 里的 `Main` 不算程序入口，四种 enum 都一样。
+- 还没做：`match` 取数据（随 `match` 一步做）；接口；`struct enum` 当参数的默认值（ADR-0029 留下的）；别的程序集里 Nyxel 编出的带数据 enum（读元数据时按 C# 的 union / closed 类认出来，M3）。
+
 和设计不同、或者还没做到的：
 
 - 被 lambda 捕获的 `var` 不收窄（ADR-0042 决策 2）还没实现：Binder 还不支持 lambda，随“lambda 和泛型推断”一步做，做法见“流分析”。
 - 元数据的类型只看 public 的；嵌套类型、泛型方法、扩展方法、事件、`params` 的展开形式还不支持。
 - C# 的 `[NotNullWhen]` 这类特性不读：`if string.IsNullOrEmpty(s) { return }` 之后 `s` 仍是 `string?`。收窄只来自 ADR 列的几种写法。
 - `match` 的 `case null`、`case is T` 收窄随 `match` 一步做；`match` 里两个 .NET 枚举的别名 case 都列出来时报重复（ADR-0040），`case` 标签引用常量（ADR-0038），也随 `match` 做。
-- 带数据的 enum（`struct enum`、`class enum`）还报 NYX2001：C# 那边怎么判断是哪个 case、怎么取数据还没定（ADR-0024、ADR-0029 留下的）。
+- 带数据的 enum 里，case 名和它自己的数据项同名（`case Score(Score: int)`）、和 union 的成员同名（`Value`、`HasValue`、`TryGetValue`），或者 enum 自己的成员叫这些名字时，生成的 C# 编不过（C# 的成员不能和所在类型同名），按 NYX2053 内部错误出来。要么改名规则，要么补一条 Nyxel 自己的检查，碰到再定。
 - 公开的成员用了 `internal` 的类型（`public func F(e: Element)`，`Element` 没写 `public`）还没有检查，到 Roslyn 报 CS0051，按 NYX2053 内部错误出来。
 - struct 的 `==` 还不能用（NYX2021）：ADR-0030 的“struct 比内容”要编译器生成 `Equals` / `GetHashCode` / `==`，随运算符一步做。`self = 新值`（在 `var self` 函数里整个换掉）照旧报 NYX2028。
 

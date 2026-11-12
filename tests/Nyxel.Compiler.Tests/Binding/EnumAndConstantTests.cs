@@ -251,8 +251,7 @@ public class EnumAndConstantTests
     [InlineData("enum E {\n    case A = 1\n}\nclass C {\n    static func F() {\n        let a = new array<E>(2)\n    }\n}", "NYX2085 6:21")]
     [InlineData("flags enum F {\n    case A = 1\n}\nclass C {\n    static func F() {\n        let a = new array<F>(2)\n    }\n}", null)]
     [InlineData("import System\n\nclass C {\n    static func F() {\n        let a = new array<ConsoleKey>(2)\n    }\n}", null)]
-    // Not yet: enums with data, and a 'set' in an enum.
-    [InlineData("struct enum S {\n    case A(X: int)\n}", "NYX2001 1:1")]
+    // Not yet: a 'set' in an enum. Enums with data are in DataEnumTests.
     [InlineData("enum E {\n    case A\n\n    static property P: int {\n        get = 1\n        set(v) { }\n    }\n}", "NYX2001 6:9")]
     public void EnumDeclarations(string source, string? expected) =>
         Assert.Equal(expected is null ? [] : [expected], DiagnosticsOf(source));

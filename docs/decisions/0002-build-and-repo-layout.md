@@ -1,6 +1,6 @@
 # ADR-0002: .NET 10、仓库布局与构建方式
 
-- 状态：已接受
+- 状态：已接受（2026-11-12 修订）
 - 日期：2026-10-02
 
 ## 背景
@@ -9,7 +9,10 @@
 
 ## 决策
 
-- **只面向 .NET 10**（`net10.0`），`global.json` 固定 10.0.100 + `latestFeature` 前滚。
+- **.NET 10，分两处定**（ADR-0047）：
+  - 工具链（构建 Nyxel 的 SDK、Nyxel 的工具运行的 .NET）：.NET 10。`global.json` 固定 10.0.100 + `latestFeature` 前滚，项目都是 `net10.0`。
+  - 编出的脚本、Nyxel.Runtime、Nyxel.Host 的最低要求：.NET 10，宿主是 .NET 10 或更新的都能加载。以后由项目选面向的版本（M4）。
+  - 生成的 C# 用 C# 15，和面向哪个 .NET 无关。
 - **顶层目录**：`src/`（产品代码）、`tests/`、`samples/`、`tools/`、`docs/` 并列放在根目录；根目录只放配置和面向用户的文档。
 - **解决方案**用 `Nyxel.slnx`（XML 格式），不用 `.sln`。
 - **公共 MSBuild 设置**在 `Directory.Build.props`：Nullable、警告即错误、构建时检查代码风格、确定性构建；`UseArtifactsOutput` 把所有产物放到 `build/dotnet/`，源码树里不出现 bin/obj。
@@ -24,10 +27,15 @@
 - .NET 9：短期支持版本（STS），支持到 2026-11-10，一个多月后就到期。.NET 10 是长期支持版本（LTS，2025-11 发布，支持到 2028-11）。
 - 同时编译 netstandard2.1 以兼容 Unity（Mono / IL2CPP）：Unity 的 C# 版本和运行时能力落后，会把运行时库限制在老 API 上。项目定位是由 native 引擎宿主的 CoreCLR，不做。
 - `.sln`：格式里全是 GUID 和配置矩阵，人和 Agent 都难读难改。`.slnx` 从 .NET SDK 9.0.200、VS 17.13、Rider 2024.3 起支持，.NET 10 的 `dotnet new sln` 默认就是它。
+- **只写“只面向 .NET 10”**（原来的写法）：工具链和脚本的要求写在一起。.NET 11 发布时用户问升级要改什么，才看出编出的脚本跟着编译器运行的 .NET 走，升工具链就逼着引擎一起升。2026-11-12 分成两处，见 ADR-0047。
 - 自定义 `BaseOutputPath`（EnginePlayground 的做法）：要分别设 bin 和 obj，`UseArtifactsOutput` 是 .NET 8 起官方给的一站式写法。
 
 ## 后果
 
-- 使用者必须装 .NET 10 SDK / 运行时。
+- 开发 Nyxel 要装 .NET 10 SDK；运行脚本的宿主要 .NET 10 或更新的运行时。
 - 没有用 .slnx 的老 IDE 打不开解决方案，可以直接打开单个 csproj。
 - CI 有格式检查，提交前要跑 `dotnet format`。
+
+## 修订记录
+
+- 2026-11-12：“只面向 .NET 10”分成工具链和脚本的最低要求两处，生成的 C# 用 C# 15，见 ADR-0047。

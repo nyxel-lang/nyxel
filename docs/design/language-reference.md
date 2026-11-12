@@ -717,11 +717,12 @@ let hit = new Damage.Burn(Amount = 12, Seconds = 3)     // 带数据的 case：n
 - 每种情况一行，以 `case` 开头。
 - 全部 case 不带数据时写 `enum`，等同 C# 的枚举。有带数据的 case 时必须写明放在哪（ADR-0039）：`struct enum` 是值类型，`class enum` 在堆上，见“带数据的 enum 放在哪”；光写 `enum` 是编译错误，诊断列出两种写法。文档里“带数据的 enum”泛指两种。
 - case 的数据同元组（ADR-0024）：
-  - 每一项都有名字，用 PascalCase。C# 那边是同名的属性（`hit.Amount`）。
+  - 每一项都有名字，用 PascalCase。C# 那边是 case 类型上的同名属性（`Damage.Burn` 的 `Amount`），见“带数据的 enum 在 C# 那边”。
   - 创建时按位置写（`new Damage.Burn(12, 3)`）或带名字写，同元组的值。
   - 用 `match` 按位置取出，同元组的解构（见“match”）。数据创建以后不能改。
 - 判断是不是某个 case 一律写 `is`：`hit is Damage.Burn`、`state is SlimeState.Idle`，得到 bool，不取数据（ADR-0024、ADR-0040，见“类型检查与收窄”）。`x == 类型.Case` 是编译错误，诊断给出 `is`。
 - 两个 enum 值之间用 `==`（ADR-0024）：带数据的（两种都是）比内容，同一个 case、数据逐个相等就相等，能当字典的键；不带数据的比值。
+- `ToString`（ADR-0046）：不带数据的 case 是名字（`Fire`、`Idle`）；带数据的同创建时的写法，`Burn(Amount = 12, Seconds = 3)`，值按字符串插值的规则转成文字。
 
 ### enum 的成员与接口（ADR-0029、ADR-0045）
 
@@ -772,7 +773,6 @@ let e = Element.Parse("ice")
 - `struct enum` 和 `class enum` 能实现接口，接口的成员写在 enum 里；只能实现接口，不能继承类。
 - 不带数据的 `enum` 不能实现接口：它是 C# 的 enum，C# 的 enum 不能实现接口。要实现就写成 `struct enum`（见“带数据的 enum 放在哪”）。
 - C# 那边：不带数据的 enum 的成员在同一命名空间里生成的 `名字Extensions` 类的 extension 块里，C# 照样写 `element.Weakness()`、`Element.Parse("ice")`；`static let` 是这个类的字段（值是常量时是 `const`），另有同名的 extension 静态属性，C# 写 `Tile.Gate`，要常量的地方写 `TileExtensions.Gate`。`class enum` 的成员在抽象基类上，`struct enum` 的在 struct 上。
-- 待定：带数据 enum 的 `ToString`。
 
 ### enum 的值与 flags（ADR-0024、ADR-0040、ADR-0045）
 
@@ -847,6 +847,47 @@ class enum Condition {                  // 引用类型：堆上的对象，可�
   }
   ```
   在 Nyxel 里用法和 enum 一样，大小也一样。代价：C# 那边是 struct，不是 enum（C# 的 `switch` case 标签、`Enum.GetValues`、`(int)e`、编辑器和序列化器按 enum 处理都用不了）；`Element.Fire` 不是常量，不能当参数的默认值；不能写值，存档和与引擎对齐的值用普通 enum。
+
+### 带数据的 enum 在 C# 那边（ADR-0046）
+
+```csharp
+// class enum Condition { case Leaf(Check: func() -> bool)  case Not(Inner: Condition)  case Always }
+public closed record class Condition
+{
+    public sealed record class Leaf : Condition { ... public Func<bool> Check { get; } }
+    public sealed record class Not : Condition { ... public Condition Inner { get; } }
+    public sealed record class Always : Condition { ... }
+}
+
+// struct enum AiState { case Idle  case Chasing(Target: Entity) }
+[Union]
+public readonly record struct AiState : IUnion
+{
+    public readonly record struct Idle { ... }
+    public readonly record struct Chasing { ... public Entity Target { get; } }
+    public AiState(Idle value) { ... }
+    public AiState(Chasing value) { ... }
+    public bool TryGetValue(out Chasing value) { ... }
+    ...
+}
+
+// 手写的 C#（C# 15），两种 enum 写法一样：
+var text = state switch
+{
+    AiState.Idle => "idle",
+    AiState.Chasing(var target) => $"chasing {target}",
+};                                      // 列全了，不用写 _
+AiState s = new AiState.Chasing(player);
+```
+
+- 这一节说的是引用 Nyxel 编出的程序集、手写的 C# 代码看到什么（ADR-0029）。Nyxel 里两种 enum 的用法不受影响。
+- `class enum` 是 C# 15 的 closed record 层次：抽象基类加上 `closed`，每个 case 是嵌套在里面的 `sealed record class`。别的程序集不能继承它。
+- `struct enum`（包括只实现接口、不带数据的）是自己写的 union：每个 case 一个嵌套的 `readonly record struct`，`TryGetValue` 取数据不装箱。存放是表示哪个 case 的标记加上各 case 数据的位置，都是私有的；`default` 是第一个 case。
+- case 的数据是 case 类型上的属性（`Damage.Burn` 的 `Amount`），C# 先判断出 case 才拿得到。构造函数的参数是 camelCase。
+- 不带数据的 case 在 Nyxel 里是值（`AiState.Idle`、`Condition.Always`，不分配）；C# 写 `new AiState.Idle()`。
+- `==`、`GetHashCode` 由 record 生成：同一个 case、数据逐个用 .NET 的 `Equals` 相等（`float` 的 NaN 等于 NaN，`List<T>` 比的是不是同一个列表）。
+- 引擎那边是 C# 14 的项目也能用：`class enum` 的 `switch` 要写 `_`；`struct enum` 当普通 struct，用构造函数创建（`new AiState(new AiState.Chasing(p))`），用 `TryGetValue` 取数据。
+- 用到了 C# 15 的功能，编出的程序集仍然只要求 .NET 10（ADR-0047）。
 
 ### 构造
 

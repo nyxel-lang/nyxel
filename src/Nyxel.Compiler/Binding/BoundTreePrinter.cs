@@ -46,6 +46,7 @@ internal static class BoundTreePrinter
             BoundIndexerAccess indexer => SymbolDisplay.Format(indexer.Indexer),
             BoundCall call => SymbolDisplay.Format(call.Method),
             BoundObjectCreation creation => creation.Constructor is { } constructor ? SymbolDisplay.Format(constructor) : "zero",
+            BoundEnumCase enumCase => SymbolDisplay.Format(enumCase.Case),
             BoundUnary unary => unary.OperatorKind.ToString(),
             BoundBinary binary => binary.OperatorKind.ToString(),
             BoundCompoundAssignment compound => compound.OperatorKind.ToString(),

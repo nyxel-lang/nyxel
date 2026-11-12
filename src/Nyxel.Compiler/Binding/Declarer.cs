@@ -89,17 +89,11 @@ internal sealed class Declarer(BinderContext context)
                     }
                     DeclareType(tree, ns, declaration, declaration.Identifier);
                     break;
-                case EnumDeclarationSyntax { IsStruct: false, IsClass: false } enumeration when enumeration.Cases.All(c => c.ParameterList is null):
+                case EnumDeclarationSyntax enumeration when enumeration.IsStruct || enumeration.IsClass || enumeration.Cases.All(c => c.ParameterList is null):
                     DeclareType(tree, ns, enumeration, enumeration.Identifier);
                     break;
-                case EnumDeclarationSyntax enumeration:
-                    // 'struct enum' and 'class enum' come next. An enum with data that says neither was reported by
-                    // the parser (NYX1235), and so was a 'class enum' without data (NYX1236).
-                    var hasData = enumeration.Cases.Any(c => c.ParameterList is not null);
-                    if (enumeration.IsStruct || (enumeration.IsClass && hasData))
-                    {
-                        context.Report(DiagnosticDescriptors.NotSupportedYet, tree, enumeration.KindKeyword!, enumeration.IsStruct ? "A 'struct enum'" : "A 'class enum'");
-                    }
+                case EnumDeclarationSyntax:
+                    // An enum with data that says neither 'struct enum' nor 'class enum' was reported by the parser (NYX1235).
                     break;
                 default:
                     context.Report(DiagnosticDescriptors.NotSupportedYet, tree, DeclarationKeyword(member), Describe(member));
@@ -149,7 +143,7 @@ internal sealed class Declarer(BinderContext context)
         var tree = type.SyntaxTree;
         var names = new HashSet<string>();
         var hasInit = false;
-        var isEnum = type.TypeKind == TypeKind.Enum;
+        var isEnum = type.IsDeclaredEnum;
         if (type.Syntax is EnumDeclarationSyntax enumeration)
         {
             // Without written values the cases count from 0 in order, missing names included, as in C#.
@@ -158,13 +152,16 @@ internal sealed class Declarer(BinderContext context)
                 var @case = enumeration.Cases[ordinal];
                 if (!@case.Identifier.IsMissing && CheckName(@case.Identifier))
                 {
-                    type.AddMember(new SourceEnumCaseSymbol(type, @case, ordinal, context.Constants));
+                    var symbol = new SourceEnumCaseSymbol(type, @case, ordinal, context.Constants);
+                    symbol.DeclaredItems = DeclareCaseItems(symbol, scope);
+                    type.AddMember(symbol);
                 }
             }
         }
         foreach (var member in type.MemberSyntaxes)
         {
-            if (type.TypeKind == TypeKind.Struct)
+            // An enum's 'protected' was reported by the parser (NYX1207).
+            if (type.TypeKind == TypeKind.Struct && !isEnum)
             {
                 CheckNotProtected(tree, member.Modifiers);
             }
@@ -265,7 +262,7 @@ internal sealed class Declarer(BinderContext context)
             HasVarSelf = self?.VarKeyword is not null,
         };
         // An enum's 'var self' was reported by the parser (NYX1208).
-        if (self?.VarKeyword is { } varKeyword && type.TypeKind == TypeKind.Class)
+        if (self?.VarKeyword is { } varKeyword && type.TypeKind == TypeKind.Class && !type.IsDeclaredEnum)
         {
             context.Report(DiagnosticDescriptors.VarSelfInClass, tree, varKeyword);
         }
@@ -429,13 +426,15 @@ internal sealed class Declarer(BinderContext context)
                 || (visited.Add(structType) && StoredMembers(structType).Any(m => Contains(m.Type, target, visited)));
         }
 
+        // A struct enum holds the data of its cases in place too (ADR-0024).
         static IEnumerable<(string Name, SyntaxNode Location, TypeSymbol Type)> StoredMembers(SourceNamedTypeSymbol type) =>
-            type.GetMembers().Select(m => m switch
+            type.GetMembers().SelectMany(m => m switch
             {
-                SourceFieldSymbol { IsStatic: false } field => (field.Name, (SyntaxNode)field.Syntax.Identifier, field.Type),
-                SourcePropertySymbol { IsStatic: false, IsAuto: true } property => (property.Name, property.Syntax.Identifier, property.Type),
-                _ => default,
-            }).Where(m => m.Name is not null);
+                SourceFieldSymbol { IsStatic: false } field => [(field.Name, (SyntaxNode)field.Syntax.Identifier, field.Type)],
+                SourcePropertySymbol { IsStatic: false, IsAuto: true } property => [(property.Name, property.Syntax.Identifier, property.Type)],
+                SourceEnumCaseSymbol @case => @case.Items.OfType<SourceParameterSymbol>().Select(i => (i.Name, (SyntaxNode)i.Identifier, i.Type)),
+                _ => [],
+            });
     }
 
     private SourceMethodSymbol DeclareInit(SourceNamedTypeSymbol type, InitDeclarationSyntax syntax, ImportScope scope)
@@ -480,6 +479,41 @@ internal sealed class Declarer(BinderContext context)
     }
 
     /// <summary>
+    /// The data of a case, <c>case Burn(Amount: int, Seconds: float)</c>: named and typed as the elements of a tuple
+    /// type (ADR-0024), so no default values and no <c>ref</c>.
+    /// </summary>
+    private ImmutableArray<ParameterSymbol> DeclareCaseItems(SourceEnumCaseSymbol @case, ImportScope scope)
+    {
+        if (@case.Syntax.ParameterList is not { } list)
+        {
+            return [];
+        }
+        var tree = @case.ContainingType.SyntaxTree;
+        var result = ImmutableArray.CreateBuilder<ParameterSymbol>();
+        var names = new HashSet<string>();
+        foreach (var item in list.Parameters.OfType<ParameterSyntax>())
+        {
+            if (item.RefKindKeyword is { } refKind)
+            {
+                context.Report(DiagnosticDescriptors.NotSupportedYet, tree, refKind, $"'{refKind.Text}' in the data of a case");
+            }
+            if (item.Default is { } defaultValue)
+            {
+                context.Report(DiagnosticDescriptors.NotSupportedYet, tree, defaultValue, "A default value in the data of a case");
+            }
+            if (!item.Identifier.IsMissing && !names.Add(item.Identifier.Text))
+            {
+                var first = list.Parameters.OfType<ParameterSyntax>().First(p => p.Identifier.Text == item.Identifier.Text);
+                context.Report(DiagnosticDescriptors.NameAlreadyDeclared, tree, item.Identifier, item.Identifier.Text,
+                    tree.Text.GetLinePosition(first.Identifier.Position).Line + 1);
+            }
+            var type = item.Type is { } typeSyntax ? scope.BindType(typeSyntax) : ErrorTypeSymbol.Instance;
+            result.Add(new SourceParameterSymbol(@case, item, type, result.Count));
+        }
+        return result.ToImmutable();
+    }
+
+    /// <summary>
     /// Two cases of an enum can't have the same value (ADR-0040): a case is one of several choices. Working the values
     /// out also reports a value that isn't a constant or doesn't fit.
     /// </summary>
@@ -507,8 +541,8 @@ internal sealed class Declarer(BinderContext context)
     private SourceMethodSymbol? FindEntryPoint()
     {
         var valid = new List<SourceMethodSymbol>();
-        // An enum's functions become C# extension members, which can't be an entry point.
-        foreach (var main in _types.Where(t => t.TypeKind != TypeKind.Enum).SelectMany(t => t.GetMembers("Main")).OfType<SourceMethodSymbol>().Where(m => m.IsStatic))
+        // An enum's functions become C# extension members, which can't be an entry point; so it is for every enum.
+        foreach (var main in _types.Where(t => !t.IsDeclaredEnum).SelectMany(t => t.GetMembers("Main")).OfType<SourceMethodSymbol>().Where(m => m.IsStatic))
         {
             var tree = main.ContainingType.SyntaxTree;
             if (main.IsAsync)

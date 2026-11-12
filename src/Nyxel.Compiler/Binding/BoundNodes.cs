@@ -226,6 +226,18 @@ internal sealed class BoundObjectCreation(SyntaxNode syntax, NamedTypeSymbol typ
     public ImmutableArray<BoundArgument> Arguments { get; } = arguments;
 }
 
+/// <summary>
+/// A value of a case of a <c>struct enum</c> or <c>class enum</c> (ADR-0024): <c>AiState.Idle</c> without data,
+/// <c>new Damage.Burn(12, 3)</c> with its data. The type is the enum.
+/// </summary>
+internal sealed class BoundEnumCase(SyntaxNode syntax, SourceEnumCaseSymbol @case, ImmutableArray<BoundArgument> arguments)
+    : BoundExpression(syntax, @case.ContainingType)
+{
+    public SourceEnumCaseSymbol Case { get; } = @case;
+
+    public ImmutableArray<BoundArgument> Arguments { get; } = arguments;
+}
+
 /// <summary><c>new array&lt;T&gt;(n)</c>, <c>new array2d&lt;T&gt;(w, h)</c> (ADR-0020).</summary>
 internal sealed class BoundArrayCreation(SyntaxNode syntax, ArrayTypeSymbol type, ImmutableArray<BoundExpression> lengths) : BoundExpression(syntax, type)
 {

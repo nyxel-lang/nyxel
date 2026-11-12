@@ -24,7 +24,7 @@ internal sealed class SourceNamedTypeSymbol : NamedTypeSymbol
         _containingNamespace = containingNamespace;
     }
 
-    /// <summary>The <see cref="TypeDeclarationSyntax"/>, or the <see cref="EnumDeclarationSyntax"/> of an enum without data.</summary>
+    /// <summary>The <see cref="TypeDeclarationSyntax"/> or <see cref="EnumDeclarationSyntax"/>.</summary>
     public MemberDeclarationSyntax Syntax { get; }
 
     public SyntaxTree SyntaxTree { get; }
@@ -39,13 +39,25 @@ internal sealed class SourceNamedTypeSymbol : NamedTypeSymbol
 
     public override string Name => Identifier.Text;
 
-    public override TypeKind TypeKind => Syntax.Kind switch
+    /// <summary>
+    /// An enum without data is a C# enum; a <c>struct enum</c> is a struct and a <c>class enum</c> a class, as they are
+    /// in C# (ADR-0046), with <see cref="IsDataEnum"/> set.
+    /// </summary>
+    public override TypeKind TypeKind => Syntax switch
     {
-        SyntaxKind.StructDeclaration => TypeKind.Struct,
-        SyntaxKind.InterfaceDeclaration => TypeKind.Interface,
-        SyntaxKind.EnumDeclaration => TypeKind.Enum,
+        EnumDeclarationSyntax { IsStruct: true } => TypeKind.Struct,
+        EnumDeclarationSyntax { IsClass: true } => TypeKind.Class,
+        EnumDeclarationSyntax => TypeKind.Enum,
+        { Kind: SyntaxKind.StructDeclaration } => TypeKind.Struct,
+        { Kind: SyntaxKind.InterfaceDeclaration } => TypeKind.Interface,
         _ => TypeKind.Class,
     };
+
+    /// <summary>Declared with <c>enum</c>, of any of the four kinds (plain, flags, <c>struct enum</c>, <c>class enum</c>).</summary>
+    public bool IsDeclaredEnum => Syntax is EnumDeclarationSyntax;
+
+    /// <summary>A <c>struct enum</c> or <c>class enum</c> (ADR-0024, ADR-0039): its cases can carry data.</summary>
+    public bool IsDataEnum => Syntax is EnumDeclarationSyntax { IsStruct: true } or EnumDeclarationSyntax { IsClass: true };
 
     /// <summary>A <c>flags enum</c> (ADR-0024): its values combine with <c>|</c>, <c>&amp;</c>, <c>^</c> and <c>~</c>.</summary>
     public bool IsFlags => Syntax is EnumDeclarationSyntax { IsFlags: true };
@@ -268,15 +280,25 @@ internal sealed class SourceFieldSymbol(SourceNamedTypeSymbol containingType, Fi
 }
 
 /// <summary>
-/// A case of an enum without data: a constant of the enum, as the members of a C# enum are (ADR-0024). Its value is
-/// the one written, or its position among the cases when none is written; working it out binds the written value.
+/// A case of an enum. In an enum without data it is a constant of the enum, as the members of a C# enum are
+/// (ADR-0024): its value is the one written, or its position among the cases when none is written; working it out
+/// binds the written value. In a <c>struct enum</c> or <c>class enum</c> it isn't a constant: a case without data is a
+/// value (<c>AiState.Idle</c>), one with data is created with <c>new</c> and its <see cref="Items"/>.
 /// </summary>
 internal sealed class SourceEnumCaseSymbol(SourceNamedTypeSymbol containingType, EnumCaseDeclarationSyntax syntax, int ordinal, IConstantValues constants) : FieldSymbol
 {
     public EnumCaseDeclarationSyntax Syntax => syntax;
 
-    /// <summary>The case's position among the cases, from 0: its value when the enum writes none.</summary>
+    /// <summary>The case's position among the cases, from 0: its value when the enum writes none, its tag in a <c>struct enum</c>.</summary>
     public int Ordinal => ordinal;
+
+    /// <summary><c>case Burn(Amount: int, Seconds: float)</c>: created with <c>new</c>, its data given like a tuple's (ADR-0024).</summary>
+    public bool HasData => syntax.ParameterList is not null;
+
+    /// <summary>The data of the case, named as in a tuple type: <c>Amount</c>, <c>Seconds</c>.</summary>
+    public ImmutableArray<ParameterSymbol> Items => DeclaredItems;
+
+    internal ImmutableArray<ParameterSymbol> DeclaredItems { get; set; } = [];
 
     public override string Name => syntax.Identifier.Text;
 
@@ -290,10 +312,10 @@ internal sealed class SourceEnumCaseSymbol(SourceNamedTypeSymbol containingType,
 
     public override bool IsReadOnly => true;
 
-    public override bool IsConst => true;
+    public override bool IsConst => containingType.TypeKind == TypeKind.Enum;
 
-    /// <summary>The value as the enum's underlying type (<c>byte</c> for <c>enum Tile : byte</c>); null after an error.</summary>
-    public override object? ConstantValue => constants.ValueOf(this);
+    /// <summary>The value as the enum's underlying type (<c>byte</c> for <c>enum Tile : byte</c>); null after an error and for a data enum.</summary>
+    public override object? ConstantValue => IsConst ? constants.ValueOf(this) : null;
 }
 
 /// <summary>

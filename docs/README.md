@@ -25,7 +25,7 @@
 | ADR | 决策 |
 |---|---|
 | [0001](decisions/0001-project-identity.md) | 名称 Nyxel、发音 /ˈnɪksəl/、`.nyxel` / `.nyxelproj`、Apache-2.0 |
-| [0002](decisions/0002-build-and-repo-layout.md) | 只面向 .NET 10；src / tests / samples / tools / docs 并列；slnx、产物进 build/、NuGet 版本集中管理 |
+| [0002](decisions/0002-build-and-repo-layout.md) | 工具链和脚本的最低要求都是 .NET 10（ADR-0047）；src / tests / samples / tools / docs 并列；slnx、产物进 build/、NuGet 版本集中管理 |
 | [0003](decisions/0003-design-goals.md) | 设计优先级：读者能正确理解 > Agent 能一次写对 > .NET 互操作 > 性能 > 手写省键 |
 | [0004](decisions/0004-compile-to-csharp-via-roslyn.md) | 编译模型：自研前端，降级成 C# 交给进程内 Roslyn 出 dll + pdb，`#line` 映射回 .nyxel |
 | [0005](decisions/0005-syntax-family.md) | 语法风格：现代花括号系（关键字开头的声明、类型后置、无分号、条件无括号但必须有花括号） |
@@ -69,5 +69,7 @@
 | [0043](decisions/0043-if-then-else-try-value-form.md) | 当值用的 `if` 写 `if c then a else b`（`then` 是保留字，`then` / `else` 可以放下一行行首、不能放行尾）；当值用的 `try` 写 `try a catch e: T -> b`；`->` 在分支里只跟在 `case`、`catch` 后面；原来的 `if c -> a else -> b` 是错误；不加不带值的 `match`；语句形式的 `if` 不写 `then` |
 | [0044](decisions/0044-auto-property-values-no-setter-only-struct-setters.md) | 实现属性和 struct 时补的三条：自动属性的值同字段（只有 `get` 的同 `let` 字段，能在 `init` 里赋值；初始值可以不写，规则同字段）；属性必须有 `get`；struct 上给属性赋值算“改”（setter 同 `var self` 方法，`let` 的 struct 和副本上不行）；改了 ADR-0008、0011、0032 |
 | [0045](decisions/0045-enum-case-either-side-ordering-static-let.md) | 实现不带数据的 enum 时补的三条：case 名写在 `==` 哪一边都报错（NYX2055），别名也算；同一个 enum 的两个值能比大小、不能做算术（要算先 `as int`）；enum 里能写 `static let`（case 的别名能写在 `is` 后面，和 enum 有关的常量）；改了 ADR-0029、0040 |
+| [0046](decisions/0046-data-enum-csharp-shape.md) | 带数据的 enum 在 C# 那边：`class enum` 是 C# 15 closed 的 record 层次，`struct enum` 是自己写的 union struct（每个 case 一个嵌套的 record struct，`TryGetValue` 不装箱），C# 的 `switch` 能查出漏掉的 case；case 的数据是 case 类型上的属性；`ToString` 同创建时的写法（`Burn(Amount = 12, Seconds = 3)`）；改了 ADR-0024、0029 |
+| [0047](decisions/0047-dotnet-versions-tools-scripts-csharp.md) | .NET 版本分两处定：工具链 .NET 10（下次在 .NET 12 评估），编出的脚本最低要求 .NET 10（以后由项目选）；生成的 C# 用 C# 15，缺的特性类型自己声明，Roslyn 正式支持前用 Preview；改了 ADR-0002 |
 
 新建决策：`./tools/new-adr.ps1 <slug>`。

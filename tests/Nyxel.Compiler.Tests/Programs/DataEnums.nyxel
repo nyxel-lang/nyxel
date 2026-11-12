@@ -1,0 +1,99 @@
+namespace Programs
+
+import System
+import System.Collections.Generic
+
+/// A value type: the state of an AI, switched every frame without allocating (ADR-0024, ADR-0039).
+struct enum AiState {
+    case Idle
+    case Chasing(Target: string)
+    case Fleeing(From: string, Until: float)
+
+    public property IsCalm: bool { get = self is AiState.Idle }
+
+    public func Next(self, enemy: string) -> AiState {
+        if self is AiState.Idle {
+            return new AiState.Chasing(enemy)
+        }
+        if self is AiState.Chasing {
+            return new AiState.Fleeing(From = enemy, Until = 2.5)
+        }
+        return AiState.Idle
+    }
+
+    public static let Start: AiState = AiState.Idle
+}
+
+/// On the heap: a case can hold the enum itself (ADR-0039).
+class enum Condition {
+    case Always
+    case Never
+    case Not(Inner: Condition)
+    case Both(Left: Condition, Right: Condition)
+
+    public func Depth(self) -> int {
+        if self is Condition.Not {
+            return 1
+        }
+        return 0
+    }
+}
+
+/// Data of the same type in several cases.
+struct enum Damage {
+    case Physical(Amount: int)
+    case Burn(Amount: int, Seconds: float)
+    case Heal(Amount: int)
+}
+
+class Brain {
+    var state: AiState = AiState.Start
+
+    static func Main() {
+        let brain = new Brain()
+        Console.WriteLine(brain.state)
+        Console.WriteLine(brain.state.IsCalm)
+        brain.state = brain.state.Next("slime")
+        Console.WriteLine(brain.state)
+        brain.state = brain.state.Next("bat")
+        Console.WriteLine(brain.state)
+        Console.WriteLine(brain.state is AiState.Fleeing)
+        Console.WriteLine(brain.state is not AiState.Chasing)
+        brain.state = brain.state.Next("bat")
+        Console.WriteLine($"{brain.state}, calm: {brain.state.IsCalm}")
+
+        // == compares the contents: the same case with equal data (ADR-0024).
+        let a = new AiState.Chasing(Target = "slime")
+        let b = new AiState.Chasing("slime")
+        Console.WriteLine(a == b)
+        Console.WriteLine(a != new AiState.Chasing("bat"))
+        Console.WriteLine(a == AiState.Start)
+        let maybe: AiState? = a
+        Console.WriteLine(maybe == b)
+
+        // Arrays of a struct enum start as the first case, when it has no data.
+        let states = new array<AiState>(2)
+        Console.WriteLine(states[1])
+
+        let hits = new List<Damage>()
+        hits.Add(new Damage.Physical(5))
+        hits.Add(new Damage.Burn(Seconds = 3, Amount = 12))
+        hits.Add(new Damage.Heal(4))
+        for hit in hits {
+            Console.WriteLine(hit)
+        }
+        Console.WriteLine(hits[0] == new Damage.Heal(5))
+        Console.WriteLine(hits[0] == new Damage.Physical(5))
+
+        // A class enum: references, compared by their contents too.
+        let c = new Condition.Not(new Condition.Both(Condition.Always, Condition.Never))
+        Console.WriteLine(c)
+        Console.WriteLine(c.Depth())
+        Console.WriteLine(c == new Condition.Not(new Condition.Both(Condition.Always, Condition.Never)))
+        Console.WriteLine(c is Condition.Not and Condition.Always is Condition.Always)
+        let o: object = Condition.Never
+        Console.WriteLine(o is Condition.Never)
+        let boxed: object = a
+        Console.WriteLine(boxed is AiState.Chasing)
+    }
+}

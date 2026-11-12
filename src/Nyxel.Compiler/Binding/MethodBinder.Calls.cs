@@ -91,11 +91,15 @@ internal sealed partial class MethodBinder
         {
             return NotSupported(with.WithKeyword, "'with'");
         }
-        var type = _scope.BindType(syntax.Type);
+        var (type, @case) = BindCreated(syntax.Type);
         var arguments = BindArguments(syntax.ArgumentList);
         if (type.IsError || arguments.Any(a => a.Value.HasErrors))
         {
             return Bad(syntax);
+        }
+        if (@case is not null)
+        {
+            return BindEnumCaseCreation(syntax, @case, arguments);
         }
 
         if (type is ArrayTypeSymbol array)
@@ -123,6 +127,7 @@ internal sealed partial class MethodBinder
         var reason = named.IsStatic ? "it is a static class"
             : named.TypeKind == TypeKind.Interface ? "it is an interface"
             : named.TypeKind == TypeKind.Enum ? "it is an enum"
+            : named is SourceNamedTypeSymbol { IsDataEnum: true } ? $"it is an enum; its values are its cases ('new {named.Name}.Case(...)' for one with data)"
             : named.TypeKind == TypeKind.Delegate ? "it is a function type"
             : named.IsAbstract ? "it is abstract"
             : null;
@@ -147,13 +152,46 @@ internal sealed partial class MethodBinder
     }
 
     /// <summary>
+    /// What <c>new</c> creates: a type, or the case of a <c>struct enum</c> or <c>class enum</c> in
+    /// <c>new Damage.Burn(...)</c> (ADR-0024). A case without data, of any enum, is reported: it is a value already.
+    /// </summary>
+    private (TypeSymbol Type, SourceEnumCaseSymbol? Case) BindCreated(TypeSyntax syntax)
+    {
+        if (syntax is not QualifiedNameSyntax { Right: IdentifierNameSyntax { Identifier.IsMissing: false } name } qualified)
+        {
+            return (_scope.BindType(syntax), null);
+        }
+        var left = _scope.BindNamespaceOrType(qualified.Left);
+        if (left is NamedTypeSymbol enumType && (enumType.TypeKind == TypeKind.Enum || enumType is SourceNamedTypeSymbol { IsDataEnum: true })
+            && enumType.GetMembers(name.Identifier.Text).OfType<FieldSymbol>().FirstOrDefault(f => ReferenceEquals(f.Type, enumType)) is { } field)
+        {
+            if (field is SourceEnumCaseSymbol { HasData: true } dataCase)
+            {
+                return (enumType, dataCase);
+            }
+            Report(DiagnosticDescriptors.CaseWithoutDataIsValue, syntax, $"{qualified.Left}.{name.Identifier.Text}");
+            return (ErrorTypeSymbol.Instance, null);
+        }
+        return (_scope.BindMember(left, qualified), null);
+    }
+
+    /// <summary><c>new Damage.Burn(12, 3)</c>, <c>new Damage.Burn(Amount = 12, Seconds = 3)</c>: the data as a call's arguments (ADR-0024).</summary>
+    private BoundExpression BindEnumCaseCreation(ObjectCreationExpressionSyntax syntax, SourceEnumCaseSymbol @case, ImmutableArray<PendingArgument> arguments)
+    {
+        var resolved = Resolve(syntax, $"{@case.ContainingType.Name}.{@case.Name}", [@case], arguments);
+        return resolved is null ? Bad(syntax) : new BoundEnumCase(syntax, @case, resolved.Arguments);
+    }
+
+    /// <summary>
     /// Whether an array of the type can start as .NET makes it, all zeros (ADR-0023): <c>T?</c>, numbers, <c>bool</c>,
     /// <c>char</c>, enums and the structs of C#. Not classes, interfaces or arrays (the elements would be null) and not
-    /// Nyxel's own structs (zero would skip their <c>init</c>).
+    /// Nyxel's own structs (zero would skip their <c>init</c>), except a <c>struct enum</c> whose first case has no
+    /// data: all zeros is that case (ADR-0024).
     /// </summary>
     private static bool ZeroIsValid(TypeSymbol element) =>
         element.IsError || element.IsNullable || element.TypeKind == TypeKind.Enum
-        || (element.TypeKind == TypeKind.Struct && element is not SourceNamedTypeSymbol);
+        || (element.TypeKind == TypeKind.Struct && element is not SourceNamedTypeSymbol)
+        || (element is SourceNamedTypeSymbol { IsDataEnum: true, TypeKind: TypeKind.Struct } structEnum && structEnum.Cases.FirstOrDefault() is { HasData: false });
 
     private BoundExpression BindElementAccess(ElementAccessExpressionSyntax syntax)
     {
@@ -310,6 +348,7 @@ internal sealed partial class MethodBinder
     {
         MethodSymbol method => method.Parameters,
         PropertySymbol property => property.Parameters,
+        SourceEnumCaseSymbol @case => @case.Items,
         _ => [],
     };
 

@@ -165,7 +165,7 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
    - `class enum` 只能实现接口，不能继承类：它的基类是编译器生成的。
    - `struct enum` 当接口用时会装箱（复制一份到堆上），同 struct。
    - 不带数据的 `struct enum` 在 Nyxel 里的用法和 enum 一样（`Element.Fire`、`match`、`is`、`==`），大小也一样，全零的值是第一个 case。代价在 C# 那边和常量上：
-     - 手写的 C# 看到的是 struct，不是 enum：不能把 `Element.Fire` 写在 `switch` 的 case 标签里，不能用 `Enum.GetValues` / `Enum.Parse`，不能 `(int)e`。引擎编辑器、序列化器靠反射认 enum（下拉框、存成名字或数字），也认不出它。
+     - 手写的 C# 看到的是 struct（union，ADR-0046），不是 enum：C# 15 能按 case 的类型 `switch`（`e switch { Element.Fire => ... }`），但不能把 `Element.Fire` 当常量写在 case 标签里，不能用 `Enum.GetValues` / `Enum.Parse`，不能 `(int)e`。引擎编辑器、序列化器靠反射认 enum（下拉框、存成名字或数字），也认不出它。
      - `Element.Fire` 不是编译期常量，不能当参数的默认值。C# 里 struct 参数的默认值只能是 `default`，所以至多全零的第一个 case 可以，M2 再定。
      - 要写值（存档、和引擎对齐）就只能用普通 enum。
 
@@ -203,11 +203,12 @@ C# 那边的几件事用 Roslyn 5.9（C# 14）验证过：
   - 实现 / 重写事件时参数和委托一致。
   - `field` 当名字用时（找不到这个名字）提示决策 2 的写法。
   - 不带数据的 `struct enum` 当参数默认值。
-- 留给降级（M2 / M3）：enum 成员的翻译（extension 块、基类、struct）；C# 那边怎么判断一个 enum 值是哪个 case、怎么取数据（ADR-0024 留下的）。候选方向（用户提议）：给带数据的 enum 和 `struct enum` 生成一个内嵌的 C# enum 列出所有 case，再加一个属性返回当前是哪个 case，手写的 C# 就能 `switch (e.Case) { case Element.Kind.Fire: ... }`，也能用 `Enum.GetValues`、转成整数。它解决不了 `Element.Fire` 本身不是常量（参数默认值、特性的参数），也不会让编辑器和序列化器把 `struct enum` 当成 enum。
-- 待定：extension 里的索引器（等 C# 支持）；带数据 enum 的 `ToString`。
+- 留给降级（M2 / M3）：enum 成员的翻译（extension 块、基类、struct）。C# 那边怎么判断一个 enum 值是哪个 case、怎么取数据（ADR-0024 留下的）定在 ADR-0046：`class enum` 是 closed 的 record 层次，`struct enum`（包括不带数据的）是 union，C# 15 的 `switch` 能查出漏掉的 case。这里原来记着用户提议的方向（内嵌一个 C# enum 列出所有 case，再加一个属性返回当前是哪个 case），挪进了 ADR-0046 的备选方案。
+- 待定：extension 里的索引器（C# 15 已经支持，还没讨论）。带数据 enum 的 `ToString` 定在 ADR-0046：同创建时的写法。
 
 ## 修订记录
 
 - 2026-11-04：例子里的 `self == Element.Fire` 改成 `self is Element.Fire`（判断 case 一律 `is`），见 ADR-0040。
 - 2026-11-10：例子里的 `public init` 去掉 `public`，见 ADR-0042。
 - 2026-11-12：决策 4 的 enum 里能写 `static let`（原来一律不能写字段），见 ADR-0045。
+- 2026-11-12：C# 那边判断 case、取数据和 `ToString` 定了（决策 5 的代价、后果；原来的候选方向是内嵌一个 C# enum），见 ADR-0046。

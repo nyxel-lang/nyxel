@@ -15,6 +15,7 @@ public static class SymbolDisplay
             $"init {FormatType(constructor.ContainingType)}({FormatParameters(constructor)})",
         MethodSymbol method => $"{FormatType(method.ContainingType)}.{method.Name}({FormatParameters(method)})"
             + (method.ReturnsVoid ? "" : $" -> {FormatType(method.ReturnType)}"),
+        SourceEnumCaseSymbol { HasData: true } dataCase => $"{FormatType(dataCase.ContainingType)}.{dataCase.Name}({string.Join(", ", dataCase.Items.Select(FormatParameter))})",
         FieldSymbol field => $"{FormatType(field.ContainingType)}.{field.Name}",
         PropertySymbol { IsIndexer: true } indexer => $"{FormatType(indexer.ContainingType)}[{string.Join(", ", indexer.Parameters.Select(FormatParameter))}]",
         PropertySymbol property => $"{FormatType(property.ContainingType)}.{property.Name}",

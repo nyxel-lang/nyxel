@@ -158,28 +158,43 @@ internal sealed class ImportScope
                 }
                 return found is NamedTypeSymbol named ? Construct(named, typeArguments) : found;
             case QualifiedNameSyntax qualified:
-                var left = BindNamespaceOrType(qualified.Left);
-                if (left is null or ErrorTypeSymbol || qualified.Right.Identifier.IsMissing)
-                {
-                    return ErrorTypeSymbol.Instance;
-                }
-                var rightArguments = TypeArguments(qualified.Right);
-                var name = qualified.Right.Identifier.Text;
-                Symbol? member = left switch
-                {
-                    NamespaceSymbol ns => (Symbol?)ns.GetTypes(name).FirstOrDefault(t => t.Arity == rightArguments.Length)
-                        ?? (rightArguments.Length == 0 ? ns.GetNamespace(name) : null),
-                    TypeSymbol type => type.GetMembers(name).OfType<NamedTypeSymbol>().FirstOrDefault(t => t.Arity == rightArguments.Length),
-                    _ => null,
-                };
-                if (member is null)
-                {
-                    return Error(DiagnosticDescriptors.MemberNotFound, qualified.Right, name, SymbolDisplay.Format(left));
-                }
-                return member is NamedTypeSymbol nested ? Construct(nested, rightArguments) : member;
+                return BindQualified(BindNamespaceOrType(qualified.Left), qualified);
             default:
                 return ErrorTypeSymbol.Instance;
         }
+    }
+
+    /// <summary>
+    /// The type <c>Left.Right</c> names once its left is bound with <see cref="BindNamespaceOrType"/>, as
+    /// <see cref="BindType"/> gives it: problems are reported and give the error type.
+    /// </summary>
+    public TypeSymbol BindMember(Symbol? left, QualifiedNameSyntax qualified) => BindQualified(left, qualified) switch
+    {
+        TypeSymbol type => type,
+        NamespaceSymbol ns => Error(DiagnosticDescriptors.TypeNotFound, qualified, ns.FullName),
+        _ => ErrorTypeSymbol.Instance,
+    };
+
+    private Symbol? BindQualified(Symbol? left, QualifiedNameSyntax qualified)
+    {
+        if (left is null or ErrorTypeSymbol || qualified.Right.Identifier.IsMissing)
+        {
+            return ErrorTypeSymbol.Instance;
+        }
+        var rightArguments = TypeArguments(qualified.Right);
+        var name = qualified.Right.Identifier.Text;
+        Symbol? member = left switch
+        {
+            NamespaceSymbol ns => (Symbol?)ns.GetTypes(name).FirstOrDefault(t => t.Arity == rightArguments.Length)
+                ?? (rightArguments.Length == 0 ? ns.GetNamespace(name) : null),
+            TypeSymbol type => type.GetMembers(name).OfType<NamedTypeSymbol>().FirstOrDefault(t => t.Arity == rightArguments.Length),
+            _ => null,
+        };
+        if (member is null)
+        {
+            return Error(DiagnosticDescriptors.MemberNotFound, qualified.Right, name, SymbolDisplay.Format(left));
+        }
+        return member is NamedTypeSymbol nested ? Construct(nested, rightArguments) : member;
     }
 
     private ImmutableArray<TypeSymbol> TypeArguments(SimpleNameSyntax name) =>

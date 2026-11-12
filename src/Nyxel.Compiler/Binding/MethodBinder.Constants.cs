@@ -97,13 +97,16 @@ internal sealed partial class MethodBinder
     private static bool IsZero(object? value) => value is decimal m ? m == 0 : ConstantFolder.AsInteger(value) is { IsZero: true };
 
     /// <summary>
-    /// A name of a case: a case of a Nyxel enum, a constant of a .NET enum (the constants an enum declares are its
-    /// cases), or an alias, a <c>static let</c> of a Nyxel enum whose value is a constant of the enum (ADR-0045).
+    /// A name of a case: a case of a Nyxel enum (any of the four kinds), a constant of a .NET enum (the constants an
+    /// enum declares are its cases), or an alias, a <c>static let</c> of a Nyxel enum whose value is a constant of the
+    /// enum (ADR-0045).
     /// </summary>
-    private static bool IsCaseName(FieldSymbol field) =>
-        field.ContainingType.TypeKind == TypeKind.Enum && ReferenceEquals(field.Type, field.ContainingType) && field.IsConst;
+    private static bool IsCaseName(FieldSymbol field) => field is SourceEnumCaseSymbol
+        || (field.ContainingType.TypeKind == TypeKind.Enum && ReferenceEquals(field.Type, field.ContainingType) && field.IsConst);
 
-    private static bool IsEnumCase(BoundExpression expression) => expression is BoundFieldAccess { Field: var field } && IsCaseName(field);
+    private static bool IsEnumCase(BoundExpression expression) =>
+        expression is BoundFieldAccess { Field: var field } && IsCaseName(field)
+        || expression is BoundEnumCase { Case.HasData: false };
 
     /// <summary>
     /// <c>state == SlimeState.Idle</c>: whether a value is a case is asked with <c>is</c> (ADR-0040), on either side of
@@ -125,6 +128,27 @@ internal sealed partial class MethodBinder
         var check = $"{value} {(syntax.Kind == SyntaxKind.EqualsExpression ? "is" : "is not")} {caseName}";
         Report(DiagnosticDescriptors.CaseComparedWithEquals, syntax.OperatorToken, caseName.ToString(), SymbolDisplay.FormatType(caseValue!.Type), check);
         return true;
+    }
+
+    /// <summary>
+    /// <c>==</c> and <c>!=</c> between two values of one <c>struct enum</c> compare their contents (ADR-0024): the same
+    /// case with equal data. Lifted for <c>E?</c>, as for numbers (ADR-0041). A <c>class enum</c> is a reference type,
+    /// compared like the others: the record C# makes of it compares the contents too (ADR-0046).
+    /// </summary>
+    private BoundExpression? ResolveStructEnumEquality(SyntaxNode syntax, BinaryOperatorKind operatorKind, BoundExpression left, BoundExpression right)
+    {
+        if (operatorKind is not (BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual)
+            || left.Type.NonNullable is not SourceNamedTypeSymbol { IsDataEnum: true, TypeKind: TypeKind.Struct } enumType
+            || !ReferenceEquals(enumType, right.Type.NonNullable))
+        {
+            return null;
+        }
+        if (left.Type.IsNullable || right.Type.IsNullable)
+        {
+            var nullable = _context.Table.GetNullableType(enumType);
+            return MakeBinary(syntax, operatorKind, Convert(left, nullable), Convert(right, nullable), _context.Bool);
+        }
+        return MakeBinary(syntax, operatorKind, left, right, _context.Bool);
     }
 
     /// <summary>
@@ -219,7 +243,7 @@ internal sealed partial class MethodBinder
             hadErrors = true;
             return null;
         }
-        if (left is not NamedTypeSymbol { TypeKind: TypeKind.Enum } enumType
+        if (left is not NamedTypeSymbol enumType || !(enumType.TypeKind == TypeKind.Enum || enumType is SourceNamedTypeSymbol { IsDataEnum: true })
             || enumType.GetMembers(name.Identifier.Text).OfType<FieldSymbol>().FirstOrDefault(f => ReferenceEquals(f.Type, enumType)) is not { } field)
         {
             return null;

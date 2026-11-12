@@ -60,7 +60,9 @@ public sealed class NyxelCompilation
 
     /// <summary>The C# the program lowers to (<c>--emit-cs</c>); null when the program has errors.</summary>
     public string? EmitCSharp() =>
-        GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error) ? null : Lowerer.Lower(Bind());
+        GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error) ? null : Lower();
+
+    private string Lower() => Lowerer.Lower(Bind(), name => Symbols.References.GetTypeByMetadataName(name) is not null);
 
     /// <summary>
     /// Compiles to an assembly and its portable PDB, with the .nyxel files embedded so that a debugger shows them
@@ -74,8 +76,10 @@ public sealed class NyxelCompilation
         {
             return new NyxelEmitResult(false, diagnostics);
         }
-        var csharp = Lowerer.Lower(Bind());
-        var tree = CSharpSyntaxTree.ParseText(csharp, new CSharpParseOptions(LanguageVersion.Latest), path: $"{AssemblyName}.g.cs", encoding: Encoding.UTF8);
+        var csharp = Lower();
+        // C# 15's unions and closed classes are preview features of Roslyn 5.9; once a Roslyn package supports C# 15
+        // itself, this becomes LanguageVersion.CSharp15 (ADR-0047).
+        var tree = CSharpSyntaxTree.ParseText(csharp, new CSharpParseOptions(LanguageVersion.Preview), path: $"{AssemblyName}.g.cs", encoding: Encoding.UTF8);
         var embedded = SyntaxTrees
             .Where(t => t.Text.Path.Length > 0)
             .Select(t => CodeAnalysis.EmbeddedText.FromBytes(t.Text.Path, Encoding.UTF8.GetBytes(t.Text.ToString()), CodeAnalysis.Text.SourceHashAlgorithm.Sha256));

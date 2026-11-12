@@ -47,6 +47,12 @@ ADR-0004 留下的选择：用列跟踪的文本写出器生成 C#，再 `CSharp
   - 这些成员里的 `self` 写成接收者 `self`（Nyxel 的名字不会是 `self`，撞不了名）。
   - Nyxel 代码调用它们一律经过这个类，写成 C# 为 extension 成员生成的静态方法：`global::Game.ElementExtensions.Weakness(e)`、`ElementExtensions.get_IsHot(e)`、`ElementExtensions.Parse("ice")`。因为生成的 C# 不写 `using`，extension 不在作用域里；而且 C# 查 `Element.Parse` 时先找到 `System.Enum.Parse`，轮不到扩展。
   - enum 里的 `static let`（ADR-0045）是这个类的字段，值是常量时是 `const`；非私有的再在静态的 extension 块里加一个同名属性（`public static Tile Gate => global::Game.TileExtensions.Gate;`），C# 代码 `using` 了命名空间后写 `Tile.Gate`，`switch` 标签这种要常量的地方写 `TileExtensions.Gate`。Nyxel 代码读它写 `global::Game.TileExtensions.Gate`。
+  - 带数据的 enum（ADR-0046，`LowerDataEnum`）：每个 case 是嵌套的 record 类型，数据是只读属性，构造函数的参数是 camelCase（`Naming.CamelCase`，带名字的实参也按它写），另有 `Deconstruct` 和 `ToString`（`Burn(Amount = {...}, Seconds = {...})`，值用 C# 的插值转成文字）。enum 自己的成员写在外层类型上。case 的声明行映射到嵌套类型那一行。
+    - `class enum` 是 `closed record class`，case 是 `sealed record class`。不带数据的 case 共用一个对象，放在外层的 `internal static readonly` 字段 `__nyxel_名字` 里，Nyxel 的 `Condition.Always` 读它。`x is Condition.Not` 是 C# 的类型模式。
+    - `struct enum` 是 `[Union] readonly record struct`，实现 `IUnion`。case 是 `readonly record struct`。标记是 `internal readonly byte __nyxel_Tag`（case 的序号，所以全零是第一个 case），数据放在 `private readonly` 的 `__nyxel_0`、`__nyxel_1`…里：按 case 的顺序分配，同一个 C# 类型的字段在不同 case 之间共用。每个 case 一个构造函数、一个 `TryGetValue`，加上 `Value`、`HasValue`、`ToString`。相等由 record struct 按全部字段生成，没用到的字段始终是零。
+    - Nyxel 创建 `struct enum` 的值写成 `new global::Game.AiState(new global::Game.AiState.Chasing(target))`。
+    - `x is AiState.Chasing`：C# 15 把 union 上的模式都当成“是哪个 case 类型”（`x is AiState { ... }` 是 CS8121），所以值的类型就是这个 enum 时写成 `x.__nyxel_Tag == 1`；`AiState?` 和 `object` 调生成的 `internal static bool __nyxel_Is(AiState? value, int tag)`，`object` 先 `as AiState?`。
+    - 生成的程序集用到的 `UnionAttribute`、`IUnion`、`IsClosedTypeAttribute`，引用里没有时在 `namespace System.Runtime.CompilerServices` 里声明成 `internal`（`DeclareMissingAttributes`，ADR-0047）。Roslyn 用 `LanguageVersion.Preview` 编译生成的 C#（Roslyn 5.9 把这两个功能当预览版）。
   - `x is Element.Fire` 是 C# 的常量模式 `x is global::Game.Element.Fire`，对 `Element?` 和 `object` 的值也是同样的意思；别名写成 `x is global::Game.TileExtensions.Gate`。
 - **常量**（ADR-0038）：值是常量的 `static let` 写成 `const`（不写 `static`、`readonly`），初始值照原来的表达式写，C# 折叠出的值和 Binder 的相同。
 - **默认参数值**：照表达式写在参数后面（`int count = global::Game.Spawner.DefaultCount`）。`null` 写成 `null`，放进 `int?` 的常量写成常量本身（`int? n = 3`）：C# 在这里只认常量、`null` 和 `new S()`，`(int?)3` 不算常量。

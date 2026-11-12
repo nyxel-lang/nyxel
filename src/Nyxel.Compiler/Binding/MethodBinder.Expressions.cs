@@ -489,6 +489,10 @@ internal sealed partial class MethodBinder
         var members = LookupMembers(receiver.Type, name);
         if (members.Length == 0)
         {
+            if (!onType && ReportCaseDataAsMember(syntax, receiver.Type, name))
+            {
+                return Bad(syntax, receiver);
+            }
             Report(DiagnosticDescriptors.MemberNotFound, syntax.Name, name, SymbolDisplay.FormatType(receiver.Type));
             return Bad(syntax, receiver);
         }
@@ -524,6 +528,7 @@ internal sealed partial class MethodBinder
         var instance = isStatic ? null : receiver;
         return member switch
         {
+            SourceEnumCaseSymbol { ContainingType.IsDataEnum: true } @case => EnumCaseValue(syntax, @case),
             FieldSymbol field => new BoundFieldAccess(syntax, instance, field),
             PropertySymbol property => new BoundPropertyAccess(syntax, instance, property),
             _ => Bad(syntax, receiver),
@@ -828,6 +833,10 @@ internal sealed partial class MethodBinder
         if (!concatenation && (left.Type.NonNullable.TypeKind == TypeKind.Enum || right.Type.NonNullable.TypeKind == TypeKind.Enum))
         {
             return ResolveEnumBinary(syntax, operatorToken, operatorKind, left, right) ?? NotDefined();
+        }
+        if (ResolveStructEnumEquality(syntax, operatorKind, left, right) is { } enumEquality)
+        {
+            return enumEquality;
         }
         switch (operatorKind)
         {

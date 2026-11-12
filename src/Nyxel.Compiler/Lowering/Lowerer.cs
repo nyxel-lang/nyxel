@@ -12,9 +12,10 @@ namespace Nyxel.Compiler.Lowering;
 /// <summary>
 /// Lowering (docs/design/lowering.md): the bound program as C# source. Every Nyxel statement is one C# line with a
 /// <c>#line</c> span directive back to it (docs/design/debug-mapping.md); types are written in full with
-/// <c>global::</c>, so C#'s name lookup has nothing to decide.
+/// <c>global::</c>, so C#'s name lookup has nothing to decide. <paramref name="referencesHave"/> tells whether the
+/// referenced assemblies have a type, by its metadata name.
 /// </summary>
-internal sealed class Lowerer(BoundProgram program)
+internal sealed class Lowerer(BoundProgram program, Func<string, bool> referencesHave)
 {
     private readonly CSharpWriter _writer = new();
     private SourceText _source = null!;
@@ -24,7 +25,7 @@ internal sealed class Lowerer(BoundProgram program)
     // How 'self' is written: 'this', or the receiver of an enum's extension block.
     private string _self = "this";
 
-    public static string Lower(BoundProgram program) => new Lowerer(program).LowerProgram();
+    public static string Lower(BoundProgram program, Func<string, bool> referencesHave) => new Lowerer(program, referencesHave).LowerProgram();
 
     private string LowerProgram()
     {
@@ -50,23 +51,36 @@ internal sealed class Lowerer(BoundProgram program)
                 _writer.WriteHidden("}");
             }
         }
+        DeclareMissingAttributes();
         return _writer.ToString();
     }
 
     private void LowerType(SourceNamedTypeSymbol type)
     {
         _source = type.SyntaxTree.Text;
+        _self = "this";
         if (type.TypeKind == TypeKind.Enum)
         {
             LowerEnum(type);
             return;
         }
-        _self = "this";
+        if (type.IsDataEnum)
+        {
+            LowerDataEnum(type);
+            return;
+        }
         var access = type.Accessibility == Accessibility.Public ? "public" : "internal";
         var keyword = type.TypeKind == TypeKind.Struct ? "struct" : "class";
         _writer.WriteHidden($"{access} {keyword} {Escape(type.Name)}");
         _writer.WriteHidden("{");
         _writer.Indent();
+        LowerMembers(type);
+        _writer.Unindent();
+        _writer.WriteHidden("}");
+    }
+
+    private void LowerMembers(SourceNamedTypeSymbol type)
+    {
         foreach (var member in type.GetMembers())
         {
             switch (member)
@@ -86,6 +100,199 @@ internal sealed class Lowerer(BoundProgram program)
                     _writer.WriteHidden($"public {Escape(type.Name)}() {{ }}");
                     break;
             }
+        }
+    }
+
+    /// <summary>
+    /// A <c>struct enum</c> or <c>class enum</c> (ADR-0046). Each case is a nested record type with its data as
+    /// get-only properties, a constructor whose parameters are the data in camelCase (ADR-0024), <c>Deconstruct</c> and
+    /// a <c>ToString</c> written like creating it in Nyxel: <c>Burn(Amount = 12, Seconds = 3)</c>. The enum's own
+    /// members are on the outer type.
+    /// <list type="bullet">
+    /// <item>A <c>class enum</c> is C# 15's closed hierarchy of records: the abstract base can't be derived from in other
+    /// assemblies, and C# 15's <c>switch</c> knows when it lists every case. Each case is a sealed record class; a case
+    /// without data is one shared object, in an internal static field of the base.</item>
+    /// <item>A <c>struct enum</c> is a union struct of C# 15 written out: a tag (the case's ordinal, so that all zeros
+    /// is the first case) and the data of every case in private fields, those of one type shared between cases. A
+    /// constructor per case, <c>Value</c> and <c>HasValue</c> (<c>IUnion</c>) and a <c>TryGetValue</c> per case
+    /// let C# 15 switch on it without boxing. It is a readonly record struct, so its equality compares the tag and
+    /// the fields: the same case with equal data, the fields a case doesn't use staying zero.</item>
+    /// </list>
+    /// </summary>
+    private void LowerDataEnum(SourceNamedTypeSymbol type)
+    {
+        var access = type.Accessibility == Accessibility.Public ? "public" : "internal";
+        var cases = type.Cases.ToList();
+        var name = TypeName(type);
+        if (type.TypeKind == TypeKind.Class)
+        {
+            _writer.WriteHidden($"{access} closed record class {Escape(type.Name)}");
+            _writer.WriteHidden("{");
+            _writer.Indent();
+            foreach (var @case in cases)
+            {
+                LowerCaseType(@case, $"sealed record class {Escape(@case.Name)} : {name}");
+            }
+            foreach (var @case in cases.Where(c => !c.HasData))
+            {
+                _writer.WriteHidden($"internal static readonly {CaseTypeName(@case)} {SharedCaseField(@case)} = new {CaseTypeName(@case)}();");
+            }
+            LowerMembers(type);
+            _writer.Unindent();
+            _writer.WriteHidden("}");
+            return;
+        }
+
+        _writer.WriteHidden("[global::System.Runtime.CompilerServices.Union]");
+        _writer.WriteHidden($"{access} readonly record struct {Escape(type.Name)} : global::System.Runtime.CompilerServices.IUnion");
+        _writer.WriteHidden("{");
+        _writer.Indent();
+        foreach (var @case in cases)
+        {
+            LowerCaseType(@case, $"readonly record struct {Escape(@case.Name)}");
+        }
+
+        // The data of the cases in fields of their types, a case using each field at most once.
+        var slotTypes = new List<string>();
+        var slotOf = new Dictionary<ParameterSymbol, int>(ReferenceEqualityComparer.Instance);
+        foreach (var @case in cases)
+        {
+            var used = new HashSet<int>();
+            foreach (var item in @case.Items)
+            {
+                var itemType = TypeName(item.Type);
+                var slot = Enumerable.Range(0, slotTypes.Count).FirstOrDefault(i => !used.Contains(i) && slotTypes[i] == itemType, -1);
+                if (slot < 0)
+                {
+                    slot = slotTypes.Count;
+                    slotTypes.Add(itemType);
+                }
+                used.Add(slot);
+                slotOf.Add(item, slot);
+            }
+        }
+        var tagType = cases.Count <= byte.MaxValue + 1 ? "byte" : "int";
+        _writer.WriteHidden($"internal readonly {tagType} {StructEnumTag};");
+        for (var slot = 0; slot < slotTypes.Count; slot++)
+        {
+            _writer.WriteHidden($"private readonly {slotTypes[slot]} {Slot(slot)};");
+        }
+
+        foreach (var @case in cases)
+        {
+            var sets = @case.Items.Select(i => $" this.{Slot(slotOf[i])} = value.{Escape(i.Name)};");
+            _writer.WriteHidden($"public {Escape(type.Name)}({CaseTypeName(@case)} value) {{ this.{StructEnumTag} = {@case.Ordinal};{string.Concat(sets)} }}");
+        }
+        string Read(SourceEnumCaseSymbol @case) =>
+            $"new {CaseTypeName(@case)}({string.Join(", ", @case.Items.Select(i => $"this.{Slot(slotOf[i])}"))})";
+        var values = string.Concat(cases.Select(c => $"{c.Ordinal} => {Read(c)}, "));
+        _writer.WriteHidden($"public object Value => this.{StructEnumTag} switch {{ {values}_ => null }};");
+        _writer.WriteHidden("public bool HasValue => true;");
+        foreach (var @case in cases)
+        {
+            var isCase = $"this.{StructEnumTag} == {@case.Ordinal}";
+            var value = @case.HasData ? $"{isCase} ? {Read(@case)} : default" : "default";
+            _writer.WriteHidden($"public bool TryGetValue(out {CaseTypeName(@case)} value) {{ value = {value}; return {isCase}; }}");
+        }
+        var texts = string.Concat(cases.Select(c => $"{c.Ordinal} => {CaseText(c, i => $"this.{Slot(slotOf[i])}")}, "));
+        _writer.WriteHidden($"public override string ToString() => this.{StructEnumTag} switch {{ {texts}_ => \"\" }};");
+        _writer.WriteHidden($"internal static bool {StructEnumIs}({name}? value, int tag) => value.HasValue && value.GetValueOrDefault().{StructEnumTag} == tag;");
+        LowerMembers(type);
+        _writer.Unindent();
+        _writer.WriteHidden("}");
+
+        static string Slot(int slot) => $"__nyxel_{slot}";
+    }
+
+    /// <summary>The tag of a <c>struct enum</c>: the ordinal of its case. <c>is</c> reads it (internal to the assembly).</summary>
+    private const string StructEnumTag = "__nyxel_Tag";
+
+    /// <summary>The helper of a <c>struct enum</c> that tells the case of an <c>E?</c> (and of an object, through <c>as E?</c>).</summary>
+    private const string StructEnumIs = "__nyxel_Is";
+
+    /// <summary>A case as a nested record type: the data, the constructor, <c>Deconstruct</c> and <c>ToString</c>.</summary>
+    private void LowerCaseType(SourceEnumCaseSymbol @case, string header)
+    {
+        _writer.WriteMapped(_source, @case.Syntax.Span, $"public {header}");
+        _writer.WriteHidden("{");
+        _writer.Indent();
+        var items = @case.Items;
+        if (items.Length > 0)
+        {
+            var parameters = string.Join(", ", items.Select(i => $"{TypeName(i.Type)} {CaseParameter(i)}"));
+            var sets = string.Concat(items.Select(i => $" this.{Escape(i.Name)} = {CaseParameter(i)};"));
+            _writer.WriteHidden($"public {Escape(@case.Name)}({parameters}) {{{sets} }}");
+            foreach (var item in items)
+            {
+                _writer.WriteHidden($"public {TypeName(item.Type)} {Escape(item.Name)} {{ get; }}");
+            }
+            var outs = string.Join(", ", items.Select(i => $"out {TypeName(i.Type)} {CaseParameter(i)}"));
+            var gets = string.Concat(items.Select(i => $" {CaseParameter(i)} = this.{Escape(i.Name)};"));
+            _writer.WriteHidden($"public void Deconstruct({outs}) {{{gets} }}");
+        }
+        _writer.WriteHidden($"public override string ToString() => {CaseText(@case, i => $"this.{Escape(i.Name)}")};");
+        _writer.Unindent();
+        _writer.WriteHidden("}");
+    }
+
+    /// <summary>A case as text (ADR-0046): <c>"Idle"</c>, or <c>$"Burn(Amount = {...}, Seconds = {...})"</c> with each item read by <paramref name="read"/>.</summary>
+    private static string CaseText(SourceEnumCaseSymbol @case, Func<ParameterSymbol, string> read)
+    {
+        if (@case.Items.Length == 0)
+        {
+            return CSharpLiteral.FormatLiteral(@case.Name, quote: true);
+        }
+        var parts = @case.Items.Select(i => $"{Interpolated(i.Name)} = {{({read(i)})}}");
+        return $"$\"{Interpolated(@case.Name)}({string.Join(", ", parts)})\"";
+
+        static string Interpolated(string text) =>
+            CSharpLiteral.FormatLiteral(text, quote: false).Replace("{", "{{", StringComparison.Ordinal).Replace("}", "}}", StringComparison.Ordinal);
+    }
+
+    /// <summary>A case's data as a parameter of its constructor: camelCase (ADR-0024).</summary>
+    private static string CaseParameter(ParameterSymbol item) => Escape(Naming.CamelCase(item.Name));
+
+    /// <summary>The nested type of a case: <c>global::Game.AiState.Chasing</c>.</summary>
+    private static string CaseTypeName(SourceEnumCaseSymbol @case) => $"{TypeName(@case.ContainingType)}.{Escape(@case.Name)}";
+
+    /// <summary>The field of a <c>class enum</c> that holds the one object of a case without data.</summary>
+    private static string SharedCaseField(SourceEnumCaseSymbol @case) => $"__nyxel_{@case.Name}";
+
+    /// <summary>
+    /// The attributes C# 15's unions and closed classes need (ADR-0047): .NET 10 doesn't have them, so the generated
+    /// assembly declares its own, internal, when its program uses them and the references lack them.
+    /// </summary>
+    private void DeclareMissingAttributes()
+    {
+        var dataEnums = program.Types.Where(t => t.IsDataEnum).ToList();
+        var declarations = new List<string>();
+        if (dataEnums.Any(t => t.TypeKind == TypeKind.Struct))
+        {
+            if (!referencesHave("System.Runtime.CompilerServices.UnionAttribute"))
+            {
+                declarations.Add("[global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Struct, AllowMultiple = false)]");
+                declarations.Add("internal sealed class UnionAttribute : global::System.Attribute { }");
+            }
+            if (!referencesHave("System.Runtime.CompilerServices.IUnion"))
+            {
+                declarations.Add("internal interface IUnion { object Value { get; } }");
+            }
+        }
+        if (dataEnums.Any(t => t.TypeKind == TypeKind.Class) && !referencesHave("System.Runtime.CompilerServices.IsClosedTypeAttribute"))
+        {
+            declarations.Add("[global::System.AttributeUsage(global::System.AttributeTargets.Class, AllowMultiple = false)]");
+            declarations.Add("internal sealed class IsClosedTypeAttribute : global::System.Attribute { }");
+        }
+        if (declarations.Count == 0)
+        {
+            return;
+        }
+        _writer.WriteHidden("namespace System.Runtime.CompilerServices");
+        _writer.WriteHidden("{");
+        _writer.Indent();
+        foreach (var declaration in declarations)
+        {
+            _writer.WriteHidden(declaration);
         }
         _writer.Unindent();
         _writer.WriteHidden("}");
@@ -485,6 +692,7 @@ internal sealed class Lowerer(BoundProgram program)
     private const int PrimaryPrecedence = 16;
     private const int UnaryPrecedence = 15;
     private const int RelationalPrecedence = 11;
+    private const int EqualityPrecedence = 10;
     private const int CoalescePrecedence = 4;
 
     private string Expression(BoundExpression expression, int parentPrecedence = 0)
@@ -517,11 +725,25 @@ internal sealed class Lowerer(BoundProgram program)
                 return ($"{Expression(check.Operand, RelationalPrecedence + 1)} {(check.IsNull ? "is null" : "is not null")}", RelationalPrecedence);
             case BoundIsType isType:
                 return ($"{Expression(isType.Operand, RelationalPrecedence + 1)} {(isType.IsNegated ? "is not" : "is")} {TypeName(isType.TestedType)}", RelationalPrecedence);
+            case BoundIsCase { Case: SourceEnumCaseSymbol { ContainingType: { IsDataEnum: true, TypeKind: TypeKind.Struct } structEnum } structCase } isCase:
+                // A struct enum is a union to C# 15, whose patterns test the case types: the tag says the case
+                // (ADR-0046). An E? or an object goes through the enum's helper, which also says no to null.
+                if (ReferenceEquals(isCase.Operand.Type, structEnum))
+                {
+                    return ($"{Expression(isCase.Operand, PrimaryPrecedence)}.{StructEnumTag} {(isCase.IsNegated ? "!=" : "==")} {structCase.Ordinal}", EqualityPrecedence);
+                }
+                var tested = isCase.Operand.Type is NullableTypeSymbol ? Expression(isCase.Operand) : $"{Expression(isCase.Operand, RelationalPrecedence + 1)} as {TypeName(structEnum)}?";
+                return ($"{(isCase.IsNegated ? "!" : "")}{TypeName(structEnum)}.{StructEnumIs}({tested}, {structCase.Ordinal})", UnaryPrecedence);
             case BoundIsCase isCase:
                 // C#'s constant pattern: the same meaning for a value, an E? and an object (ADR-0040). An alias is a
-                // const of the enum's extension class (ADR-0045).
-                var pattern = isCase.Case is SourceFieldSymbol alias ? ExtensionsName(alias.ContainingType) : TypeName(isCase.Case.ContainingType);
-                return ($"{Expression(isCase.Operand, RelationalPrecedence + 1)} {(isCase.IsNegated ? "is not" : "is")} {pattern}.{Escape(isCase.Case.Name)}", RelationalPrecedence);
+                // const of the enum's extension class (ADR-0045). A class enum's case is its type (ADR-0046).
+                var pattern = isCase.Case switch
+                {
+                    SourceEnumCaseSymbol { ContainingType.IsDataEnum: true } classCase => CaseTypeName(classCase),
+                    SourceFieldSymbol alias => $"{ExtensionsName(alias.ContainingType)}.{Escape(alias.Name)}",
+                    var constant => $"{TypeName(constant.ContainingType)}.{Escape(constant.Name)}",
+                };
+                return ($"{Expression(isCase.Operand, RelationalPrecedence + 1)} {(isCase.IsNegated ? "is not" : "is")} {pattern}", RelationalPrecedence);
             case BoundCoalesce coalesce:
                 var right = coalesce switch
                 {
@@ -552,6 +774,14 @@ internal sealed class Lowerer(BoundProgram program)
                 return ($"{Receiver(call.Receiver, call.Method.ContainingType)}.{Escape(call.Method.Name)}({Arguments(call.Arguments)})", PrimaryPrecedence);
             case BoundObjectCreation creation:
                 return ($"new {TypeName(creation.Type)}({Arguments(creation.Arguments)})", PrimaryPrecedence);
+            case BoundEnumCase { Case: var @case } enumCase:
+                // A class enum's case without data is its one shared object; a struct enum's value is made from the
+                // case's own struct (ADR-0046). Named data goes by the constructor's camelCase names.
+                var data = string.Join(", ", enumCase.Arguments.Select(a => a.Name is null ? Expression(a.Value) : $"{CaseParameter(a.Parameter)}: {Expression(a.Value)}"));
+                var created = $"new {CaseTypeName(@case)}({data})";
+                return @case.ContainingType.TypeKind == TypeKind.Class
+                    ? (@case.HasData ? created : $"{TypeName(@case.ContainingType)}.{SharedCaseField(@case)}", PrimaryPrecedence)
+                    : ($"new {TypeName(@case.ContainingType)}({created})", PrimaryPrecedence);
             case BoundArrayCreation array:
                 return (ArrayCreation(array), PrimaryPrecedence);
             case BoundUnary unary:

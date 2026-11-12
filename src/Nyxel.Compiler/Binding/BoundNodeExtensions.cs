@@ -23,6 +23,7 @@ internal static class BoundNodeExtensions
         BoundArrayAccess array => Of(array.Array).Concat(array.Indices),
         BoundCall call => Of(call.Receiver).Concat(call.Arguments.Select(a => a.Value)),
         BoundObjectCreation creation => creation.Arguments.Select(a => a.Value),
+        BoundEnumCase enumCase => enumCase.Arguments.Select(a => a.Value),
         BoundArrayCreation array => array.Lengths,
         BoundUnary unary => Of(unary.Operand),
         BoundBinary binary => Of(binary.Left, binary.Right),

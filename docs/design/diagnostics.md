@@ -277,6 +277,9 @@ Slime.nyxel(12,21): error NYX1103: '+' can't end a line; move it to the start of
 | `NYX2085` | 没有值为 0 的 case 的 enum 的数组直接 `new`（ADR-0024：全零不是任何一个 case）。flags enum 和 .NET 的枚举可以 | `new array<CookedType>(8)` 写成用 `element` 给出每个元素 |
 | `NYX2086` | 没有默认值的参数写在有默认值的后面（同 C#） | `func F(a: int = 1, b: int)` 把 `b` 挪到前面 |
 | `NYX2087` | enum 的值做算术（`+ - * / %`、移位，ADR-0045：结果可能不是任何一个 case），.NET 的枚举也算 | `level + 1` 写成 `(level as int + 1) as Level` |
+| `NYX2088` | 不带数据的 case 写了 `new`（它本身就是值），四种 enum 和 .NET 的枚举都算 | `new AiState.Idle()` 写成 `AiState.Idle` |
+| `NYX2089` | 带数据的 case 没写 `new` 就当值用（ADR-0024）；消息列出数据项 | `AiState.Chasing` 写成 `new AiState.Chasing(Target = ...)` |
+| `NYX2090` | 把 case 的数据当成员读（ADR-0024：数据用 `match` 取出）；消息给出 `match` 的写法 | `hit.Seconds` 写成 `match hit { case Burn(_, seconds) -> ... }` |
 
 ## 不在语法阶段报的
 

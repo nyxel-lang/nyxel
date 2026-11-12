@@ -1,6 +1,6 @@
 # ADR-0024: 枚举的值和 flags、`x is` 某个 case、`struct enum`、case 的数据同元组
 
-- 状态：已接受（2026-11-04 修订）
+- 状态：已接受（2026-11-12 修订）
 - 日期：2026-10-06
 
 ## 背景
@@ -112,7 +112,7 @@
        case _ -> {}
    }
    ```
-   - 声明同元组类型：每一项都有名字，用 PascalCase。C# 那边是同名的属性（`hit.Amount`），构造函数的参数是 camelCase。
+   - 声明同元组类型：每一项都有名字，用 PascalCase。C# 那边是 case 类型上的同名属性（`Damage.Burn` 的 `Amount`，ADR-0046），构造函数的参数是 camelCase。
    - 创建同元组的值：按位置写 `new Damage.Burn(12, 3)`，或带名字写 `new Damage.Burn(Amount = 12, Seconds = 3)`。
    - `match` 里按位置取出，同解构（ADR-0021）：
      - 名字的个数要和数据项一样，`_` 丢弃不要的。
@@ -141,7 +141,7 @@
 - **值类型：全都是值类型（Swift、Rust）**。坏处有三个：
   - 大的 case 每次赋值都要整个复制。
   - 不能递归，比如行为树的 `case Not(Inner: Condition)`。
-  - C# 那边不能按子类 `switch`。
+  - C# 那边不能按子类 `switch`。（C# 15 的 union 出来以后 struct 也能按 case 的类型 `switch` 了，见 ADR-0046；前两条仍然成立。）
 
   F# 和本 ADR 一样：联合类型默认是引用类型，标 `[<Struct>]` 变成值类型。
 - **值类型：编译器自动选**。坏处：读的人看不出赋值时是复制还是共用。
@@ -149,6 +149,7 @@
 - **`==` 比引用**。坏处：两个内容一样的值不相等；`struct enum` 只能比内容，于是加不加 `struct` 会改变 `==` 的结果。
 - **不带数据的 case 用 `==` 判断也可以**（原来的决定）：读起来自然，但同一个问题两种写法，而且只对不带数据的 case 成立，读者要看声明才知道。2026-11-04 改成一律 `is`，见 ADR-0040。
 - **两个 case 可以是同一个值**（原来没有规则，同 C#）：`match` 列不全，第二个别名分支走不到。2026-11-04 改成编译错误，见 ADR-0040。
+- **case 的数据在 C# 那边是 enum 本身的同名属性（`hit.Amount`）**（原来的写法）：不是那个 case 时读它只能在运行时报错；几个 case 有同名的数据项（`Damage` 的三个 `Amount`）时还要另定规则。2026-11-12 改成 case 类型上的属性，C# 先判断出 case 才拿得到数据，见 ADR-0046。
 - **case 数据：定义处 camelCase，match 按名字取**（ADR-0009 原来的规则，C# 那边转成 PascalCase）。
   - 好处：只取需要的项，顺序无关；给 case 加数据项不影响已有的 match；名字一定和数据项对应。
   - 坏处：和元组是两套规则；不能改名；C# 那边的名字和 Nyxel 不一样。
@@ -177,7 +178,7 @@
     - `struct enum` 的布局：表示哪个 case 的标记，加上各 case 的数据，同类型的位置共用。
     - 带数据 enum 的 `Equals`、`GetHashCode`、`==`。
     - 列全了 case 的 match 遇到不是任何 case 的值（`5 as Element`）时抛异常，同 C# 的 switch 表达式。
-    - C# 那边怎么取 `struct enum` 的数据，到时再定。
+    - C# 那边怎么判断 case、取数据：`class enum` 是 closed 的 record 层次，`struct enum` 是 union（ADR-0046）。
 - 待定：带数据的 enum 实现接口（`enum Damage : IDescribable`）；在 enum 里写方法（现在用扩展）。
 - 错误码见 design/diagnostics.md。
 
@@ -187,3 +188,4 @@
 - 2026-10-16：不带数据的 enum 实现接口时可以写 `struct enum`（决策 6，原来一律是编译错误）；不能写值和底层类型的规则扩大到 `struct enum`（决策 1、2），见 ADR-0029。
 - 2026-11-04：带数据的 enum 必须写明 `struct enum` 或 `class enum`，不再默认在堆上（决策 6、7、8 的例子），见 ADR-0039。
 - 2026-11-04：判断 case 一律 `is`，`x == 类型.Case` 是编译错误（决策 5、7）；两个 case 不能同一个值（决策 1），见 ADR-0040。
+- 2026-11-12：C# 那边 case 的数据是 case 类型上的属性（决策 8，原来是 enum 本身的同名属性），见 ADR-0046。
